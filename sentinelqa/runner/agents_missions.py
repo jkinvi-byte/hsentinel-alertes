@@ -54,11 +54,13 @@ def definition(mode):
     if mode == "qa":
         return qa_agent.definition()
     spec = MISSIONS[mode]
+    # Pas de start_url : chaque session impose sa page de départ. H refuse « about:blank » à la création (422)
+    # et ne relit plus les agents enregistrés avec (500), depuis le 18/11 vers 18 h 40.
     return {
         "name": NOMS[mode], "model": MODELE, **spec,
         "environments": [{
             "id": "hsentinel-lecture", "kind": "web", "host": "cloud",
-            "start_url": "about:blank", "mode": {"type": "visual", "width": 1280, "height": 800},
+            "mode": {"type": "visual", "width": 1280, "height": 800},
             "use_default_browser_profile": False, "persist_browser_profile": False,
         }],
         "tools": [], "skills": [], "subagents": [], "answer_format": None,

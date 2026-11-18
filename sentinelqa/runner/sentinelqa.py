@@ -43,6 +43,7 @@ from hai_agents import Client
 from agents_h import EXPLORATEUR, MODELE, VERIFICATEUR, assurer_agents, preparer_coffres
 from agents_missions import NOMS as AGENTS_MISSIONS, assurer_agent_mission, definition as definition_agent_mission
 from base import Base
+import constats
 from cle_runner import cle_privee, dechiffrer, publier
 from gravite import REGLE as REGLE_GRAVITE, classer, detecter
 from hf import MODELE as MODELE_HF, hypotheses, recouper
@@ -564,6 +565,17 @@ VERITE_COBAYE = ICI.parent / "cobaye" / "VERITE_TERRAIN.json"
 SANS_VERITE = {"failles": [], "controles_sains": []}
 
 
+def publier_constats(base, donnees, audit_id):
+    """Les failles prouvées vont dans `constats` : n8n (W3) en fait les tickets et les e-mails.
+    Une alerte qui échoue (table absente, réseau) ne fait jamais échouer l'audit : elle est journalisée."""
+    try:
+        ids = constats.publier(base, donnees, audit_id)
+        if ids:
+            journal(f"{len(ids)} faille(s) prouvée(s) transmise(s) aux alertes (W3)", "info")
+    except Exception as erreur:
+        journal(f"Alertes non transmises : {erreur.__class__.__name__}", "erreur")
+
+
 def traiter_demande(base, cle, demande):
     """Une demande venue du formulaire de cadrage : déchiffrer, auditer, rendre compte, puis effacer le texte chiffré."""
     audit_id = demande["id"]
@@ -595,6 +607,7 @@ def traiter_demande(base, cle, demande):
         donnees["application"] = demande["application"]
         rapport = ecrire_rapport_local(donnees)
         base.modifier("audits", {"statut": "termine", "fin": maintenant(), "rapport": donnees}, id=f"eq.{audit_id}")
+        publier_constats(base, donnees, audit_id)
         print(f"Rapport : {rapport}", flush=True)
     except BaseException as erreur:
         message = f"{erreur.__class__.__name__} : {erreur}"[:500]
@@ -704,6 +717,7 @@ def main():
     rapport = ecrire_rapport_local(donnees)
     if audit_id:
         base.modifier("audits", {"statut": "termine", "fin": maintenant(), "rapport": donnees}, id=f"eq.{audit_id}")
+        publier_constats(base, donnees, audit_id)
         base.fermer()
     print(f"Rapport : {rapport}", flush=True)
 

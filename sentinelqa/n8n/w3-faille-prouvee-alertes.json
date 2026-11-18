@@ -1,0 +1,1297 @@
+{
+  "name": "HSentinel W3 · Faille prouvée → alertes",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hsentinel-w3-constat",
+        "authentication": "headerAuth",
+        "options": {
+          "onlyRunIf": "={{ $json.body?.type === \"INSERT\" && $json.body?.table === \"constats\" }}"
+        }
+      },
+      "id": "7c29cf47-913f-41fc-9157-6a168a14dd44",
+      "name": "Constat ajouté (webhook Supabase)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        640
+      ],
+      "webhookId": "8e24f935-2df0-456d-9395-613d80e911dc",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HCpZZ4icm6JagCcj",
+          "name": "Secret webhook Supabase W3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "constat-id",
+              "name": "constat_id",
+              "value": "={{ $json.body?.record?.id ?? $json.constat_id }}",
+              "type": "string"
+            },
+            {
+              "id": "github-owner",
+              "name": "github_owner",
+              "value": "jkinvi-byte",
+              "type": "string"
+            },
+            {
+              "id": "github-repo",
+              "name": "github_repo",
+              "value": "hsentinel-alertes",
+              "type": "string"
+            },
+            {
+              "id": "email-equipe",
+              "name": "email_equipe",
+              "value": "jkinvi@eugeniaschool.com",
+              "type": "string"
+            },
+            {
+              "id": "url-releve",
+              "name": "url_releve_base",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6ebf0c03-4a83-41c6-830c-505a3d8a7ad1",
+      "name": "Constat et réglages",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        480,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "541aaa92-50ae-4864-8295-e9595aedd5dc",
+      "name": "Rattrapage toutes les 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://crlqfdvyvtmwdwgafoav.supabase.co/rest/v1/rpc/constats_a_alerter",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "id": "5e3cee8f-3be1-4f15-8d97-ededd829acd9",
+      "name": "Constats à reprendre",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        848
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "supabaseApi": {
+          "id": "GERVgqKs6QhBxvyI",
+          "name": "Supabase hsentinel-dev (clé secrète)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://crlqfdvyvtmwdwgafoav.supabase.co/rest/v1/rpc/preparer_alerte",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_constat_id: $json.constat_id, p_url_releve_base: $json.url_releve_base || null }) }}",
+        "options": {}
+      },
+      "id": "a600797a-2a2f-45da-94b1-4533283eb427",
+      "name": "Préparer alerte",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        720,
+        608
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "supabaseApi": {
+          "id": "GERVgqKs6QhBxvyI",
+          "name": "Supabase hsentinel-dev (clé secrète)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "creer_ticket"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "commenter_ticket"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "227c337b-2584-4cf3-87f2-292fd5b1fd62",
+      "name": "Que faire ?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        960,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "owner": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $(\"Constat et réglages\").item.json.github_owner }}"
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $(\"Constat et réglages\").item.json.github_repo }}"
+        },
+        "title": "={{ $json.titre }}",
+        "body": "={{ $json.corps_ticket }}",
+        "labels": [
+          {
+            "label": "={{ $json.etiquettes[0] }}"
+          },
+          {
+            "label": "={{ $json.etiquettes[1] }}"
+          },
+          {
+            "label": "={{ $json.etiquettes[2] }}"
+          }
+        ],
+        "assignees": []
+      },
+      "id": "20bc1e8a-3262-4c84-8aae-0b284ffa0ed3",
+      "name": "Créer ticket",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1248,
+        288
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "841c5a95-b5b0-4100-a668-5ba6fd3d88e2",
+      "credentials": {
+        "githubApi": {
+          "id": "2PrFcuc2VWVWEkAp",
+          "name": "GitHub hsentinel-alertes"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "owner": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $(\"Constat et réglages\").item.json.github_owner }}"
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $(\"Constat et réglages\").item.json.github_repo }}"
+        },
+        "issueNumber": "={{ $json.github_issue_number }}"
+      },
+      "id": "33005e88-2551-4dd6-83ea-326ae5661271",
+      "name": "Lire ticket",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1248,
+        1008
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "96d92c2b-9515-433a-8c6c-e064dc012e05",
+      "credentials": {
+        "githubApi": {
+          "id": "2PrFcuc2VWVWEkAp",
+          "name": "GitHub hsentinel-alertes"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $(\"Préparer alerte\").item.json.gravite_permet_email }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "leftValue": "={{ $(\"Préparer alerte\").item.json.email_alertes ?? \"\" }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b5ec12c6-518d-479f-a0d6-6d87157db7fe",
+      "name": "E-mail pour la nouvelle faille ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1488,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "issue-number",
+              "name": "issue_number",
+              "value": "={{ $(\"Préparer alerte\").item.json.github_issue_number ?? $(\"Créer ticket\").item.json.number }}",
+              "type": "number"
+            },
+            {
+              "id": "lien-ticket",
+              "name": "lien_ticket",
+              "value": "=https://github.com/{{ $(\"Constat et réglages\").item.json.github_owner }}/{{ $(\"Constat et réglages\").item.json.github_repo }}/issues/{{ $(\"Préparer alerte\").item.json.github_issue_number ?? $(\"Créer ticket\").item.json.number }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dba92c9f-3f8c-46ba-9d54-541c8931b13d",
+      "name": "Préparer e-mail",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2480,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "r3-statut",
+              "name": "statut",
+              "value": "traitee",
+              "type": "string"
+            },
+            {
+              "id": "r3-issue",
+              "name": "issue_number",
+              "value": "={{ $(\"Préparer alerte\").item.json.github_issue_number ?? $(\"Créer ticket\").item.json.number }}",
+              "type": "number"
+            },
+            {
+              "id": "r3-email",
+              "name": "email_envoye",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "r3-erreur",
+              "name": "erreur",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2ab77a97-9562-40d5-996a-66e422383439",
+      "name": "Résultat : sans e-mail",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3248,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $(\"Constat et réglages\").item.json.email_equipe }}",
+        "subject": "[HSentinel] Alerte non envoyée : GitHub injoignable",
+        "message": "=<p>Le ticket GitHub d'une faille prouvée n'a pas pu être créé ou mis à jour après 3 essais. Le rattrapage réessaiera toutes les 15 minutes.</p><ul><li>Constat : {{ $(\"Préparer alerte\").item.json.constat_id }}</li><li>Gravité : {{ $(\"Préparer alerte\").item.json.gravite }}</li><li>Erreur : {{ $json.error?.message ?? $json.error ?? \"inconnue\" }}</li></ul>",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "HSentinel"
+        }
+      },
+      "id": "73114f82-e0ba-4687-a511-444826f1d50d",
+      "name": "Prévenir équipe (GitHub en panne)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2208,
+        1456
+      ],
+      "webhookId": "eeaaef88-7360-4f91-9ab7-f6e9e4a9f46e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "s0yvEXfBgeu3S520",
+          "name": "Gmail Hsentinel"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.state }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "closed"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "75c98e18-a79d-45a1-ba2b-d368d79fb136",
+      "name": "Ticket fermé ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1488,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "edit",
+        "owner": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $(\"Constat et réglages\").item.json.github_owner }}"
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $(\"Constat et réglages\").item.json.github_repo }}"
+        },
+        "issueNumber": "={{ $(\"Préparer alerte\").item.json.github_issue_number }}",
+        "editFields": {
+          "state": "open",
+          "state_reason": "reopened"
+        }
+      },
+      "id": "cd5b50ca-494a-4d6c-ab75-c0e7920d8a48",
+      "name": "Rouvrir ticket",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1728,
+        896
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "a4094331-741f-4b98-b65e-ed05e89b7bad",
+      "credentials": {
+        "githubApi": {
+          "id": "2PrFcuc2VWVWEkAp",
+          "name": "GitHub hsentinel-alertes"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "createComment",
+        "owner": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $(\"Constat et réglages\").item.json.github_owner }}"
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $(\"Constat et réglages\").item.json.github_repo }}"
+        },
+        "issueNumber": "={{ $(\"Préparer alerte\").item.json.github_issue_number }}",
+        "body": "={{ $(\"Préparer alerte\").item.json.commentaire_reapparue }}"
+      },
+      "id": "82218663-ffbd-41a6-a626-a08feb755b63",
+      "name": "Commenter : réapparue",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1968,
+        896
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "fa52c0f1-04c7-4a4e-9b44-0bb352a5ffea",
+      "credentials": {
+        "githubApi": {
+          "id": "2PrFcuc2VWVWEkAp",
+          "name": "GitHub hsentinel-alertes"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $(\"Préparer alerte\").item.json.gravite_permet_email }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "leftValue": "={{ $(\"Préparer alerte\").item.json.email_alertes ?? \"\" }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "67515cfc-9584-4ffd-ad11-047e3d92215a",
+      "name": "E-mail pour la faille réapparue ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2208,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "createComment",
+        "owner": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $(\"Constat et réglages\").item.json.github_owner }}"
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $(\"Constat et réglages\").item.json.github_repo }}"
+        },
+        "issueNumber": "={{ $(\"Préparer alerte\").item.json.github_issue_number }}",
+        "body": "={{ $(\"Préparer alerte\").item.json.commentaire_toujours }}"
+      },
+      "id": "240e8ddc-9b58-42c1-86d4-359ad1e4217e",
+      "name": "Commenter : toujours présente",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        1728,
+        1136
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "6de45322-8b12-4729-b5dd-5e4d57a9200a",
+      "credentials": {
+        "githubApi": {
+          "id": "2PrFcuc2VWVWEkAp",
+          "name": "GitHub hsentinel-alertes"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $(\"Préparer alerte\").item.json.email_alertes }}",
+        "subject": "={{ $(\"Préparer alerte\").item.json.email_sujet }}",
+        "message": "={{ $(\"Préparer alerte\").item.json.email_html.replace(\"%%LIEN_TICKET%%\", $json.lien_ticket) }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "HSentinel"
+        }
+      },
+      "id": "1c2b303a-6302-4ab5-bd3c-0940d04972e0",
+      "name": "Envoyer e-mail client",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2720,
+        288
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "649b2b85-8c38-49bc-a1fa-3f247cba40b1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "s0yvEXfBgeu3S520",
+          "name": "Gmail Hsentinel"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "r1-statut",
+              "name": "statut",
+              "value": "traitee",
+              "type": "string"
+            },
+            {
+              "id": "r1-issue",
+              "name": "issue_number",
+              "value": "={{ $(\"Préparer e-mail\").item.json.issue_number }}",
+              "type": "number"
+            },
+            {
+              "id": "r1-email",
+              "name": "email_envoye",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "r1-erreur",
+              "name": "erreur",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b1708449-7509-4494-94e3-a821a959bb76",
+      "name": "Résultat : e-mail envoyé",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3248,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "owner": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $(\"Constat et réglages\").item.json.github_owner }}"
+        },
+        "repository": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $(\"Constat et réglages\").item.json.github_repo }}"
+        },
+        "title": "=[HSentinel] Alerte e-mail non envoyée pour le ticket #{{ $(\"Préparer e-mail\").item.json.issue_number }}",
+        "body": "=L'e-mail d'alerte n'a pas pu être envoyé après 3 essais.\n\n- Ticket de la faille : #{{ $(\"Préparer e-mail\").item.json.issue_number }}\n- Constat : {{ $(\"Préparer alerte\").item.json.constat_id }}\n- Erreur : {{ $json.error?.message ?? $json.error ?? \"inconnue\" }}",
+        "labels": [
+          {
+            "label": "hsentinel"
+          },
+          {
+            "label": "alerte-non-envoyee"
+          }
+        ],
+        "assignees": []
+      },
+      "id": "0bc46278-3b48-476c-be5e-4bfd37b83687",
+      "name": "Signaler e-mail non envoyé",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        2960,
+        464
+      ],
+      "webhookId": "c396c3e6-0834-4749-b002-cf4dfc05669c",
+      "credentials": {
+        "githubApi": {
+          "id": "2PrFcuc2VWVWEkAp",
+          "name": "GitHub hsentinel-alertes"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "r2-statut",
+              "name": "statut",
+              "value": "traitee",
+              "type": "string"
+            },
+            {
+              "id": "r2-issue",
+              "name": "issue_number",
+              "value": "={{ $(\"Préparer e-mail\").item.json.issue_number }}",
+              "type": "number"
+            },
+            {
+              "id": "r2-email",
+              "name": "email_envoye",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "r2-erreur",
+              "name": "erreur",
+              "value": "E-mail non envoyé après 3 essais",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b3dd9729-7b7b-4cd4-8a37-5a20bd2afa1b",
+      "name": "Résultat : e-mail en échec",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3248,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "r4-statut",
+              "name": "statut",
+              "value": "echec",
+              "type": "string"
+            },
+            {
+              "id": "r4-issue",
+              "name": "issue_number",
+              "value": "={{ $(\"Préparer alerte\").item.json.github_issue_number }}",
+              "type": "number"
+            },
+            {
+              "id": "r4-email",
+              "name": "email_envoye",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "r4-erreur",
+              "name": "erreur",
+              "value": "GitHub injoignable après 3 essais",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "af9a4a26-a875-473d-858a-cbad31ec8ee9",
+      "name": "Résultat : GitHub en échec",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3248,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://crlqfdvyvtmwdwgafoav.supabase.co/rest/v1/rpc/noter_alerte",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_constat_id: $(\"Préparer alerte\").item.json.constat_id, p_statut: $json.statut, p_github_issue_number: $json.issue_number || null, p_email_envoye: $json.email_envoye === true, p_erreur: $json.erreur || null }) }}",
+        "options": {}
+      },
+      "id": "30197f5e-8bc1-41fd-88f9-c02efbabb5fb",
+      "name": "Noter le résultat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        3536,
+        768
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "supabaseApi": {
+          "id": "GERVgqKs6QhBxvyI",
+          "name": "Supabase hsentinel-dev (clé secrète)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## HSentinel W3 · Faille prouvée → alertes\nQuand un audit prouve une faille (nouvelle ligne dans `constats`), W3 prévient l'équipe : **un ticket GitHub par faille** et **un e-mail** (sauf gravité faible). La base décide (`preparer_alerte`), n8n envoie puis note le résultat (`noter_alerte`). Aucune donnée de l'application testée ne sort de HSentinel.\n\n**Lecture : de gauche à droite.** Couloir du haut = nouvelle faille · couloir du bas = faille déjà connue · tout en bas = panne GitHub · à droite = résultat noté en base.\n\nSpec : `spec-n8n-w3.md` · Preuves et tests : `w3-registre-doutes.md`",
+        "height": 2012,
+        "width": 3928,
+        "color": 4
+      },
+      "id": "c032b857-4e4b-4ccb-968d-f8c3e7ff0a3b",
+      "name": "Sticky Note 1bef4c1a",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 1. Déclenchement\n- **Constat ajouté (webhook Supabase)** : Supabase l'appelle à chaque nouveau constat, avec l'en-tête secret `x-hsentinel-secret`. Il ne reçoit que l'identifiant du constat.\n- **Rattrapage toutes les 15 min** : filet de sécurité si un appel s'est perdu ou a échoué.\n- **Constats à reprendre** : demande à Supabase les constats jamais traités ou en échec.",
+        "height": 680,
+        "width": 440,
+        "color": 5
+      },
+      "id": "b929ecfd-9f42-4a75-b391-c7530f7c734d",
+      "name": "Note 1 · Déclenchement",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 2. Préparation\n- **Constat et réglages** : l'identifiant du constat + les réglages (compte GitHub, dépôt, adresse de l'équipe).\n- **Préparer alerte** : Supabase décide quoi faire et rédige le ticket et l'e-mail.\n- **Que faire ?** : nouvelle faille → couloir du haut ; faille connue → couloir du bas ; déjà traitée ou à attendre → rien.",
+        "height": 380,
+        "width": 700,
+        "color": 6
+      },
+      "id": "afc7696d-58b6-49da-8719-ba9dd4a0d209",
+      "name": "Note 2 · Préparation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        416,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 3. Nouvelle faille\n- **Créer ticket** : ouvre le ticket dans `hsentinel-alertes` (3 essais ; si GitHub refuse → panne, en bas).\n- **E-mail pour la nouvelle faille ?** : oui si gravité moyenne, élevée ou critique et adresse connue ; sinon on note sans e-mail.",
+        "height": 400,
+        "width": 540,
+        "color": 7
+      },
+      "id": "439df76d-e81d-4042-b634-697692d0586d",
+      "name": "Note 3 · Nouvelle faille",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1184,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 4. Faille déjà connue\n- **Lire ticket** : le ticket de cette faille est-il ouvert ou fermé ?\n- **Ticket fermé ?** : fermé = la faille est revenue après correction.\n- **Rouvrir ticket** puis **Commenter : réapparue** : rouvre le ticket et date la réapparition ; **E-mail pour la faille réapparue ?** applique la même règle de gravité.\n- **Commenter : toujours présente** : ticket encore ouvert → simple commentaire, pas d'e-mail.",
+        "height": 600,
+        "width": 1200,
+        "color": 7
+      },
+      "id": "1771a896-5e53-4844-a0c2-852750c9aa0d",
+      "name": "Note 4 · Faille déjà connue",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1184,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 5. E-mail au client\n- **Préparer e-mail** : retrouve le numéro et le lien du ticket.\n- **Envoyer e-mail client** : envoie l'alerte à l'adresse de l'application (3 essais).\n- **Signaler e-mail non envoyé** : si Gmail échoue, ouvre un ticket « Alerte e-mail non envoyée ».",
+        "height": 608,
+        "width": 700,
+        "color": 2
+      },
+      "id": "b1dd00a8-f003-4c81-8fa5-64c0b6fec0b8",
+      "name": "Note 5 · E-mail au client",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2416,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 6. Panne GitHub\n- **Prévenir équipe (GitHub en panne)** : si GitHub refuse 3 fois, e-mail à l'équipe avec l'erreur.\n- **Résultat : GitHub en échec** : noté « echec » → le rattrapage réessaiera au prochain passage.",
+        "height": 340,
+        "width": 1260,
+        "color": 3
+      },
+      "id": "11bd41d4-ed32-4d09-86f6-6c65bf461748",
+      "name": "Note 6 · Panne GitHub",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2144,
+        1296
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 7. Résultat noté en base\n- **Résultat : …** : chaque chemin prépare son bilan (statut, n° de ticket, e-mail envoyé ou non, erreur).\n- **Noter le résultat** : l'enregistre dans Supabase ; une erreur laisse aussi une trace dans le journal (`evenements`).",
+        "height": 940,
+        "width": 600,
+        "color": 5
+      },
+      "id": "eda54805-e0bb-44e7-b6b3-92fdae7ef681",
+      "name": "Note 7 · Résultat",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3184,
+        48
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Constat ajouté (webhook Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Constat et réglages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Constat et réglages": {
+      "main": [
+        [
+          {
+            "node": "Préparer alerte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Constats à reprendre": {
+      "main": [
+        [
+          {
+            "node": "Constat et réglages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer alerte": {
+      "main": [
+        [
+          {
+            "node": "Que faire ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Que faire ?": {
+      "main": [
+        [
+          {
+            "node": "Créer ticket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lire ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Créer ticket": {
+      "main": [
+        [
+          {
+            "node": "E-mail pour la nouvelle faille ?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prévenir équipe (GitHub en panne)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire ticket": {
+      "main": [
+        [
+          {
+            "node": "Ticket fermé ?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prévenir équipe (GitHub en panne)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E-mail pour la nouvelle faille ?": {
+      "main": [
+        [
+          {
+            "node": "Préparer e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Résultat : sans e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer e-mail": {
+      "main": [
+        [
+          {
+            "node": "Envoyer e-mail client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Résultat : sans e-mail": {
+      "main": [
+        [
+          {
+            "node": "Noter le résultat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prévenir équipe (GitHub en panne)": {
+      "main": [
+        [
+          {
+            "node": "Résultat : GitHub en échec",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ticket fermé ?": {
+      "main": [
+        [
+          {
+            "node": "Rouvrir ticket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Commenter : toujours présente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rouvrir ticket": {
+      "main": [
+        [
+          {
+            "node": "Commenter : réapparue",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prévenir équipe (GitHub en panne)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commenter : réapparue": {
+      "main": [
+        [
+          {
+            "node": "E-mail pour la faille réapparue ?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prévenir équipe (GitHub en panne)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E-mail pour la faille réapparue ?": {
+      "main": [
+        [
+          {
+            "node": "Préparer e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Résultat : sans e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commenter : toujours présente": {
+      "main": [
+        [
+          {
+            "node": "Résultat : sans e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prévenir équipe (GitHub en panne)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envoyer e-mail client": {
+      "main": [
+        [
+          {
+            "node": "Résultat : e-mail envoyé",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Signaler e-mail non envoyé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Résultat : e-mail envoyé": {
+      "main": [
+        [
+          {
+            "node": "Noter le résultat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signaler e-mail non envoyé": {
+      "main": [
+        [
+          {
+            "node": "Résultat : e-mail en échec",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Résultat : e-mail en échec": {
+      "main": [
+        [
+          {
+            "node": "Noter le résultat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Résultat : GitHub en échec": {
+      "main": [
+        [
+          {
+            "node": "Noter le résultat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rattrapage toutes les 15 min": {
+      "main": [
+        [
+          {
+            "node": "Constats à reprendre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "ba143212-ed70-4c60-9c74-55c53654c2e2",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "7b1c56cfdb1d9c2335144d9a1cc49abf50202732ac829fafd75a7a7c2dbd3819"
+  },
+  "nodeGroups": [],
+  "id": "LyVXpSOAds4X0JX6",
+  "tags": []
+}

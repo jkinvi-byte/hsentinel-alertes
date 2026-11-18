@@ -446,9 +446,12 @@ class ConnexionTest(unittest.TestCase):
         self.assertEqual(qa_agent.assurer_agent(catalogue, connecte=True), {"name": "sentinelqa-qa-connecte", "action": "créé"})
         self.assertNotIn(qa_agent.NOM, catalogue.agents.agents)  # l'agent public garde sa règle « ne te connecte pas »
         self.assertTrue(all(not env.get("vault_id") for env in qa_agent.definition(True)["environments"]))
-        # H refuse une page de départ qui n'est pas http(s) à la création (422 du 18/11 à 18 h 36).
-        self.assertTrue(all(str(env.get("start_url", "https://")).startswith(("http://", "https://"))
-                            for connecte in (False, True) for env in qa_agent.definition(connecte)["environments"]))
+        # H refuse une page de départ qui n'est pas http(s) à la création (422 du 18/11 à 18 h 36) : aucun agent du runner n'en porte.
+        import agents_h
+        import agents_missions
+        environnements = [env for connecte in (False, True) for env in qa_agent.definition(connecte)["environments"]]
+        environnements += agents_missions.definition("security")["environments"] + [agents_h.NAVIGATEUR]
+        self.assertTrue(all(str(env.get("start_url", "https://")).startswith(("http://", "https://")) for env in environnements))
 
     def test_un_geste_a_risque_arrete_la_session_connectee(self):
         evenements = CONNEXION + [geste("click_web", element="Bouton Envoyer l'évaluation"), vue(ESPACE, "Merci, évaluation envoyée")]

@@ -1,0 +1,501 @@
+{
+  "name": "HSentinel W1 · Mise en ligne → audit QA",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hsentinel-w1-github",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "8cbf38bd-73f4-4920-8af5-eaab0691ca47",
+      "name": "Événement GitHub (preview prête)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        608
+      ],
+      "webhookId": "58667e3d-e03e-4bc8-a409-35170ef23113"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sortie = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let corps = null;\n  if (item.binary && item.binary.data) {\n    const buf = await this.helpers.getBinaryDataBuffer(i, 'data');\n    corps = buf.toString('utf8');\n  }\n  if (!corps) {\n    corps = typeof item.json.body === 'string' ? item.json.body : JSON.stringify(item.json.body ?? {});\n  }\n  const h = item.json.headers || {};\n  sortie.push({ json: {\n    corps,\n    signature: h['x-hub-signature-256'] || null,\n    evenement: h['x-github-event'] || null,\n    livraison: h['x-github-delivery'] || null\n  } });\n}\nreturn sortie;"
+      },
+      "id": "366e2f59-f644-4de3-963d-219886ec6df3",
+      "name": "Lire le corps et la signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://crlqfdvyvtmwdwgafoav.supabase.co/rest/v1/rpc/creer_demande_audit_github",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_corps: $json.corps, p_signature: $json.signature, p_evenement: $json.evenement }) }}",
+        "options": {}
+      },
+      "id": "95e7d81f-bc78-443a-a4f6-b57da07fea21",
+      "name": "Créer la demande d'audit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        480,
+        608
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "supabaseApi": {
+          "id": "GERVgqKs6QhBxvyI",
+          "name": "Supabase hsentinel-dev (clé secrète)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "audit_cree"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "refuse"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Rien à faire"
+        }
+      },
+      "id": "c08a1449-0e9e-407e-a762-131e897a5684",
+      "name": "Résultat ?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        720,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.github.com/repos/{{ $json.depot_proprietaire }}/{{ $json.depot_nom }}/statuses/{{ $json.sha }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"state\":\"pending\",\"context\":\"HSentinel\",\"description\":\"Audit du volet QA en cours\"}",
+        "options": {}
+      },
+      "id": "1389e961-5714-4d9e-9800-766cbaf07ae0",
+      "name": "Statut de commit : audit en cours",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        976,
+        400
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "githubApi": {
+          "id": "2PrFcuc2VWVWEkAp",
+          "name": "GitHub hsentinel-alertes"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, action: \"refuse\", raison: $json.raison }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "3fcd811d-631e-44ff-b46d-31236a8e99d5",
+      "name": "Répondre : refusé",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        976,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, action: $json.action, raison: $json.raison ?? null }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "924e46d1-fb02-4e0f-9daa-6aa90b3aaf56",
+      "name": "Répondre : rien à faire",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        976,
+        848
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, action: \"audit_cree\", audit_id: $(\"Créer la demande d'audit\").item.json.audit_id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "a54fea80-e251-4d50-abc1-870e2d765184",
+      "name": "Répondre : demande créée",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1456,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://crlqfdvyvtmwdwgafoav.supabase.co/rest/v1/evenements",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ audit_id: $(\"Créer la demande d'audit\").item.json.audit_id, type: \"w1_statut_refuse\", message: \"W1 : GitHub a refusé le statut de commit (la demande d'audit est bien créée)\", donnees: { erreur: $json.error?.message ?? $json.error ?? \"inconnue\" } }) }}",
+        "options": {}
+      },
+      "id": "4e366ed5-26a5-4037-ad40-006e7fbc9f4b",
+      "name": "Tracer : statut refusé",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1216,
+        528
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "GERVgqKs6QhBxvyI",
+          "name": "Supabase hsentinel-dev (clé secrète)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "jkinvi@eugeniaschool.com",
+        "subject": "[HSentinel] Audit non lancé : Supabase injoignable",
+        "message": "=<p>W1 n'a pas pu créer la demande d'audit après 3 essais. La version mise en ligne n'est <strong>pas</strong> auditée.</p><ul><li>Événement GitHub : {{ $(\"Lire le corps et la signature\").item.json.evenement }}</li><li>Livraison GitHub : {{ $(\"Lire le corps et la signature\").item.json.livraison }}</li><li>Erreur : {{ $json.error?.message ?? $json.error ?? \"inconnue\" }}</li></ul><p>Pour relancer : dans GitHub, Settings → Webhooks → Recent Deliveries → Redeliver.</p>",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "HSentinel"
+        }
+      },
+      "id": "a22404fb-b529-4d6e-a4f2-634410dcbf47",
+      "name": "Prévenir équipe (audit non lancé)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        1040
+      ],
+      "webhookId": "e31cd9e1-252e-4301-aff6-30aee2ede75f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "s0yvEXfBgeu3S520",
+          "name": "Gmail Hsentinel"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"ok\":false,\"action\":\"erreur\",\"raison\":\"supabase_injoignable\"}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "8a655a7e-01be-488a-a77b-25534bb903ee",
+      "name": "Répondre : erreur (visible dans GitHub)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        976,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## HSentinel W1 · Mise en ligne → audit du volet QA\nQuand Vercel signale à GitHub qu'une **preview est prête**, W1 crée une **demande d'audit QA** que le runner prend dans sa file. W1 ne teste rien et ne décide rien : la base vérifie la signature et applique les règles (`creer_demande_audit_github`).\n\n**Lecture : de gauche à droite.** En haut : demande créée + statut sur le commit · au milieu : refus ou rien à faire · en bas : panne de Supabase.\n\nSpec : `spec-n8n-w1.md`",
+        "height": 1324,
+        "width": 1836
+      },
+      "id": "aa8800bf-22b9-44c1-921e-4a8b1c7a270b",
+      "name": "Sticky Note 68172744",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 1. Réception\n- **Événement GitHub (preview prête)** : GitHub l'appelle à chaque `deployment_status`, avec la signature `X-Hub-Signature-256`.\n- **Lire le corps et la signature** : garde le corps **brut** (c'est lui que GitHub a signé), la signature et le type d'événement.",
+        "height": 480,
+        "width": 440,
+        "color": 5
+      },
+      "id": "1757f34e-d487-4aa5-844a-92b33334245b",
+      "name": "Sticky Note 837f3ea8",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 2. Décision (dans la base)\n- **Créer la demande d'audit** : la base vérifie la signature (secret du coffre), ne garde que les previews prêtes d'une application connue et dont la propriété est prouvée, remplace la demande encore en attente, et crée la nouvelle.\n- **Résultat ?** : créée → en haut ; refusée → 401 ; rien à faire → 200.",
+        "height": 480,
+        "width": 460,
+        "color": 6
+      },
+      "id": "27b11de6-903d-43e2-94d0-4ea5dac91006",
+      "name": "Sticky Note fad98591",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        416,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 3. Réponse à GitHub\n- **Statut de commit : audit en cours** : « HSentinel » apparaît dans la PR.\n- **Tracer : statut refusé** : si GitHub refuse le statut, la demande reste créée et une trace part dans le journal.\n- **Répondre…** : GitHub garde la réponse dans ses livraisons (Settings → Webhooks).",
+        "height": 840,
+        "width": 700,
+        "color": 7
+      },
+      "id": "634555e3-f75f-4be1-b928-e4fb1b891a35",
+      "name": "Sticky Note 42b238f1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        928,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 4. Panne de Supabase\n- **Prévenir équipe (audit non lancé)** : après 3 essais, e-mail à l'équipe avec la livraison GitHub à relancer.\n- **Répondre : erreur** : GitHub marque la livraison en échec (GitHub ne réessaie jamais seul).",
+        "height": 360,
+        "width": 560,
+        "color": 3
+      },
+      "id": "90647f7a-705c-4470-86b2-f09427dccaac",
+      "name": "Sticky Note 02988526",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        656,
+        864
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Événement GitHub (preview prête)": {
+      "main": [
+        [
+          {
+            "node": "Lire le corps et la signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire le corps et la signature": {
+      "main": [
+        [
+          {
+            "node": "Créer la demande d'audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Créer la demande d'audit": {
+      "main": [
+        [
+          {
+            "node": "Résultat ?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prévenir équipe (audit non lancé)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Résultat ?": {
+      "main": [
+        [
+          {
+            "node": "Statut de commit : audit en cours",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Répondre : refusé",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Répondre : rien à faire",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Statut de commit : audit en cours": {
+      "main": [
+        [
+          {
+            "node": "Répondre : demande créée",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tracer : statut refusé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tracer : statut refusé": {
+      "main": [
+        [
+          {
+            "node": "Répondre : demande créée",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prévenir équipe (audit non lancé)": {
+      "main": [
+        [
+          {
+            "node": "Répondre : erreur (visible dans GitHub)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "b8ed1397-b73e-4aab-99b1-b2794c1b3da5",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "7b1c56cfdb1d9c2335144d9a1cc49abf50202732ac829fafd75a7a7c2dbd3819"
+  },
+  "nodeGroups": [],
+  "id": "MEpyDxlWoeKzbutQ",
+  "tags": []
+}

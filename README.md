@@ -9,22 +9,22 @@ Des agents IA de H Company testent un site web autorisé comme un humain : ils n
 
 Hors de `main` : la branche `jahdiel/suivi-n8n` (le suivi des alertes n8n, repris dans SUIVI.md) et `agents-ia-qa-pentest` (le bac à sable de Mohamed). Voir [ARCHITECTURE.md, section 14](ARCHITECTURE.md#14-les-travaux-de-léquipe-hors-de-main).
 
-## État au 18/11, 19 h 15
+## État au 18/11, 19 h 50
 
 | Volet | Fonctionne, vérifié en réel | Manque |
 |---|---|---|
 | QA | Consigne tapée ou dictée, puis plan Hugging Face, agent H, vérification par le code et rapport web. 9 missions sur eugeniaschool.com, sur ordinateur et sur mobile : 0,033 $ et 76 s en moyenne | Dictée avec une vraie voix, mesure du temps gagné, déploiement |
-| QA connecté : Peer Review | L'agent se connecte par un coffre H créé pour l'essai, puis consulte sans rien modifier. Compte d'Alec : 1 mission réelle (43 s, 0,021 $), connexion, identité et une page vérifiées par le code ; 2 constats confirmés sur capture seulement | Compte de Nathan refusé par le site (2 essais) : son mot de passe en vigueur ; répétitions ; lancement depuis la web (le terminal seulement aujourd'hui) |
+| QA connecté : Peer Review | L'agent se connecte par un coffre H créé pour l'essai, puis consulte sans rien modifier. Compte d'Alec : 2 missions réelles, dont une dans l'espace H de Jahdiel (42 s, 0,022 $) ; connexion, identité et pages vérifiées par le code | Compte de Nathan refusé par le site (2 essais) : son mot de passe en vigueur ; répétitions ; lancement depuis la web (le terminal seulement aujourd'hui) |
 | Pentest : banc | Paie Express, une application de test à failles injectées : 59 failles prouvées sur 60, en 10 audits, 0 faux positif | — |
 | Pentest : Peer Review | Connexion HTTP de A validée en réel ; ressource témoin et règle de visibilité confirmées (Kimi) | B refusé par le site ; agent H illisible (500) ; contrôle A/B jamais exécuté ; modules non raccordés (`contributions/`) |
-| Alertes n8n (Jahdiel) | W1, W3, W4 testés en réel sur la base `hsentinel-dev` (rapporté) | Une seule base avec le runner ; les failles prouvées écrites dans `constats` |
-| Interface : `web-console` | Prototype exporté de v0 (accueil, onboarding, console), arrivé à 19 h 06, en local | Données simulées : relié ni à Supabase, ni au runner, ni à H ; pas encore publié |
+| Alertes n8n (Jahdiel) | W1, W3, W4 construits par Jahdiel ; leur SQL réécrit et en place dans notre base (`supabase/alertes.sql`) ; chaque faille prouvée du banc écrite dans `constats` (`runner/constats.py`) | Bascule de n8n vers notre base, coffre, recette (`sentinelqa/n8n/README.md`) |
+| Interface : la console de l'équipe (`web-console`) | L'interface d'un camarade, raccordée par Codex aux services de la web (`/api/console`) ; tests de contrat | Aucune mission réelle lancée depuis elle ; en local, pas encore publiée |
 
 ## Lancer le volet QA
 
 Ce qu'il faut :
 - Python 3.12 et Node 20 ou plus ;
-- un compte H : `holo login` écrit `HAI_API_KEY` dans `~/.config/hai/.env` ;
+- un compte H dans l'espace de Jahdiel, où l'équipe travaille depuis le 18/11 : créez-y une clé (Settings, API keys), puis `pbpaste | holo login --key --force` l'écrit dans `~/.config/hai/.env` sans l'afficher ;
 - `~/.config/sentinelqa/.env` : les clés Supabase et `HF_TOKEN`, sur le modèle de [`sentinelqa/.env.example`](sentinelqa/.env.example).
 
 Les clés restent toujours hors du dépôt.
@@ -67,9 +67,10 @@ cd sentinelqa/web && npm test
 |---|---|
 | `sentinelqa/runner/` | Le moteur Python : QA (`qa_*.py`), pentest (`sentinelqa.py`, `missions.py`), agents H |
 | `sentinelqa/web/` | La web Next.js : lancement, suivi en direct, arrêt, rapports |
-| `sentinelqa/web-console/` | Un prototype d'interface (v0), sur des données simulées (en local, pas encore publié) |
+| `sentinelqa/web-console/` | La console de l'équipe : l'interface d'un camarade, raccordée par Codex (en local, pas encore publiée) |
 | `sentinelqa/contrats/` | Les cibles autorisées et les règles partagées entre le runner et la web |
-| `sentinelqa/supabase/` | Les schémas SQL |
+| `sentinelqa/supabase/` | Les schémas SQL ; `alertes.sql` : applications, constats et les fonctions des alertes |
+| `sentinelqa/n8n/` | Les workflows n8n W1, W3 et W4 (exports et versions prêtes à importer) et leur mise en service |
 | `sentinelqa/cobaye/` | Paie Express, l'application de test à failles injectées (comptes fictifs) |
 | `contributions/` | Les modules pentest en cours, non intégrés (voir leur [état](contributions/README.md)) |
 
@@ -78,7 +79,7 @@ cd sentinelqa/web && npm test
 - Ouvrir `localhost`, pas `127.0.0.1` : en `next dev`, le contrôle d'origine refuse sinon toute écriture.
 - `holo login` écrit la clé entre guillemets : retirez-les à la lecture, sinon H répond 403.
 - Ne lancez pas `next dev` dans un dossier où tourne déjà un `next start` : les deux écrivent dans le même `.next`.
-- H relit un agent avec ses valeurs par défaut (`headless`, `lazy`, `settle_s`…) : comparez seulement les champs que vous fixez.
+- H relit un agent avec ses valeurs par défaut (`headless`, `lazy`, `settle_s`, `start_url`…) : comparez seulement les champs que vous fixez.
 - Le menu de chaque page cite les autres pages : un texte attendu se cherche dans le contenu, hors `nav`, `header` et `footer`.
 - L'agent H dispose d'un outil absent de la documentation, `web_fetch`, qui lit une page sans l'afficher : il est interdit dans sa consigne et relevé dans le rapport.
 - H refuse désormais `start_url: "about:blank"` à la création d'un agent (422). Ne fixez pas de page de départ dans la définition : chaque session impose la sienne.

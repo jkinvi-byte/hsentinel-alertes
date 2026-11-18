@@ -1,6 +1,6 @@
 # Suivi du projet
 
-> Mis à jour le 18/11/2026 à 19 h 30. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
+> Mis à jour le 18/11/2026 à 19 h 50. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
 >
 > Priorité **P0** : indispensable à la démo de vendredi. **P1** : utile, mais elle peut s'en passer.
 
@@ -43,9 +43,9 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 3 | Répéter chaque scénario QA de la démo 10 fois et noter le taux de réussite (3 répétitions faites pour « 4 étapes ») ; `qa_moteur.py --repetitions 10` | QA | P0 | Aurian | Jeu 19 |
 | 4 | Vider l'historique de test de `qa_missions` avant la démo | QA | P1 | Aurian | Ven 20 matin |
 | 5 | ~~Valider la connexion HTTP à Peer Review~~ : fait par Kimi pour A, le 18/11 à 18 h 39 (voir « Fait et vérifié ») | Pentest | P0 | Kimi | Fait |
-| 6 | Obtenir le mot de passe en vigueur du compte B (Nathan : accord donné, l'école le sait). Celui transmis est refusé par le site, en HTTP (Kimi) comme dans le navigateur (2 essais). La ressource témoin et sa règle sont trouvées | Pentest | P0 | Aurian | Jeu 19 |
+| 6 | ~~Obtenir un compte B actif~~ : le nouveau B est validé avec identité vérifiée ; le triplet HTTP réel A/anonyme/B a tourné. A et l'anonyme passent ; B reçoit sa propre vue sans le témoin de A, donc aucune fuite de A démontrée, mais pas de refus explicite | Pentest | P0 | Kimi | Fait |
 | 7 | Intégrer `contributions/kimi-pentest` au runner et à la web (S-PEER-02) | Pentest | P0 | Aurian | Jeu 19 |
-| 8 | Exécuter S-PEER-01 (la barrière anonyme) en réel et noter le résultat. Bloqué : son agent `sentinelqa-pentest` n'existe pas chez H, et sa définition porte `about:blank` (tâche 21) | Pentest | P1 | Aurian | Jeu 19 |
+| 8 | Exécuter S-PEER-01 (la barrière anonyme) en réel et noter le résultat. Son agent existe depuis 19 h 40, dans l'espace de Jahdiel | Pentest | P1 | Aurian | Jeu 19 |
 | 9 | Déployer la web sur Vercel avec l'accès opérateur (`HSENTINEL_OPERATOR_TOKEN`) | Plateforme | P0 | Aurian | Jeu 19 |
 | 10 | Confirmer le projet Supabase de l'équipe : seul `auaitjryhgwdbczwkdef` est configuré | Plateforme | P0 | Jahdiel | Mer 18 |
 | 11 | Inviter les membres sur ce dépôt (*Settings → Collaborators*) | Plateforme | P0 | Jahdiel | Mer 18 |
@@ -58,14 +58,18 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 18 | Intégrer les polices à la web (`next/font/local`) : la compilation ne dépendra plus du réseau | Plateforme | P1 | Aurian | Jeu 19 |
 | 19 | QA connecté : retester le compte de Nathan dès que son mot de passe en vigueur est connu. Aucun nouvel essai d'ici là, pour ne pas bloquer son compte | QA | P1 | Aurian | Jeu 19 |
 | 20 | Lancer le QA connecté depuis la web : mot de passe chiffré dans le navigateur (comme le cadrage B du pentest), coffre par essai côté worker | QA | P1 | Aurian | Jeu 19 |
-| 21 | **L'agent de Kimi `sentinelqa-pentest-acces` ne se relit plus chez H (500)**, comme tout agent enregistré avec `start_url: "about:blank"`. Le recréer sans cette valeur, sous un autre nom (le PATCH échoue aussi), et la retirer de `runner/agents_missions.py` | Pentest | P0 | Kimi, Aurian | Jeu 19 |
+| 21 | ~~L'agent de Kimi `sentinelqa-pentest-acces`~~ : définition corrigée par Kimi (sans `about:blank`, relecture tolérant la valeur ajoutée par H) ; présent dans l'espace de Jahdiel et confirmé conforme par sa propre fonction, le 18/11 à 20 h 38 | Pentest | P0 | Kimi | Fait |
 | 23 | `contributions/kimi-pentest/preuves/` contient l'adresse de la ressource témoin, avec l'identifiant de la session d'Alec : il est exclu du dépôt par le `.gitignore` (18/11, 19 h 30). Pour le publier, l'anonymiser, puis retirer cette ligne | Pentest | P1 | Kimi | — |
-| 24 | Décider du rôle de `web-console` (prototype v0, données simulées) : le brancher sur Supabase et le runner, ou le garder comme maquette | Plateforme | P1 | À trancher en équipe | Jeu 19 |
-| 25 | Choisir **une seule** base Supabase pour le runner et les alertes n8n (aujourd'hui : runner sur `auaitjryhgwdbczwkdef`, alertes sur `hsentinel-dev`), puis y rebrancher W1, W3 et W4 (suite de la tâche 10) | Plateforme | P0 | Jahdiel, Aurian | Jeu 19 |
-| 26 | Écrire chaque faille prouvée du pentest dans la table `constats` (format : contrat de branchement de Jahdiel) : W3 envoie alors seul le ticket et l'e-mail | Pentest | P1 | Aurian | Jeu 19 |
+| 24 | Recette de la console de l'équipe (`web-console`) : un QA public réel depuis `/app/nouveau`, la demande vue dans `qa_missions`, le rapport et l'arrêt (plan de Codex : `web-console/INTEGRATION.md`) | Plateforme | P0 | Codex, Aurian | Jeu 19 |
+| 25 | **Alertes sur notre base** : le SQL (`supabase/alertes.sql`) est en place en production, version actuelle, droits vérifiés (18/11, 21 h 45 : clé publique refusée, clé secrète acceptée). Restent : les secrets du coffre (`hsentinel_w3_url`, `hsentinel_w3_secret`, plus tard `github_webhook_secret`), la bascule des 6 nœuds et de l'identifiant Supabase de n8n, la trace de W1, puis la recette (`constats.py … --limite 1` → un ticket). Pas à pas : `sentinelqa/n8n/README.md` | Plateforme | P0 | Aurian, Jahdiel | Jeu 19 |
+| 26 | ~~Écrire chaque faille prouvée du pentest dans la table `constats`~~ : fait pour le banc, à la fin de chaque audit (`runner/constats.py`) ; à étendre à S-PEER-02 quand il sera raccordé | Pentest | P1 | Claude | Fait (banc) |
 | 27 | Montrer l'alerte en démo : une faille prouvée → ticket dans ce dépôt + e-mail, en quelques secondes | Démo | P1 | Jahdiel | Ven 20 |
 | 28 | Brancher le webhook GitHub (*Deployment statuses*) d'une cible déployée sur Vercel vers W1, pour un audit à chaque mise en ligne | Plateforme | P1 | Jahdiel | Ven 20 |
 | 29 | Retirer `cadence` des exemples du bac à sable de Mohamed (branche `agents-ia-qa-pentest`) : Cadence n'est pas une cible autorisée (D-24) | Pentest | P0 | Mohamed | Jeu 19 |
+| 30 | La clé H en service est la troisième (validée par H à 20 h 37 ; mission publique réelle conforme à 20 h 39). Les trois clés sont apparues dans la conversation : révoquer celles qui ne servent plus, puis remplacer la troisième, en copiant la nouvelle sans la coller et en tapant `! pbpaste \| holo login --key --force` (le mot `--key` tel quel) | Plateforme | P1 | Aurian | Jeu 19 |
+| 31 | Lever les bloquants relevés par la revue de Codex avant toute reprise de la branche de Mohamed : verdict « fuite » sur deux textes vides, session échouée comptée comme refus, budgets non transmis, noms d'agents divergents | Pentest | P1 | Mohamed | Jeu 19 |
+| 32 | Chaque poste qui lance le runner : créer sa clé dans l'espace H de Jahdiel | Plateforme | P1 | Tous | Jeu 19 |
+| 33 | ~~Obtenir de Jahdiel le SQL de `hsentinel-dev`~~ : il n'existe pas en fichier. Réécrit dans notre base (`supabase/alertes.sql`, `runner/constats.py`) et testé sur une base locale qui imite Supabase | Plateforme | P0 | Claude | Fait |
 | 22 | Signaler à H : agents enregistrés avec `about:blank` illisibles (500 au GET et au PATCH), `about:blank` refusé sans annonce, titres à styles mêlés tronqués dans le texte relevé, action `list_secrets` absente de la doc | Plateforme | P1 | Aurian | Ven 20 |
 
 ## Fait et vérifié
@@ -73,8 +77,10 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | Date | Quoi | Preuve |
 |---|---|---|
 | 18/11 | Volet QA de bout en bout, en réel sur eugeniaschool.com : parcours guidé, exploration, mobile | 9 missions, 0,033 $ et 76 s en moyenne ([ARCHITECTURE.md §3](ARCHITECTURE.md#3-volet-qa--le-trajet-dune-mission)) |
+| 18/11 | L'équipe passe dans l'espace H de Jahdiel (19 h 39) : nos 5 agents recréés par le code et confirmés | Mission publique réelle conforme (26 s, 0,006 $) ; mission connectée réelle avec le compte d'Alec (42 s, 0,022 $), connexion et identité prouvées par le code |
 | 18/11 | Architecture relue contre le code à 19 h 10 : ARCHITECTURE.md et le PDF illustré (27 pages, chaque page modifiée regardée) | Écarts corrigés : agents sans texte affiché, ancien chemin Q-PUB-01, 4 usages de Hugging Face, `/examen`, `web-console`, état de S-PEER-01 et S-PEER-02 |
 | 18/11 | Connexion HTTP de A à Peer Review validée en réel ; ressource témoin et règle de visibilité confirmées (Kimi) | Preuves locales de Kimi, non publiées (tâche 23) |
+| 18/11 | Triplet HTTP réel A/anonyme/B exécuté sur Peer Review avec deux identités vérifiées ; nouveau B actif | 9 requêtes : A reçoit le témoin, l'anonyme est redirigé sans témoin, B reçoit sa propre vue sans le témoin de A. Aucune fuite démontrée ; B reste non concluant faute de refus explicite. Rapport local non publié (tâche 23) |
 | 18/11 | n8n W3 (Jahdiel) : faille prouvée (table `constats`) → un ticket GitHub par faille dans ce dépôt + un e-mail (sauf gravité faible), réouverture si la faille revient, reprise automatique toutes les 15 min | Testé en réel sur la base `hsentinel-dev` : nouvelle faille, doublon, réouverture, panne GitHub, panne Gmail, rattrapage, déclenchement automatique par Supabase (rapporté par Jahdiel) |
 | 18/11 | n8n W1 (Jahdiel) : preview prête (événement GitHub `deployment_status`) → demande d'audit dans Supabase, signature GitHub vérifiée, dernière version seulement | Appel HTTP réel signé accepté, signature fausse refusée, doublons et versions dépassées gérés (rapporté par Jahdiel) |
 | 18/11 | n8n W4 (Jahdiel) : chaque nuit à 2 h, demandes d'audit Pentest pour les applications abonnées | 2 passages réels : une demande créée et une alerte « 3 échecs », puis rien au 2e passage (rapporté par Jahdiel) |
@@ -83,7 +89,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 18/11 | Dictée dans la web (Whisper par Hugging Face), annulable, micro fermé à la sortie | Parcours complet dans un navigateur, avec une voix de synthèse ; tests JavaScript |
 | 18/11 | File QA séparée dans Supabase, et son worker | Tables `qa_missions` et `qa_evenements`, RLS vérifié dans les deux sens |
 | 18/11 | Agent H `sentinelqa-pentest-acces` créé ; une session réelle, la connexion du compte A | Module `contributions/kimi-pentest` |
-| 18/11 | Les tests des modules pentest de `contributions/` passent tous | 22/22 pour le contrôle d'accès, 50/50 pour « HF vers contrôles » (mesuré à 19 h 05) |
+| 18/11 | Les tests des modules pentest de `contributions/` passent tous | 23/23 pour le contrôle d'accès, 50/50 pour « HF vers contrôles » ; 4/4 pour la revue |
 | 18/11 | Le document d'architecture illustré corrigé (27 pages) et [ARCHITECTURE.md](ARCHITECTURE.md), avec les revirements depuis le 17/11 | Chaque page regardée en aperçu ; à déposer sur Notion à la place de la version du 17/11 |
 | 18/11 | Ce dépôt GitHub, avec une sélection technique et aucun secret | Les vraies valeurs des clés ont été cherchées avant l'envoi : aucune trouvée |
 | 17/11 | Banc pentest Paie Express | 59 failles prouvées sur 60, 0 faux positif, en 10 audits |
@@ -93,5 +99,6 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 - **Le Python du projet est sur un disque externe.** Si le disque est débranché, le worker s'arrête (code 138) : voir la tâche 13.
 - **Un agent H varie d'une session à l'autre.** Un « écart » vu par l'agent seul ne compte jamais ; seul le code tranche.
 - **Le réseau de l'école bloque le port 7844**, celui du tunnel Cloudflare du banc pentest. Parade : partager la connexion d'un téléphone.
+- **Les sessions d'avant 19 h 39 restent dans l'ancien espace H** : leurs replays, et les captures des anciens rapports dans la web, ne se lisent plus avec la nouvelle clé.
 - **Deux bases Supabase en parallèle.** Les alertes n8n (W1, W3, W4) lisent `hsentinel-dev`, le runner écrit dans `auaitjryhgwdbczwkdef` : tant que la tâche 25 n'est pas faite, les vraies failles ne déclenchent aucune alerte.
 - **Plusieurs agents IA modifient les mêmes fichiers.** Faire un `git status` avant chaque commit, et ne pousser que des fichiers nommés.

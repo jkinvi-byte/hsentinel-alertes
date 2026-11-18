@@ -1,6 +1,6 @@
 # Architecture de HSentinel
 
-> État au 18/11/2026, 19 h 10, relu contre le code à cette heure. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md). Kimi corrige `contributions/kimi-pentest` en ce moment : la section 6 décrit l'état lu à 19 h 05.
+> État au 18/11/2026, 19 h 50, relu contre le code à cette heure. Depuis 19 h 39, l'équipe travaille dans l'espace H de Jahdiel. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md). Kimi corrige `contributions/kimi-pentest` en ce moment : la section 6 décrit l'état lu à 19 h 05.
 
 0. [Ce qui a changé depuis le document du 17/11](#0-ce-qui-a-changé-depuis-le-document-du-1711)
 1. [Vue d'ensemble](#1-vue-densemble)
@@ -58,7 +58,7 @@ flowchart TD
 ```
 
 - **Web** (`sentinelqa/web`) : on y lance une mission, on la suit en direct, on l'arrête, et on lit le rapport. Elle tourne en local et n'est pas encore déployée.
-- **Prototype d'interface** (`sentinelqa/web-console`, arrivé le 18/11 à 19 h 06, en local, pas encore publié) : accueil, onboarding et console, exportés de v0. Il n'est relié ni à Supabase, ni au runner, ni à H (section 11).
+- **La console de l'équipe** (`sentinelqa/web-console`, en local, pas encore publiée) : l'interface d'un camarade (v0), que Codex raccorde depuis le 18/11 au soir. Son API `/api/console` réutilise les services de la web : plan, dictée, lancement, suivi, arrêt et rapports (section 11).
 - **Runner** (`sentinelqa/runner`) : deux processus Python sur un poste de l'équipe, le worker QA (`qa_worker.py`) et le runner du pentest (`sentinelqa.py --surveiller`). Ils prennent les missions dans Supabase, pilotent les agents H et vérifient les résultats.
 - **H Agents API** : des agents qui voient l'écran et cliquent, dans un navigateur cloud que H fournit à chaque session.
 - **Supabase** : les files de missions, le fil en direct et les rapports. Le QA et le pentest ont chacun leurs tables.
@@ -183,12 +183,12 @@ flowchart TD
   S2 -- "navigateur H" --> R3["Le même constat à l'écran"]
 ```
 
-- **S-PEER-01** (`runner/missions.py`) : un GET anonyme de `/etudiant`, puis un constat à l'écran par l'agent `sentinelqa-pentest`. Cet agent n'existe pas chez H (404), et sa définition porte `about:blank`, que H refuse désormais à la création : le scénario ne peut pas aboutir en l'état. Aucune exécution complète.
-- **S-PEER-02** (`contributions/kimi-pentest`, point d'entrée `executer_controle_acces`) : trois contrôles, `legitimate_read` (A lit la ressource), `anonymous_read` (l'anonyme ne la lit pas) et `cross_actor_read` (B ne la lit pas). Chaque contrôle a deux preuves : HTTP (l'empreinte de la réponse, jamais les cookies ni le corps) et navigateur H. **État lu à 19 h 05**, dans ses preuves locales (non publiées : elles contiennent l'adresse de la session d'Alec) :
-  - la connexion HTTP de A est validée en réel : formulaire multipart, redirection 303 vers `/`, puis `/etudiant` en 200 avec le marqueur exact du compte ;
-  - la ressource témoin est la page de la session du soir de A. A la lit ; l'anonyme est renvoyé à `/connexion`, sans le marqueur. La règle est confirmée : A oui, anonyme non, B non ;
-  - B est refusé par le site (« Adresse ou mot de passe incorrect. ») : le contrôle A/B n'a jamais tourné ;
-  - le volet navigateur est bloqué : l'agent `sentinelqa-pentest-acces` répond 500 chez H (section 7), et aucune session n'a démarré.
+- **S-PEER-01** (`runner/missions.py`) : un GET anonyme de `/etudiant`, puis un constat à l'écran par l'agent `sentinelqa-pentest`. Sa définition est corrigée (plus de `about:blank`) et l'agent existe depuis le 18/11 à 19 h 40, dans l'espace de Jahdiel. Aucune exécution complète.
+- **S-PEER-02** (`contributions/kimi-pentest`, point d'entrée `executer_controle_acces`) : trois contrôles, `legitimate_read` (A lit la ressource), `anonymous_read` (l'anonyme ne la lit pas) et `cross_actor_read` (B ne la lit pas). Chaque contrôle complet prévoit deux preuves : HTTP (l'empreinte de la réponse, jamais les cookies ni le corps) et navigateur H. **État après le nouveau triplet réel** :
+  - les connexions HTTP de A et du nouveau B sont validées : formulaire multipart, redirection 303 vers `/`, puis `/etudiant` en 200 avec le marqueur exact du compte correspondant ;
+  - la ressource témoin est la page de la session du soir de A. Le témoin retenu est un texte d'identité privé de A, absent de l'URL. A la lit ; l'anonyme est renvoyé à `/connexion`, sans le marqueur. La règle est confirmée : contenu de A interdit à l'anonyme et à B ;
+  - le triplet HTTP a exécuté 9 requêtes. B reçoit HTTP 200 avec **sa propre identité et sa propre vue d'évaluation**, sans le témoin de A. Aucune fuite de A n'est démontrée ; B reste `inconclusive/denial_unverified`, car ce 200 personnalisé n'est pas un refus explicite ;
+  - le volet navigateur reste bloqué. La définition locale de `sentinelqa-pentest-acces` ne contient plus `about:blank` ni aucun `start_url` ; l'agent existe dans l'espace de Jahdiel, et sa propre fonction le confirme conforme (« à jour », 18/11 à 20 h 38, avec une clé valide). Aucune session navigateur S-PEER-02 n'a encore tourné.
 
   Bilan : non concluant, aucune faille revendiquée. Le module n'est raccordé ni au runner ni à la web.
 - **HF vers contrôles** (`contributions/hf-pentest`) : à partir d'un inventaire (chemins, règles, observations nettoyées), Qwen3-32B choisit les contrôles à jouer, et chacun devient un contrôle S-PEER-02. Un appel réel a été fait sur un inventaire synthétique (23,7 s, 1 492 tokens) : son plan a retrouvé la fuite et le contrôle sain du banc synthétique. Jamais exécuté sur Peer Review.
@@ -198,18 +198,18 @@ flowchart TD
 
 | Agent | Rôle | Défini dans | État |
 |---|---|---|---|
-| `sentinelqa-qa-public` | QA : parcours guidé et exploration d'un site public | `runner/qa_agent.py` | En service, créé le 18/11 à 18 h 47 ; revérifié par une mission réelle |
-| `sentinelqa-qa-connecte` | QA sur un site à compte : connexion par coffre, puis consultation | `runner/qa_agent.py` | Créé le 18/11 à 18 h 37 ; 1 session réelle |
-| `sentinelqa-explorateur` | Banc Paie Express : cartographie | `runner/agents_h.py` | En service depuis le 17/11 |
-| `sentinelqa-verificateur` | Banc Paie Express : preuve à l'écran | `runner/agents_h.py` | En service depuis le 17/11 |
-| `sentinelqa-pentest` | S-PEER-01 | `runner/agents_missions.py` | Absent de H (404, le 18/11 à 18 h 45). Sa définition porte `about:blank`, que H refuse à la création (422) |
-| `sentinelqa-pentest-acces` | S-PEER-02 | `contributions/kimi-pentest/agent_acces.py` | Créé par Kimi ; illisible chez H depuis le 18/11 vers 18 h 40 (GET et PATCH répondent 500) : à recréer sans `about:blank` |
-| `hsentinel-explorateur`, `-verificateur`, `-preparateur` | Le bac à sable de Mohamed : cartographie, preuve, T1 | branche `agents-ia-qa-pentest` | Présents chez H (relus le 18/11 à 19 h 15) ; hors de `main` (section 14) |
-| `sentinelqa-qa` | Ancien agent QA public | — | Remplacé par `sentinelqa-qa-public` : illisible chez H depuis le 18/11 vers 18 h 40 (GET et PATCH répondent 500). À supprimer si l'équipe le décide |
+| `sentinelqa-qa-public` | QA : parcours guidé et exploration d'un site public | `runner/qa_agent.py` | Créé et confirmé à 19 h 40 ; mission réelle conforme à 19 h 41 |
+| `sentinelqa-qa-connecte` | QA sur un site à compte : connexion par coffre, puis consultation | `runner/qa_agent.py` | Créé et confirmé à 19 h 40 ; mission réelle à 19 h 42 (connexion et identité prouvées) |
+| `sentinelqa-explorateur` | Banc Paie Express : cartographie | `runner/agents_h.py` | Créé et confirmé à 19 h 40 |
+| `sentinelqa-verificateur` | Banc Paie Express : preuve à l'écran | `runner/agents_h.py` | Créé et confirmé à 19 h 40 |
+| `sentinelqa-pentest` | S-PEER-01 | `runner/agents_missions.py` | Créé et confirmé à 19 h 40, définition corrigée (sans `about:blank`) ; jamais exécuté |
+| `sentinelqa-pentest-acces` | S-PEER-02 | `contributions/kimi-pentest/agent_acces.py` | Définition locale sans `start_url` ; relecture compatible avec la valeur Bing ajoutée par H, test complet sans PATCH ; 77 tests réussis. Présent dans l'espace de Jahdiel, confirmé conforme à 20 h 38 |
+| `hsentinel-explorateur`, `-verificateur`, `-preparateur` | Le bac à sable de Mohamed : cartographie, preuve, T1 | branche `agents-ia-qa-pentest` | Dans l'ancien espace seulement ; hors de `main` (section 14) |
 
 - Tous utilisent `holo4-35b-a3b`, en mode visuel. Le texte affiché (`markdown: true`), que H joint à chaque capture, n'est demandé que par les agents QA et par `sentinelqa-pentest-acces` : c'est là que le code retrouve les citations. Les agents du banc et `sentinelqa-pentest` ne le demandent pas. En QA, `holo4-27b` peut être choisi par session.
 - **Le réglage de chaque session reste dans notre code** : URL de départ, écran et format de réponse (`answer_schema`, Pydantic). La définition d'un agent QA est relue après chaque enregistrement : la comparaison tolère les valeurs par défaut que H ajoute, mais refuse un coffre, un profil ou un proxy hérités.
-- **Aucune page de départ dans une définition.** Depuis le 18/11 vers 18 h 40, H ne relit plus un agent enregistré avec `about:blank` : il répond 500 au GET comme au PATCH. Chaque session impose sa page de départ (`overrides`).
+- **L'espace H.** Depuis le 18/11 à 19 h 39, l'équipe travaille dans l'espace de Jahdiel (Aurian administrateur ; 3 sessions simultanées). Les agents dont l'état ci-dessus indique « créé et confirmé » y ont été créés par le code lui-même ; les sessions et replays d'avant restent dans l'ancien espace.
+- **Aucune page de départ dans une définition.** Le 18/11 vers 18 h 40, l'ancien espace a cessé de relire les agents enregistrés avec `about:blank` (500 au GET comme au PATCH), et H refuse désormais cette valeur à la création (422). Chaque session impose sa page de départ (`overrides`), et un test le garantit pour tous les agents du runner.
 - **Le QA public n'utilise aucun coffre ; le QA connecté, un par essai.** Le pentest en utilise un par compte de test : l'agent remplit le mot de passe sans jamais le voir (`fill_secret_at`).
 
 ## 8. Les données dans Supabase
@@ -232,12 +232,14 @@ flowchart LR
 | `cles_runner` | La clé publique du runner, qui chiffre les mots de passe dans le navigateur |
 | `qa_missions` | Une mission QA : la demande validée (consigne, plan, écran), `arret_demande`, le rapport |
 | `qa_evenements` | Le fil d'une mission QA : étapes, gestes, pages, critères |
+| `applications` | Ce qu'on a le droit de tester, et comment : autorisation (D-24), profils QA et pentest, destinataire des alertes (`supabase/alertes.sql`, à appliquer) |
+| `constats` | Une ligne par faille prouvée, et le suivi de son alerte n8n (ticket GitHub, e-mail) ; jamais de donnée du site testé (à appliquer) |
 
 - **Une file par volet, côté interface.** La web envoie le QA dans `qa_missions`, que seul le worker QA lit, et le pentest dans `audits`, que lit le runner du pentest. L'ancien parcours QA du premier lot (Q-PUB-01, D-27) existe encore dans le code : `/api/audits` l'accepte et le runner du pentest le traiterait, mais l'interface ne le propose plus.
 - **Cycle d'une mission** : `en_attente`, puis `en_cours`, puis `termine` ou `echec`. La réservation est atomique : elle met le statut à jour seulement s'il vaut encore `en_attente`.
 - **Sécurité** : le RLS est activé, sans aucune politique. Seule la clé secrète, utilisée par le serveur web et par le runner, lit et écrit ; la clé publique ne voit rien (vérifié dans les deux sens).
 - Schémas : `supabase/schema.sql` pour le pentest, `supabase/qa.sql` pour le QA.
-- **Une seconde base, pour les alertes n8n.** Les workflows de Jahdiel lisent `hsentinel-dev` (table `constats`), alors que le runner écrit dans `auaitjryhgwdbczwkdef`. Tant qu'une seule base n'est pas choisie, une faille prouvée ne déclenche aucune alerte (rapporté par Jahdiel).
+- **Une seconde base, pour les alertes n8n, à fondre dans la nôtre.** Les workflows de Jahdiel appellent les fonctions SQL de `hsentinel-dev` (table `constats`), alors que le runner écrit dans `auaitjryhgwdbczwkdef`. Aurian a choisi le 18/11 à 21 h une seule base, la nôtre : le SQL des alertes doit y être porté (`sentinelqa/n8n/README.md`). D'ici là, une faille prouvée ne déclenche aucune alerte.
 
 ## 9. Les secrets
 
@@ -287,33 +289,36 @@ flowchart LR
 - **Captures** : celles de l'agent restent chez H. Le serveur web les relaie (`/api/qa/captures`), et seules les adresses de la trajectoire de la session passent.
 - Next.js 16 et React 19, sans autre dépendance.
 
-**Un second prototype d'interface, `sentinelqa/web-console`** (arrivé le 18/11 à 19 h 06, exporté de v0 : TypeScript, Tailwind, shadcn ; en local, pas encore publié) :
+**La console de l'équipe, `sentinelqa/web-console`** : l'interface d'un camarade, exportée de v0 (TypeScript, Tailwind, shadcn), que Codex raccorde depuis le 18/11 au soir. En local, pas encore publiée. Sa note de raccordement : `web-console/INTEGRATION.md`.
 
 | Page | Rôle |
 |---|---|
-| `/` | La page d'accueil du produit |
-| `/login`, `/onboarding` | Une connexion de démonstration (un cookie), puis l'onboarding en étapes : application, modules, déclencheur, alertes |
-| `/app` | La console : indicateurs, matrice des rôles, chronologie du pipeline, fil des déploiements, détail d'un audit |
+| `/`, `/login`, `/onboarding` | L'accueil du produit, une connexion d'équipe provisoire, l'onboarding en étapes |
+| `/app` | Le tableau de bord |
+| `/app/nouveau` | Le studio de mission : QA (consigne, dictée, plan) ou pentest |
+| `/app/missions/[module]/[id]` | Le suivi, puis le rapport d'une mission |
+| `/app/cibles` | Les cibles autorisées |
 
-- **Ses données sont simulées** tant que `ORCHESTRATOR_URL` n'est pas défini (`lib/audit-source.ts`). Défini, il appelle un « orchestrateur » (`GET /audit`, `POST /deployments`) qui n'existe pas encore dans notre code.
-- Il n'est relié ni à Supabase, ni au runner, ni à H : rien de ce qu'il affiche ne vient aujourd'hui d'une mission réelle.
+- **Son API `/api/console` réutilise les services de la web**, importés directement : `web/lib/qa.js` (plan, dictée, lancement, suivi, arrêt, captures), `web/lib/missions.js` et `audits.js` pour le pentest. Le QA part dans `qa_missions`, le pentest dans `audits`, et les deux workers existants les traitent. Elle ne calcule aucun verdict : elle traduit les statuts des rapports.
+- **Les anciens widgets de démonstration** (`/api/audit`) gardent des données simulées tant que `ORCHESTRATOR_URL` n'est pas défini.
+- **État** (*rapporté* par Codex, 19 h 33) : 17 tests réussis, TypeScript et compilation réussis. La recette dans un navigateur et une mission réelle lancée depuis cette interface restent à faire ; le QA connecté et les modules de Kimi n'y sont pas encore portés. L'accès à `/app` demande un jeton d'opérateur, configuré côté serveur.
 
 ## 12. L'état de chaque brique
 
 | Brique | État au 18/11, 19 h 10 |
 |---|---|
-| QA : parcours guidé, exploration, mobile | Exécuté en réel : 10 missions, dont une avec l'agent remplacé (18 h 47) |
-| QA connecté : Peer Review | Compte d'Alec : 1 mission réelle, connexion et identité prouvées par le code. Compte de Nathan : refusé par le site (2 essais). Terminal seulement |
+| QA : parcours guidé, exploration, mobile | Exécuté en réel : 11 missions, dont une dans l'espace de Jahdiel (19 h 41, conforme) |
+| QA connecté : Peer Review | Compte d'Alec : 2 missions réelles, dont une dans l'espace de Jahdiel (19 h 42) ; connexion et identité prouvées par le code. Compte de Nathan : refusé par le site (2 essais). Terminal seulement |
 | QA : dictée | Exécutée de bout en bout dans un navigateur, avec une voix de synthèse ; à essayer avec une vraie voix |
 | QA : vérification par le code | 54 tests Python ; faux écarts trouvés en réel puis corrigés et revérifiés |
 | Web QA | 34 tests JavaScript réussis ; compilation réussie à 14 h 37, puis bloquée à 15 h par le téléchargement des polices Google |
 | Pentest : banc Paie Express | Exécuté en réel : 59/60 en 10 audits, 0 faux positif |
-| Pentest : S-PEER-01 | Code raccordé ; l'agent `sentinelqa-pentest` n'existe pas chez H et ne peut pas être créé tel quel (`about:blank`) |
-| Pentest : S-PEER-02 | Non raccordé. A validé en HTTP réel, ressource témoin et règle confirmées ; B refusé par le site ; navigateur H bloqué (500). Contrôle A/B jamais exécuté |
+| Pentest : S-PEER-01 | Code raccordé ; son agent existe depuis 19 h 40 ; jamais exécuté |
+| Pentest : S-PEER-02 | Non raccordé. Triplet HTTP réel de 9 requêtes : A et l'anonyme passent ; B reçoit sa propre vue sans le témoin de A et reste non concluant faute de refus explicite. Aucune fuite démontrée ; H reste à confirmer avec une clé autorisée (403 actuel) |
 | Pentest : HF vers contrôles | Un appel réel sur un inventaire synthétique ; 50 tests sur 50. Jamais exécuté sur Peer Review |
-| Modules de Kimi | 22 tests sur 22 (19 h 05) ; en cours de correction |
+| Modules de Kimi | 23 tests sur 23 ; confirmation H testée avec le `start_url` ajouté par défaut, sans PATCH inutile |
 | Déploiement de la web | Pas fait : tout tourne en local |
-| Prototype `web-console` (v0) | Arrivé le 18/11 à 19 h 06, en local ; données simulées, aucun branchement au runner |
+| Console de l'équipe (`web-console`) | Raccordée par Codex aux services de la web ; tests de contrat ; aucune mission réelle lancée depuis elle ; en local |
 | n8n : W1, W3, W4 (Jahdiel) | Testés en réel sur la base `hsentinel-dev` (rapporté) ; pas reliés au runner |
 | Mesure du temps humain gagné | Pas faite |
 
@@ -332,6 +337,7 @@ sentinelqa/
     agents_h.py         agents du banc (explorateur, vérificateur)
     agents_missions.py  agents des missions réelles ; le QA reprend qa_agent.py
     gravite.py          règle écrite de gravité
+    constats.py         failles prouvées du banc → table constats → alertes n8n (W3)
     hf.py               Hugging Face pour le pentest (hypothèses)
     tests/              tests sans réseau, avec de vrais événements H en fixture
   web/
@@ -340,10 +346,11 @@ sentinelqa/
     app/examen/         index des relevés pentest
     app/api/            routes serveur
     lib/                accès Supabase, contrat QA, dictée, formats
-  web-console/          prototype d'interface (v0) : accueil, onboarding, console ; données simulées (local, non publié)
+  web-console/          la console de l'équipe (interface d'un camarade, raccordée par Codex) ; en local, non publiée
   contrats/qa.json      cibles QA, budgets, consignes de préparation
   contrats/catalogue.json  scénarios sur sites réels (pentest)
-  supabase/             schémas SQL
+  supabase/             schémas SQL ; alertes.sql : applications, constats et les fonctions de n8n
+  n8n/                  les workflows W1, W3 et W4 exportés, et leur mise en service
   cobaye/               Paie Express, le banc à failles injectées
 contributions/
   kimi-pentest/         S-PEER-02 : A, anonyme et B, en HTTP et dans le navigateur H ; non raccordé
@@ -354,6 +361,11 @@ contributions/
 
 | Travail | Où | Ce qu'il fait | État |
 |---|---|---|---|
-| Les alertes n8n (Jahdiel) | n8n ; leur suivi est sur la branche `jahdiel/suivi-n8n`, repris dans [SUIVI.md](SUIVI.md) | W1 : un déploiement prêt (`deployment_status` GitHub, signature vérifiée) devient une demande d'audit. W3 : une faille prouvée (table `constats`) devient un ticket GitHub et un e-mail, rouvert si elle revient. W4 : chaque nuit à 2 h, une demande de pentest pour chaque application abonnée | Testés en réel sur la base `hsentinel-dev` (rapporté par Jahdiel, non vérifié ici). Pas reliés au runner, qui écrit dans une autre base |
-| Le bac à sable des agents (Mohamed) | Branche `agents-ia-qa-pentest`, historique séparé (18 fichiers) | Ses propres agents `hsentinel-explorateur`, `-verificateur` et `-preparateur`, des coffres par compte, et deux cibles : Paie Express et une instance Juice Shop à déployer soi-même | Les trois agents existent chez H (relus à 19 h 15). Non fusionné. Son README donne en exemple `auditer.py cadence` : Cadence n'est pas une cible autorisée (D-24) |
-| Le prototype d'interface | `sentinelqa/web-console`, en local, pas encore publié | Accueil, onboarding et console (v0) | Données simulées ; relié à rien (section 11) |
+| Les alertes n8n (Jahdiel) | n8n ; les trois exports, leur contrat et leur SQL réécrit pour notre base sont dans [`sentinelqa/n8n/`](sentinelqa/n8n/README.md) et `supabase/alertes.sql` | W1 : un déploiement prêt (`deployment_status` GitHub, signature vérifiée) devient une demande d'audit. W3 : une faille prouvée (table `constats`) devient un ticket GitHub et un e-mail, rouvert si elle revient. W4 : chaque nuit à 2 h, une demande de pentest pour chaque application abonnée | Testés en réel sur la base `hsentinel-dev` (rapporté par Jahdiel, non vérifié ici). Pas reliés au runner, qui écrit dans une autre base |
+| Le bac à sable des agents (Mohamed) | Branche `agents-ia-qa-pentest`, historique séparé (18 fichiers) | Ses propres agents `hsentinel-explorateur`, `-verificateur` et `-preparateur`, des coffres par compte, et deux cibles : Paie Express et une instance Juice Shop à déployer soi-même | Ses agents sont dans l'ancien espace H. Non fusionné. Son README donne en exemple `auditer.py cadence` : Cadence n'est pas une cible autorisée (D-24) |
+| La console de l'équipe | `sentinelqa/web-console`, en local, pas encore publiée | L'interface d'un camarade (v0), raccordée par Codex aux services de la web (section 11) | Tests de contrat ; validation réelle à faire (`INTEGRATION.md`) |
+
+**La revue de la branche de Mohamed par Codex** (`revues/agents-ia-qa-pentest/REVUE.md`, locale ; *rapporté* : ses huit cas n'ont pas été reproduits ici) :
+- **À reprendre dans le moteur actuel** : le guidage Hugging Face des explorations, avec une comparaison activé et désactivé à budget égal ; le comparatif des modèles ; la distinction entre ressources privées et partagées ; Juice Shop comme banc supplémentaire.
+- **Bloquants** : une similarité de 100 % entre deux textes vides, ou deux messages d'erreur identiques, devient une « fuite » ; une session d'agent échouée devient « accès refusé attendu » ; les budgets `max_steps` et `max_time_s` ne sont pas transmis à H ; les noms d'agents divergent (`hsentinel-*` créés, `sentinelqa-*` configurés). Un 401 entre aussi dans les moyennes du comparatif comme un essai à coût nul.
+- **Cadrage** : la branche appelle encore « QA » la vérification d'isolation entre comptes, qui relève du pentest dans l'architecture actuelle.
