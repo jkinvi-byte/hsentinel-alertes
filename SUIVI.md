@@ -1,8 +1,28 @@
 # Suivi du projet
 
-> Mis à jour le 18/11/2026 à 15 h. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
+> Mis à jour le 18/11/2026 à 17 h. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
 >
 > Priorité **P0** : indispensable à la démo de vendredi. **P1** : utile, mais elle peut s'en passer.
+
+## Feuille de route jusqu'à vendredi
+
+Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoient au tableau « À faire ».
+
+| Quand | Jalon : ce qui doit être vrai | Tâches | Qui |
+|---|---|---|---|
+| **Mer 18, 17 h** | Checkpoint 2 rendu : parcours utilisateur, architecture ([ARCHITECTURE.md](ARCHITECTURE.md) et le PDF illustré corrigé), Loom de 2 min, cette feuille de route | — | Alec, Tugdual |
+| **Mer 18, soir** | L'équipe travaille sur la même base : le bon Supabase est confirmé, tout le monde a accès au dépôt, Notion n'a plus de mots de passe en clair. La demande du compte B et de la ressource témoin est envoyée à l'école | 6, 10, 11, 12 | Jahdiel, chef de projet, Aurian |
+| **Jeu 19, midi** | Le QA de la démo est figé : scénarios choisis, dictée validée avec une vraie voix, 10 répétitions faites, temps gagné mesuré | 1, 2, 3 | Aurian, Tugdual |
+| **Jeu 19, midi** | Peer Review : la connexion par HTTP marche, et S-PEER-01 a tourné en réel | 5, 8 | Aurian |
+| **Jeu 19, midi** | **Point de décision** : sans compte B ni ressource témoin à cette heure, le pentest de la démo se fait sur le banc Paie Express (59/60 mesuré) | — | Aurian, Alec |
+| **Jeu 19, soir** | La démo complète tourne : S-PEER-02 intégré et exécuté (sauf décision contraire à midi), web déployée sur Vercel, répétition générale faite | 7, 9, 18 | Aurian |
+| **Ven 20, 11 h** | Checkpoint 3 : prototype en live, fiche projet, dépôt à jour, vidéo de 5 min ; historique de test vidé | 4, 15, 17 | Tous |
+| **Ven 20, 15 h** | Checkpoint 4 : deck de 8 à 12 slides, coût de run compris | 16 | Tugdual, Alec |
+
+**Charge à revoir :** 10 tâches sur 18 sont au nom d'Aurian, dont 7 pour jeudi. Pour le soulager, une proposition, à trancher en équipe :
+- Mohamed fait les 10 répétitions (tâche 3), en ligne de commande ;
+- Jahdiel ou Aziz déploie la web (tâche 9) ;
+- Tugdual valide la dictée avec une vraie voix (tâche 1), puisqu'elle fait partie de sa démo.
 
 ## Échéances
 
@@ -46,6 +66,7 @@
 | 18/11 | File QA séparée dans Supabase, et son worker | Tables `qa_missions` et `qa_evenements`, RLS vérifié dans les deux sens |
 | 18/11 | Agent H `sentinelqa-pentest-acces` créé ; une session réelle, la connexion du compte A | Module `contributions/kimi-pentest` |
 | 18/11 | Les tests des modules pentest de `contributions/` passent tous | 19/19 pour le contrôle d'accès, 49/49 pour « HF vers contrôles » (mesuré à 15 h 10) |
+| 18/11 | Le document d'architecture illustré corrigé (27 pages) et [ARCHITECTURE.md](ARCHITECTURE.md), avec les revirements depuis le 17/11 | Chaque page regardée en aperçu ; à déposer sur Notion à la place de la version du 17/11 |
 | 18/11 | Ce dépôt GitHub, avec une sélection technique et aucun secret | Les vraies valeurs des clés ont été cherchées avant l'envoi : aucune trouvée |
 | 17/11 | Banc pentest Paie Express | 59 failles prouvées sur 60, 0 faux positif, en 10 audits |
 
