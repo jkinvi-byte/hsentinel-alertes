@@ -198,6 +198,10 @@
 
 ## 8. État du projet (18/11, QA et pentest à égalité sur sites réels)
 
+### Dépôt GitHub de l'équipe (D-31)
+- **Dépôt** : https://github.com/jkinvi-byte/hsentinel-alertes, privé. Le dossier de travail est le dépôt. Le `.gitignore` fonctionne en liste blanche : ajouter un chemin à publier est une décision, que l'on consigne.
+- **Avant chaque push** : `git status` pour voir ce qui part. Aucune clé dans un fichier (§9). Le README à la racine dit l'état réel ; on le tient à jour, daté.
+
 ### Volet QA exécuté en réel depuis Claude Code (D-30)
 - **Demande d'Aurian (18/11, 6 h 20)** : mener à bien la partie QA pour que les agents H fassent ce qui est attendu, sans cybersécurité. Aurian gère l'autre volet.
 - **Fait et vérifié en réel** sur `eugeniaschool.com`, en consultation seule :

@@ -1,142 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CATALOGUE_QA, MODELES_H, TYPES_CRITERES, nomModele, typo } from '../../lib/qa-contrat.mjs';
 import { Fleche, Icone } from '../composants';
+import Dictee from './dictee';
+import { ajouterTranscription, studioDisponible } from '../../lib/qa-dictee.mjs';
 
-const MAX_DICTEE_S = 60;
-const TRAIT = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' };
 const NOMS_H = { 'holo4-35b-a3b': 'Flash', 'holo4-27b': 'Pro' };
-
-function Micro() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" {...TRAIT}>
-      <path d="M9 6a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0z" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />
-    </svg>
-  );
-}
-
 const secondesFr = (s) => (s == null ? 'un temps non mesuré' : `${String(s).replace('.', ',')} s`);
-const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-
-// La dictée : l'enregistrement devient le texte de la consigne, dans le même champ, modifiable avant tout lancement.
-function Dictee({ onTexte, onDebut, desactive, suite }) {
-  const [etat, setEtat] = useState('repos');
-  const [secondes, setSecondes] = useState(0);
-  const [note, setNote] = useState(null);
-  const [erreur, setErreur] = useState(null);
-  const niveau = useRef(null);
-  const ressources = useRef({});
-
-  function liberer() {
-    const r = ressources.current;
-    clearInterval(r.minuteur);
-    if (r.image) cancelAnimationFrame(r.image);
-    r.flux?.getTracks().forEach((t) => t.stop());
-    r.contexte?.close().catch(() => {});
-    ressources.current = { enregistreur: r.enregistreur };
-  }
-
-  function arreter() {
-    const r = ressources.current;
-    if (r.enregistreur?.state === 'recording') r.enregistreur.stop();
-    liberer();
-  }
-
-  async function envoyer(audio) {
-    setEtat('transcription');
-    try {
-      const reponse = await fetch('/api/qa/transcription', { method: 'POST', headers: { 'Content-Type': audio.type }, body: audio });
-      const corps = await reponse.json();
-      if (!reponse.ok) throw new Error(corps.erreur ?? 'La transcription a échoué.');
-      if (!corps.texte) throw new Error('Rien n’a été entendu. Recommencez plus près du micro.');
-      onTexte(corps.texte);
-      setNote(`Transcrit par ${nomModele(corps.modele)} en ${secondesFr(corps.latence_s)}. Relisez les noms d’écrans et les négations avant de préparer le plan.`);
-    } catch (e) {
-      setErreur(e.message);
-    }
-    setEtat('repos');
-  }
-
-  async function commencer() {
-    setErreur(null);
-    setNote(null);
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      setErreur('La dictée n’est pas disponible dans ce navigateur : tapez la consigne.');
-      return;
-    }
-    let flux;
-    try {
-      flux = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      setErreur('Micro refusé : autorisez-le dans le navigateur, ou tapez la consigne.');
-      return;
-    }
-    onDebut();
-    const type = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find((t) => MediaRecorder.isTypeSupported?.(t)) ?? '';
-    const enregistreur = new MediaRecorder(flux, type ? { mimeType: type } : undefined);
-    const morceaux = [];
-    enregistreur.ondataavailable = (e) => { if (e.data.size) morceaux.push(e.data); };
-    enregistreur.onstop = () => envoyer(new Blob(morceaux, { type: (enregistreur.mimeType || type || 'audio/webm').split(';')[0] }));
-    const r = { flux, enregistreur };
-    // Le trait suit le niveau du micro (transform seulement) ; rien ne bouge si l'utilisateur a réduit les animations.
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      r.contexte = new AudioContext();
-      const analyseur = r.contexte.createAnalyser();
-      analyseur.fftSize = 512;
-      r.contexte.createMediaStreamSource(flux).connect(analyseur);
-      const donnees = new Uint8Array(analyseur.fftSize);
-      const dessiner = () => {
-        analyseur.getByteTimeDomainData(donnees);
-        let somme = 0;
-        for (const v of donnees) somme += ((v - 128) / 128) ** 2;
-        if (niveau.current) niveau.current.style.transform = `scaleX(${Math.min(1, 0.04 + Math.sqrt(somme / donnees.length) * 3.2)})`;
-        r.image = requestAnimationFrame(dessiner);
-      };
-      r.image = requestAnimationFrame(dessiner);
-    }
-    const depart = Date.now();
-    r.minuteur = setInterval(() => {
-      const s = Math.floor((Date.now() - depart) / 1000);
-      setSecondes(s);
-      if (s >= MAX_DICTEE_S) arreter();
-    }, 250);
-    ressources.current = r;
-    enregistreur.start();
-    setSecondes(0);
-    setEtat('enregistrement');
-  }
-
-  useEffect(() => () => {
-    const r = ressources.current;
-    if (r.enregistreur?.state === 'recording') { r.enregistreur.onstop = null; r.enregistreur.stop(); }
-    liberer();
-  }, []);
-
-  return (
-    <div className="qa-dictee">
-      {etat === 'enregistrement' ? (
-        <div className="qa-enregistrement" role="status">
-          <p className="kicker">Enregistrement · {mmss(secondes)} · une minute au plus</p>
-          <div className="qa-niveau" aria-hidden="true"><span ref={niveau} /></div>
-          <div className="qa-ligne">
-            <button type="button" className="bouton principal" onClick={arreter}>Arrêter et transcrire</button>
-          </div>
-        </div>
-      ) : (
-        <div className="qa-ligne">
-          <button type="button" className="bouton secondaire" disabled={desactive || etat === 'transcription'} onClick={commencer}>
-            <Micro />{etat === 'transcription' ? 'Transcription…' : 'Dicter la consigne'}
-          </button>
-          {suite}
-        </div>
-      )}
-      {note && <p className="qa-note">{note}</p>}
-      {erreur && <p className="erreur-audit" role="alert">{erreur}</p>}
-    </div>
-  );
-}
 
 export default function Studio() {
   const router = useRouter();
@@ -146,6 +18,8 @@ export default function Studio() {
   const [modele, setModele] = useState(MODELES_H[0]);
   const [instruction, setInstruction] = useState('');
   const [voix, setVoix] = useState(false);
+  const [dicteeOccupee, setDicteeOccupee] = useState(false);
+  const dicteeEnCours = useRef(false);
   const [plan, setPlan] = useState(null);
   const [planPour, setPlanPour] = useState(null);
   const [etat, setEtat] = useState('repos');
@@ -154,12 +28,14 @@ export default function Studio() {
   const cible = CATALOGUE_QA.cibles.find((c) => c.id === targetId);
   const limites = cible.limites[pilotage];
   const perime = Boolean(plan) && planPour !== instruction.trim();
-  const pret = etat === 'repos' && (pilotage === 'exploration' || (plan && !perime));
-  const occupe = etat !== 'repos';
+  const disponible = studioDisponible(etat, dicteeOccupee);
+  const pret = disponible && (pilotage === 'exploration' || (plan && !perime));
+  const occupe = !disponible;
 
   const marquerDebut = () => { debut.current ??= Date.now(); };
 
   async function preparer() {
+    if (dicteeEnCours.current || etat !== 'repos') return;
     marquerDebut();
     setEtat('preparation');
     setErreur(null);
@@ -184,7 +60,7 @@ export default function Studio() {
 
   async function lancer(event) {
     event.preventDefault();
-    if (!pret) return;
+    if (!pret || dicteeEnCours.current) return;
     setEtat('envoi');
     setErreur(null);
     const mission = {
@@ -257,7 +133,12 @@ export default function Studio() {
             </label>
             <p className="qa-note">Un texte qui doit apparaître mot pour mot se met entre guillemets : « 4 étapes ». Le code le cherchera tel quel dans la page.</p>
             <Dictee desactive={occupe} onDebut={marquerDebut}
-              onTexte={(texte) => { setVoix(true); setInstruction((t) => (t.trim() ? `${t.trim()}\n${texte}` : texte)); }}
+              onOccupation={(valeur) => { dicteeEnCours.current = valeur; setDicteeOccupee(valeur); }}
+              onTexte={(texte) => {
+                const nouvelle = ajouterTranscription(instruction, texte);
+                setVoix(true);
+                setInstruction(nouvelle);
+              }}
               suite={(
                 <button type="button" className="bouton" disabled={!instruction.trim() || occupe} onClick={preparer}>
                   {etat === 'preparation' ? 'Préparation du plan…' : plan && !perime ? 'Préparer de nouveau' : 'Préparer le plan'}
