@@ -1,31 +1,19 @@
-# Le dépôt publie une sélection : tout est ignoré, sauf les chemins listés ici.
-# Ajouter un chemin ici est une décision : le README liste ce qui n'est pas publié, et pourquoi.
+# Dépôt technique : tout est ignoré, sauf les chemins listés ici.
 /*
 !/.gitignore
 !/README.md
-!/CLAUDE.md
+!/ARCHITECTURE.md
+!/SUIVI.md
 !/sentinelqa/
 !/contributions/
-!/livrables/
-!/notes/
-!/contexte/
-!/passation-kimi/
 
-# Dans ces dossiers, seulement les documents à jour
-/livrables/*
-!/livrables/06-architecture-sentinelqa.md
-!/livrables/08-justification-des-choix.md
-/notes/*
-!/notes/retours-agents-api.md
-!/notes/recherche-pain-points-securite-17-11-2026.md
-/contexte/*
-!/contexte/00-brief-hackathon.md
-!/contexte/02-showcase-h.md
-!/contexte/03-agents-api.md
-/passation-kimi/*
-!/passation-kimi/BRIEF-MOTEUR-PENTEST-HF.md
+# Documents de travail, gardés en local
+/sentinelqa/MARQUE.md
+/sentinelqa/README.md
+/sentinelqa/rapports/
+/contributions/qa-demo/
 
-# Jamais : secrets, dépendances, artefacts générés (CLAUDE.md, §9)
+# Jamais : secrets, dépendances, artefacts générés
 .env
 .env.*
 !.env.example
@@ -36,4 +24,3 @@ node_modules/
 .next/
 __pycache__/
 .DS_Store
-/sentinelqa/rapports/

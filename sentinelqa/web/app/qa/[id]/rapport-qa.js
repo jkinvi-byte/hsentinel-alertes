@@ -56,7 +56,7 @@ export default function RapportQa({ mission }) {
     `H ${dollars(r.cost_h)}`,
     tokens ? `${nombre(tokens)} tokens` : null,
     prep?.latence_s != null ? `plan Hugging Face ${String(prep.latence_s).replace('.', ',')} s` : null,
-    `préparation humaine ${d.preparation_humaine_s == null ? 'non mesurée' : `${d.preparation_humaine_s} s`}`,
+    `temps avant lancement ${d.preparation_humaine_s == null ? 'non mesuré' : `${d.preparation_humaine_s} s`}`,
   ].filter(Boolean);
 
   return (
