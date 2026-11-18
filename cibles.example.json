@@ -1,0 +1,24 @@
+{
+  "_note": "Copier en cibles.json. Uniquement des cibles que l'équipe contrôle. Aucun mot de passe ici : ils vont dans les coffres H (02_creer_coffres.py).",
+  "paie": {
+    "nom": "Paie Express (notre cobaye)",
+    "url": "https://A-REMPLACER.vercel.app",
+    "page_connexion": "https://A-REMPLACER.vercel.app/connexion",
+    "perimetre_interdit": ["déconnexion", "supprimer", "remise à zéro"],
+    "comptes": {
+      "A": {"email": "a@alpha.test", "role": "administrateur d'Alpha Conseil"},
+      "B": {"email": "b@beta.test", "role": "administrateur de Bêta Logistique"},
+      "C": {"email": "c@alpha.test", "role": "salarié d'Alpha Conseil"}
+    }
+  },
+  "juice": {
+    "nom": "OWASP Juice Shop (notre instance)",
+    "url": "https://A-REMPLACER",
+    "page_connexion": "https://A-REMPLACER/#/login",
+    "perimetre_interdit": ["déconnexion", "supprimer", "payer", "commander", "score-board"],
+    "comptes": {
+      "A": {"email": "alice@hs.test", "role": "client"},
+      "B": {"email": "bob@hs.test", "role": "client"}
+    }
+  }
+}

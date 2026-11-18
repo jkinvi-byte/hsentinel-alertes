@@ -1,0 +1,4 @@
+hai-agents>=1.5
+httpx>=0.27
+pydantic>=2
+python-dotenv>=1.0

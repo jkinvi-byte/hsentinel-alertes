@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+coffres.json
+cibles.json
+resultats/
+.venv/
+__pycache__/
+*.pyc
+*.log
+juice_creds.json
