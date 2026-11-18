@@ -47,7 +47,7 @@
 | 18/11 | Agent H `sentinelqa-pentest-acces` créé ; une session réelle, la connexion du compte A | Module `contributions/kimi-pentest` |
 | 18/11 | Les tests des modules pentest de `contributions/` passent tous | 19/19 pour le contrôle d'accès, 49/49 pour « HF vers contrôles » (mesuré à 15 h 10) |
 | 18/11 | Ce dépôt GitHub, avec une sélection technique et aucun secret | Les vraies valeurs des clés ont été cherchées avant l'envoi : aucune trouvée |
-| 17/11 | Banc pentest Paie Express | 29 failles prouvées sur 30, 0 faux positif, sur 5 audits |
+| 17/11 | Banc pentest Paie Express | 59 failles prouvées sur 60, 0 faux positif, en 10 audits |
 
 ## Risques connus
 

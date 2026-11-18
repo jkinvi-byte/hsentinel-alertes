@@ -5,14 +5,14 @@ Des agents IA de H Company testent un site web autorisé comme un humain : ils n
 - **QA** : le site fait-il ce qu'on attend ?
 - **Pentest** : un accès qui devrait être refusé est-il possible ?
 
-**[Architecture](ARCHITECTURE.md)** · **[Suivi du projet, ce qui reste à faire](SUIVI.md)**
+**[Architecture](ARCHITECTURE.md)**, avec ce qui a changé depuis le document illustré du 17/11 · **[Suivi du projet, ce qui reste à faire](SUIVI.md)**
 
 ## État au 18/11, 15 h
 
 | Volet | Fonctionne, vérifié en réel | Manque |
 |---|---|---|
 | QA | Consigne tapée ou dictée, puis plan Hugging Face, agent H, vérification par le code et rapport web. 9 missions sur eugeniaschool.com, sur ordinateur et sur mobile : 0,033 $ et 76 s en moyenne | Dictée avec une vraie voix, mesure du temps gagné, déploiement |
-| Pentest : banc | Paie Express, une application de test à failles injectées : 29 failles prouvées sur 30, 0 faux positif | — |
+| Pentest : banc | Paie Express, une application de test à failles injectées : 59 failles prouvées sur 60, en 10 audits, 0 faux positif | — |
 | Pentest : Peer Review | Agent H créé ; une session réelle, la connexion du compte A | Contrôle authentifié jamais exécuté en entier ; modules non intégrés (`contributions/`) |
 
 ## Lancer le volet QA

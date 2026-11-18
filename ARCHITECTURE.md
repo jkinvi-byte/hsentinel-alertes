@@ -2,6 +2,7 @@
 
 > État au 18/11/2026, 15 h. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md).
 
+0. [Ce qui a changé depuis le document du 17/11](#0-ce-qui-a-changé-depuis-le-document-du-1711)
 1. [Vue d'ensemble](#1-vue-densemble)
 2. [Le principe : l'agent montre, le code décide](#2-le-principe--lagent-montre-le-code-décide)
 3. [Volet QA : le trajet d'une mission](#3-volet-qa--le-trajet-dune-mission)
@@ -15,6 +16,29 @@
 11. [La web](#11-la-web)
 12. [L'état de chaque brique](#12-létat-de-chaque-brique)
 13. [La carte du code](#13-la-carte-du-code)
+
+---
+
+## 0. Ce qui a changé depuis le document du 17/11
+
+Le grand document illustré (HTML et PDF, 24 pages, déposé sur Notion) date du 17/11 à 17 h. Depuis, ces décisions en ont changé le fond. **Là où les deux se contredisent, c'est ce document qui fait foi.**
+
+| Sujet | Document du 17/11 | Aujourd'hui | Décision |
+|---|---|---|---|
+| Ce qu'est HSentinel | Un agent qui se comporte comme un client malveillant et vérifie qu'aucun client n'atteint les données d'un autre | Deux volets de même importance : le **QA** (le site fait-il ce qu'on attend ?) et le **Pentest** (un accès interdit est-il possible ?) | D-25, D-26 |
+| Le volet QA | Le test T0, l'isolation entre entreprises : cartographie, puis rejeu | Un **test fonctionnel** : parcours dicté ou exploration bornée, vérifiés par le code ; construit et exécuté en réel | D-25, D-30 |
+| Le volet Pentest | Exploration libre guidée par Hugging Face, et T1 (un accès qui reste après un changement de droits) | Des **contrôles d'accès en lecture** sur Peer Review : la barrière anonyme (S-PEER-01), et une ressource témoin lue par A mais pas par un anonyme ni par B (S-PEER-02). **T1 est retiré** des sites réels | D-24, D-26 |
+| Les cibles | Une préproduction du client ; la démo sur le cobaye Paie Express | **Des sites réels autorisés** : eugeniaschool.com et Peer Review, en consultation seule. Paie Express devient un banc de calibration | D-24 |
+| Les écritures | Permises sur des données de test, avec le feu vert donné au cadrage, puis remise en état | **Aucune écriture** ni aucun changement de droits sur les sites réels | D-24 |
+| Les agents H | Explorateur, Vérificateur, et le Préparateur à venir pour T1 | `sentinelqa-qa` pour le QA ; l'Explorateur et le Vérificateur pour le banc ; `sentinelqa-pentest-acces` pour S-PEER-02. **Le Préparateur est abandonné** | D-24, D-30 |
+| Le verdict | Un rejeu HTTP (pages similaires à 95 % ou plus), puis une preuve à l'écran | Banc : inchangé. QA : les preuves du code (événements H, page servie, citation de l'agent retrouvée). Peer Review : une règle d'accès écrite, vérifiée sur une ressource témoin | D-24, D-30 |
+| Hugging Face | Il dit où chercher dans le pentest, et il rédige l'explication | Il prépare le **plan QA**, transcrit la **dictée** et propose des contrôles d'accès (module en cours). Il ne rend jamais le verdict | D-23, D-30 |
+| La voix | Absente | Une **dictée** dans la web, qui écrit dans le même champ que la saisie | D-30, D-32 |
+| n8n | Les déclencheurs : un audit à chaque déploiement (W1), les alertes (W3), un pentest régulier (W4) | **Non construit.** Les missions partent de la web | — |
+| Supabase | 3 tables, et une extension prévue (Auth, RLS par organisation, Storage) | Une **file QA séparée** (`qa_missions`, `qa_evenements`) ; l'extension prévue n'est pas faite | D-30 |
+| La web | La salle de contrôle : cadrer un audit avec trois comptes de test | Deux onglets : **QA** (studio, dictée, plan, suivi en direct, arrêt, rapport) et Pentest. Pas encore déployée | D-27, D-30 |
+| La preuve de propriété de la cible | Un fichier à déposer sur la préproduction | Pour ces deux sites, l'accord écrit de l'école | D-24 |
+| Le plan et les questions ouvertes | Neuf livrables et sept questions, dans le document | Tenus dans [SUIVI.md](SUIVI.md) | — |
 
 ---
 
@@ -142,7 +166,7 @@ flowchart TD
   - **écriture** : B modifie les données de A, seulement avec un feu vert humain, et A remet ensuite la valeur d'origine ;
   - **admin** : C, simple salarié, dépasse son rôle.
 - **Une faille n'est prouvée que si le rejeu et l'agent la confirment.** La gravité ne vient pas du LLM, qui variait d'un audit à l'autre : elle vient d'une règle écrite (`runner/gravite.py`).
-- **Mesures du 17/11** : 29 failles prouvées sur 30 et 0 faux positif sur 5 audits. Un audit coûte de 0,19 à 0,21 $ et dure de 213 à 262 s.
+- **Mesures du 17/11**, sur le banc à 6 failles injectées : 59 failles prouvées sur 60 et 0 faux positif, en 10 audits. Un audit coûte de 0,13 à 0,21 $ et dure de 170 à 349 s.
 - Fichiers : `runner/sentinelqa.py` (orchestration), `runner/agents_h.py`, `runner/gravite.py`, `runner/hf.py`.
 
 ## 6. Volet Pentest : Peer Review, en cours
@@ -250,7 +274,7 @@ flowchart LR
 | QA : dictée | Exécutée de bout en bout dans un navigateur, avec une voix de synthèse ; à essayer avec une vraie voix |
 | QA : vérification par le code | 46 tests Python ; faux écarts trouvés en réel puis corrigés et revérifiés |
 | Web QA | 33 tests JavaScript réussis ; compilation réussie à 14 h 37, puis bloquée à 15 h par le téléchargement des polices Google |
-| Pentest : banc Paie Express | Exécuté en réel : 29/30, 0 faux positif |
+| Pentest : banc Paie Express | Exécuté en réel : 59/60 en 10 audits, 0 faux positif |
 | Pentest : S-PEER-01 | Code raccordé, aucune exécution complète revendiquée |
 | Pentest : S-PEER-02 | Module non intégré, jamais exécuté en entier |
 | Pentest : HF vers contrôles | Banc synthétique ; 49 tests sur 49 |
