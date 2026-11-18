@@ -52,10 +52,12 @@ Si `max_steps` et `max_time_s` n'apparaissent pas, les scripts le signalent et l
 ## 3. Créer les agents et les coffres
 
 ```bash
-python 01_creer_agents.py
+python creer_agents_hsentinel.py explorateur
+python creer_agents_hsentinel.py verificateur
+python creer_agents_hsentinel.py preparateur
 ```
 
-Crée `sentinelqa-explorateur` (cartographie) et `sentinelqa-verificateur` (ouvre une adresse, décrit, ne clique sur rien d'autre), modèle `holo4-35b-a3b`, navigateur visuel, garde-fous dans les instructions — comme dans l'architecture.
+Crée `hsentinel-explorateur` (cartographie), `hsentinel-verificateur` (ouvre une adresse, décrit, ne clique sur rien d'autre) et `hsentinel-preparateur` (T1), modèle `holo4-35b-a3b`, navigateur visuel, garde-fous dans les instructions — comme dans l'architecture.
 
 ```bash
 python 02_creer_coffres.py paie
@@ -67,17 +69,21 @@ python 02_creer_coffres.py juice
 
 Un coffre H par compte. Le mot de passe est tapé au clavier et part directement chez H ; l'agent se connecte par `fill_secret_at` sans jamais le voir.
 
-## 4. Premier test : cartographier, puis changer de compte
+## 4. Premier test : un audit de bout en bout
+
+Un seul lanceur fait tout (cartographie → re-test par l'intrus → verdict) :
 
 ```bash
-python 03_explorer.py juice A
+python auditer.py cadence --proprietaire A --intrus B
 ```
+
+Pour le volet Pentest profond (exploration libre + guidage Kimi K3) :
 
 ```bash
-python 04_verifier.py juice B resultats/carto_juice_A_XXXXXX.json --max 5
+python pentest.py cadence --proprietaire A --intrus B --budget 80
 ```
 
-Puis la même chose sur Paie Express (`paie A`, puis `paie B`, puis `paie C` pour l'administration).
+Voir aussi la section « L'audit complet » et « Distinguer QA et Pentest profond » plus bas.
 
 **Lire le résultat :** si B voit le panier ou la fiche de A, c'est une **suspicion**. Elle ne devient une faille prouvée qu'après le rejeu HTTP (similarité ≥ 0,95) de l'orchestrateur : c'est la règle D-05, à brancher avec Aurian.
 
