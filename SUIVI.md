@@ -36,6 +36,10 @@
 | 16 | Faire le deck, dont le coût de run (QA : 0,033 $ par mission, mesuré) | Démo | P0 | Tugdual | Ven 20 |
 | 17 | Rédiger la fiche projet : problème, solution, stack, architecture, lien du prototype, comment tester | Démo | P0 | Tugdual | Ven 20 |
 | 18 | Intégrer les polices à la web (`next/font/local`) : la compilation ne dépendra plus du réseau | Plateforme | P1 | Aurian | Jeu 19 |
+| 19 | Choisir **une seule** base Supabase pour le runner et les alertes n8n (aujourd'hui : runner sur `auaitjryhgwdbczwkdef`, alertes sur `hsentinel-dev`), puis y rebrancher W1, W3 et W4 (suite de la tâche 10) | Plateforme | P0 | Jahdiel, Aurian | Jeu 19 |
+| 20 | Écrire chaque faille prouvée du pentest dans la table `constats` (format : contrat de branchement de Jahdiel) : W3 envoie alors seul le ticket et l'e-mail | Pentest | P1 | Aurian | Jeu 19 |
+| 21 | Montrer l'alerte en démo : une faille prouvée sur Peer Review → ticket dans ce dépôt + e-mail, en quelques secondes | Démo | P1 | Jahdiel | Ven 20 |
+| 22 | Brancher le webhook GitHub (*Deployment statuses*) d'une cible déployée sur Vercel vers W1, pour un audit à chaque mise en ligne | Plateforme | P1 | Jahdiel | Ven 20 |
 
 ## Fait et vérifié
 
@@ -47,6 +51,9 @@
 | 18/11 | Agent H `sentinelqa-pentest-acces` créé ; une session réelle, la connexion du compte A | Module `contributions/kimi-pentest` |
 | 18/11 | Les tests des modules pentest de `contributions/` passent tous | 19/19 pour le contrôle d'accès, 49/49 pour « HF vers contrôles » (mesuré à 15 h 10) |
 | 18/11 | Ce dépôt GitHub, avec une sélection technique et aucun secret | Les vraies valeurs des clés ont été cherchées avant l'envoi : aucune trouvée |
+| 18/11 | n8n W3 : faille prouvée (table `constats`) → un ticket GitHub par faille dans ce dépôt + un e-mail (sauf gravité faible), réouverture si la faille revient, reprise automatique toutes les 15 min | Testé en réel sur la base `hsentinel-dev` : nouvelle faille, doublon, réouverture, panne GitHub, panne Gmail, rattrapage, déclenchement automatique par Supabase |
+| 18/11 | n8n W1 : preview prête (événement GitHub `deployment_status`) → demande d'audit dans Supabase, signature GitHub vérifiée, dernière version seulement | Appel HTTP réel signé accepté, signature fausse refusée, doublons et versions dépassées gérés |
+| 18/11 | n8n W4 : chaque nuit à 2 h, demandes d'audit Pentest pour les applications abonnées | 2 passages réels : une demande créée et une alerte « 3 échecs », puis rien au 2e passage |
 | 17/11 | Banc pentest Paie Express | 29 failles prouvées sur 30, 0 faux positif, sur 5 audits |
 
 ## Risques connus
@@ -54,4 +61,5 @@
 - **Le Python du projet est sur un disque externe.** Si le disque est débranché, le worker s'arrête (code 138) : voir la tâche 13.
 - **Un agent H varie d'une session à l'autre.** Un « écart » vu par l'agent seul ne compte jamais ; seul le code tranche.
 - **Le réseau de l'école bloque le port 7844**, celui du tunnel Cloudflare du banc pentest. Parade : partager la connexion d'un téléphone.
+- **Deux bases Supabase en parallèle.** Les alertes n8n (W1, W3, W4) lisent `hsentinel-dev`, le runner écrit dans `auaitjryhgwdbczwkdef` : tant que la tâche 19 n'est pas faite, les vraies failles ne déclenchent aucune alerte.
 - **Plusieurs agents IA modifient les mêmes fichiers.** Faire un `git status` avant chaque commit, et ne pousser que des fichiers nommés.
