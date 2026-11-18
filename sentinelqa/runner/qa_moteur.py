@@ -13,10 +13,13 @@ Usage :
   python qa_moteur.py --consigne "Va dans Programmes et ouvre le Bachelor"     (parcours guidé, plan préparé par HF)
   python qa_moteur.py --exploration [--mobile]                                 (exploration bornée, sans consigne)
   python qa_moteur.py --consigne "…" --preparer-seulement                      (affiche le plan, sans lancer H)
+  python qa_moteur.py --cible peer-review --email … --identite Nom --consigne "…" (site connecté ; le mot de passe est lu
+                                                                                sur l'entrée standard et ne va qu'au coffre H)
 """
 
 import argparse
 import copy
+import getpass
 import hashlib
 import html
 import json
@@ -30,8 +33,9 @@ from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 import httpx
+from hai_agents import VaultCreateRequestProviderConfig_Internal
 
-from qa_agent import APPAREILS, MODELE, NOM, ReponseQA, assurer_agent
+from qa_agent import APPAREILS, MODELE, ReponseQA, assurer_agent
 
 ICI = Path(__file__).resolve().parent
 CATALOGUE = json.loads((ICI.parent / "contrats" / "qa.json").read_text())
@@ -41,7 +45,13 @@ PILOTAGES = tuple(CATALOGUE["pilotages"])
 TYPES_CRITERES = ("page", "texte", "constat")
 MODELES_H = (MODELE, "holo4-27b")
 CHAMPS = {"schema_version", "mode", "target_id", "pilotage", "appareil", "instruction", "source", "plan", "modele_h",
-          "preparation_humaine_s"}
+          "preparation_humaine_s", "coffre", "identite"}
+UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+# Sur une cible connectée, hors de la page de connexion : un clic dont le libellé porte l'un de ces mots peut écrire
+# (noter, envoyer…). Le code arrête alors la session ; H a peut-être déjà exécuté ce clic : l'arrêt borne les suites.
+VERBES_A_RISQUE = {"envoyer", "enregistrer", "sauvegarder", "valider", "soumettre", "confirmer", "publier", "supprimer", "modifier",
+                   "noter", "evaluer", "commenter", "voter", "activer", "desactiver", "reinitialiser",
+                   "submit", "send", "save", "confirm", "delete", "rate", "publish"}
 FINIS = {"completed", "idle", "failed", "timed_out", "interrupted"}
 ROUTEUR_HF = "https://router.huggingface.co/v1/chat/completions"
 # Textes qui trahissent une page cassée quand ils s'affichent tels quels : le code les reconnaît sans l'agent.
@@ -139,10 +149,15 @@ def valider_plan(plan, cible):
     criteres = criteres[: regles["max_criteres"]]
     if not criteres:
         raise ValueError("Le plan doit contenir au moins un critère vérifiable.")
+    hors = [h for h in (_texte(x, 300, "Une mention hors périmètre") for x in plan.get("hors_perimetre") or []) if h]
+    if cible.get("connexion"):
+        # L'agent se connecte lui-même avec le coffre : « Se connecter » hors périmètre contredirait sa mission
+        # (plan Hugging Face du 18/11 à 18 h 50, pour « Une fois connecté, vérifie… »).
+        hors = [h for h in hors if not re.search(r"\b(se connecter|connexion|s identifier|login|log in|sign in)\b", normaliser(h))]
     propre = {
         "titre": _texte(plan.get("titre"), 120, "Le titre") or "Parcours QA",
         "etapes": etapes, "criteres": criteres,
-        "hors_perimetre": [h for h in (_texte(x, 300, "Une mention hors périmètre") for x in plan.get("hors_perimetre") or []) if h][:6],
+        "hors_perimetre": hors[:6],
         "inconnues": [h for h in (_texte(x, 300, "Une inconnue") for x in plan.get("inconnues") or []) if h][:6],
     }
     prep = plan.get("preparation")
@@ -160,6 +175,16 @@ def valider_mission(d):
     pilotage, appareil = d.get("pilotage"), d.get("appareil", "ordinateur")
     if pilotage not in PILOTAGES or appareil not in APPAREILS:
         raise ValueError("Le pilotage ou l'appareil est inconnu.")
+    if pilotage not in cible["limites"]:
+        raise ValueError("Ce pilotage n'est pas ouvert sur cette cible.")
+    # Une cible connectée reçoit un coffre H propre à l'essai ; une cible publique, jamais.
+    coffre, identite = d.get("coffre"), d.get("identite") or []
+    if cible.get("connexion") and not (isinstance(coffre, str) and UUID.fullmatch(coffre)):
+        raise ValueError("Cette cible se teste connectée : il faut un coffre H propre à l'essai.")
+    if not cible.get("connexion") and (coffre is not None or identite):
+        raise ValueError("Une cible publique ne reçoit ni coffre ni identité.")
+    if not isinstance(identite, list) or len(identite) > 3 or not all(isinstance(x, str) and 0 < len(x.strip()) <= 120 for x in identite):
+        raise ValueError("L'identité attendue est invalide.")
     source = d.get("source", "texte")
     if source not in ("texte", "voix"):
         raise ValueError("La source de la consigne est inconnue.")
@@ -174,6 +199,8 @@ def valider_mission(d):
         "instruction": _texte(d.get("instruction"), 2000, "La consigne"), "source": source, "modele_h": modele_h,
         "preparation_humaine_s": humain, "plan": None,
     }
+    if cible.get("connexion"):
+        mission.update(coffre=coffre, identite=[" ".join(x.split()) for x in identite])
     if pilotage == "guide":
         if d.get("plan") is None:
             raise ValueError("Un parcours guidé demande un plan relu.")
@@ -240,6 +267,7 @@ class Lectures:
         self.cible, self.controle = cible, controle
         self.limites = cible["limites"]
         self.preuves, self.cache, self.nombre = [], {}, 0
+        self.privees = set()  # les chemins qu'une lecture anonyme ne voit pas : elle est renvoyée à la connexion
         self.http = httpx.Client(transport=transport, follow_redirects=False, trust_env=False, timeout=15,
                                  headers={"User-Agent": "HSentinel-QA/0.3 (authorized read-only QA check)"})
 
@@ -249,6 +277,8 @@ class Lectures:
             raise Interruption("out_of_scope")
         if chemin in self.cache:
             return self.cache[chemin]
+        if chemin in self.privees:
+            raise Interruption("private_page")
         courant = self.cible["origine"] + chemin
         for _ in range(4):
             self.controle.verifier()
@@ -264,8 +294,13 @@ class Lectures:
                     corps.append(morceau)
                 statut, entetes = flux.status_code, flux.headers
             suivant = entetes.get("location") if 300 <= statut < 400 else None
-            if suivant and chemin_cible(self.cible, urljoin(courant, suivant)):
-                courant = self.cible["origine"] + chemin_cible(self.cible, urljoin(courant, suivant))
+            vers = chemin_cible(self.cible, urljoin(courant, suivant)) if suivant else None
+            if vers and vers != chemin and vers == (self.cible.get("connexion") or {}).get("chemin"):
+                # Une page privée : sa réponse anonyme est la connexion, pas la page que le navigateur connecté a vue.
+                self.privees.add(chemin)
+                raise Interruption("private_page")
+            if vers:
+                courant = self.cible["origine"] + vers
                 continue
             break
         brut = b"".join(corps)
@@ -352,6 +387,19 @@ def retrouver_citation(citation, sources):
     return None
 
 
+def titre_tronque(citation, textes):
+    """Le texte relevé par H ne garde d'un titre à styles mêlés que sa partie en italique : « Bonne *soirée*, Alec »
+    y devient la ligne « *soirée* » (Peer Review, 18/11 à 18 h 37, capture à l'appui). Ce fragment, s'il appartient
+    à la citation de l'agent ; sinon None. Il explique une citation introuvable, il ne la prouve jamais."""
+    cherche = f" {normaliser(citation)} "
+    for texte in textes:
+        for fragment in re.findall(r"^\s*\*([^*\n]{1,80})\*\s*$", texte or "", re.M):
+            mots = normaliser(fragment)
+            if len(mots) >= 4 and f" {mots} " in cherche:
+                return fragment.strip()
+    return None
+
+
 def meme_page(textes_affiches, texte_servi):
     """Empreinte positive : une ligne affichée par le navigateur se retrouve dans la page servie."""
     servi = f" {normaliser(texte_servi)} "
@@ -369,7 +417,7 @@ GESTES = {"web_fetch": "Lecture directe (hors interface)", "click_web": "Clic", 
           "write": "Saisie de texte", "fill_secret_at": "Saisie d'un secret", "select_option": "Choix dans une liste",
           "press_keys_web": "Touches", "go_back_web": "Retour", "refresh_web": "Rechargement", "wait_web": "Attente",
           "switch_tab_web": "Changement d'onglet", "close_tab_web": "Fermeture d'onglet", "ctrl_f_web": "Recherche dans la page",
-          "reader_mode": "Lecture du contenu"}
+          "reader_mode": "Lecture du contenu", "list_secrets": "Liste des champs du coffre"}
 
 
 def decrire_geste(outil, args):
@@ -433,6 +481,86 @@ def _capture(parcours, chemin):
     return f"obs-{obs[-1]['i']}" if obs else None
 
 
+# ── Une cible connectée : la connexion par le coffre, l'identité, et les gestes qui peuvent écrire ────────────────
+
+def page_de(cible, observations, i):
+    """L'URL affichée au moment de l'événement i : la dernière vue avant lui, sinon la page de départ."""
+    vues = [o["url"] for o in observations if o["i"] < i and o["url"]]
+    return vues[-1] if vues else cible["entree"]
+
+
+def risque_d_ecriture(cible, outil, args, url_page):
+    """Sur une cible connectée : un geste qui peut écrire. Le formulaire de connexion est le seul autorisé, rempli par le coffre."""
+    if chemin_cible(cible, url_page) == cible["connexion"]["chemin"]:
+        return outil == "write"
+    mots = set(normaliser(str(args.get("element") or "")).split())
+    return outil in ("write", "fill_secret_at", "select_option") or (outil == "click_web" and bool(VERBES_A_RISQUE & mots))
+
+
+def violation(cible, outil, args, url_page):
+    """Un geste contraire aux règles de l'agent, relevé dans le rapport."""
+    if cible.get("connexion") and risque_d_ecriture(cible, outil, args, url_page):
+        return True
+    if outil == "write" or (outil == "fill_secret_at" and not cible.get("connexion")):
+        return True
+    return outil == "go_to_web" and chemin_cible(cible, args.get("url", "")) != chemin_cible(cible, cible["entree"])
+
+
+def garde_connectee(evenement, cible, etat):
+    """En direct : le premier geste demandé qui peut écrire sur une cible connectée, ou None."""
+    data = evenement.get("data") or {}
+    if evenement.get("type") != "AgentEvent" or data.get("kind") != "policy_event":
+        return None
+    for req in data.get("tool_reqs") or []:
+        outil, args = req.get("tool_name"), req.get("args") or {}
+        if outil != "answer" and risque_d_ecriture(cible, outil, args, etat.get("url") or cible["entree"]):
+            return decrire_geste(outil, args)
+    return None
+
+
+def controles_connexion(mission, cible, observations, gestes, arret_code=None):
+    """La connexion, puis l'identité du compte, prouvées par la trajectoire H : jamais par l'avis de l'agent."""
+    login = cible["connexion"]["chemin"]
+    manque = "skipped" if arret_code in ("cancelled", "budget_exceeded") else "inconclusive"
+    remplis = [g for g in gestes if g["outil"] == "fill_secret_at" and chemin_cible(cible, page_de(cible, observations, g["i"])) == login]
+    apres = next((o for o in observations if remplis and o["i"] > remplis[-1]["i"]
+                  and chemin_cible(cible, o["url"]) not in (None, login)), None)
+    base = dict(id_="K1", type_="connexion", description="Connexion avec le compte du coffre",
+                attendu="La page de connexion mène à l'espace du compte")
+    if apres:
+        chemin = chemin_cible(cible, apres["url"])
+        resultats = [_resultat(**base, statut="passed", code="logged_in", verification="code", chemin=chemin,
+                               observe=f"Le coffre a rempli {len(remplis)} champ(s) sur {login}, puis le navigateur affiche {chemin}.",
+                               preuves=[f"obs-{apres['i']}"] if apres["image"] else [])]
+    elif remplis:
+        vue = [o for o in observations if chemin_cible(cible, o["url"]) == login and o["image"]]
+        resultats = [_resultat(**base, statut="inconclusive", code=arret_code or "login_not_completed", verification="code", chemin=login,
+                               observe=f"Le coffre a rempli {len(remplis)} champ(s), mais le navigateur est resté sur {login} : identifiants "
+                                       "refusés, message d'erreur ou bouton sans effet. À confirmer sur la capture.",
+                               preuves=[f"obs-{vue[-1]['i']}"] if vue else [])]
+    else:
+        resultats = [_resultat(**base, statut=manque, code=arret_code or "vault_not_used",
+                               observe="Le coffre n'a rempli aucun champ de la page de connexion.")]
+    marqueurs = [m for m in mission.get("identite") or [] if normaliser(m)]
+    if marqueurs:
+        base = dict(id_="K2", type_="identite", description="Le compte affiché est celui du coffre",
+                    attendu="Le nom du compte de test apparaît après la connexion")
+        vue = next((o for o in observations if apres and o["i"] >= apres["i"] and chemin_cible(cible, o["url"]) not in (None, login)
+                    and any(retrouver(m, [o["texte"]]) for m in marqueurs)), None)
+        if vue:
+            resultats.append(_resultat(**base, statut="passed", code="identity_shown", verification="code", chemin=chemin_cible(cible, vue["url"]),
+                                       observe=f"Le nom du compte attendu apparaît à l'écran sur {chemin_cible(cible, vue['url'])} "
+                                               "(marqueur fourni au lancement, non recopié dans le rapport).",
+                                       preuves=[f"obs-{vue['i']}"] if vue["image"] else []))
+        elif apres:
+            resultats.append(_resultat(**base, statut="inconclusive", code="identity_not_shown", verification="code",
+                                       observe="Aucun marqueur du compte attendu n'apparaît à l'écran après la connexion : identité non vérifiée."))
+        else:
+            resultats.append(_resultat(**base, statut=manque, code=arret_code or "not_logged_in",
+                                       observe="Sans connexion prouvée, l'identité ne peut pas être vérifiée."))
+    return resultats
+
+
 def verifier(mission, cible, reponse, observations, gestes, lectures, arret_code=None):
     """Les résultats, critère par critère, puis les contrôles automatiques des pages visitées."""
     parcours = visites(cible, observations, gestes)
@@ -446,7 +574,7 @@ def verifier(mission, cible, reponse, observations, gestes, lectures, arret_code
     def preuves_de(chemin, page):
         return [p for p in (_capture(parcours, chemin), page["id"] if page else None) if p]
 
-    resultats = []
+    resultats = controles_connexion(mission, cible, observations, gestes, arret_code) if cible.get("connexion") else []
     reponses = {str(c.get("id") or "").strip().upper(): c for c in (reponse or {}).get("criteres", []) if isinstance(c, dict)}
     manque = "skipped" if arret_code in ("cancelled", "budget_exceeded") else "inconclusive"
     for crit in (mission["plan"] or {}).get("criteres", []):
@@ -466,7 +594,13 @@ def verifier(mission, cible, reponse, observations, gestes, lectures, arret_code
             arrivee = parcours.get(crit["valeur"])
             if arrivee and arrivee["mode"] != "adresse":
                 _, page = sources(crit["valeur"])
-                if page is None:
+                comment = "c'est la page de départ" if arrivee["mode"] == "depart" else f"par l'interface ({arrivee['geste'] or 'navigation'})"
+                if page is None and crit["valeur"] in lectures.privees:
+                    resultats.append(_resultat(**base, statut="passed", code="page_reached", verification="code", chemin=crit["valeur"],
+                                               observe=f"Page {crit['valeur']} atteinte {comment}. Page privée : une lecture anonyme "
+                                                       "est renvoyée à la connexion ; la preuve est la trajectoire du navigateur connecté.",
+                                               preuves=preuves_de(crit["valeur"], None)))
+                elif page is None:
                     resultats.append(_resultat(**base, statut="inconclusive", code="http_unavailable", chemin=crit["valeur"],
                                                observe="La page a été atteinte, mais sa réponse n'a pas pu être relue.",
                                                preuves=preuves_de(crit["valeur"], None)))
@@ -475,7 +609,6 @@ def verifier(mission, cible, reponse, observations, gestes, lectures, arret_code
                                                observe=f"La page atteinte répond HTTP {page['status_code']}.",
                                                preuves=preuves_de(crit["valeur"], page)))
                 else:
-                    comment = "c'est la page de départ" if arrivee["mode"] == "depart" else f"par l'interface ({arrivee['geste'] or 'navigation'})"
                     resultats.append(_resultat(**base, statut="passed", code="page_reached", verification="code", chemin=crit["valeur"],
                                                observe=f"Page {crit['valeur']} atteinte {comment} ; elle répond HTTP {page['status_code']}.",
                                                preuves=preuves_de(crit["valeur"], page)))
@@ -548,6 +681,11 @@ def verifier(mission, cible, reponse, observations, gestes, lectures, arret_code
                 resultats.append(_resultat(**base, statut="passed", code="citation_found", verification="citation", chemin=chemin_agent,
                                            observe=f"La citation de l'agent est retrouvée sur {chemin_agent} (correspondance {correspondance}).",
                                            preuves=preuves_de(chemin_agent, page)))
+            elif not correspondance and (tronque := titre_tronque(agent["citation"], textes)):
+                resultats.append(_resultat(**base, statut="inconclusive", code="h_text_partial", chemin=chemin_agent,
+                                           preuves=preuves_de(chemin_agent, page),
+                                           observe=f"Citation absente du texte relevé par H, qui ne garde d'un titre à styles mêlés que sa "
+                                                   f"partie en italique (« {tronque} ») : à confirmer sur la capture."))
             elif correspondance and agent["statut"] == "ecart":
                 resultats.append(_resultat(**base, statut="inconclusive", code="agent_reported_gap", verification="citation",
                                            chemin=chemin_agent, preuves=preuves_de(chemin_agent, page),
@@ -696,6 +834,9 @@ def explorer_resultats(cible, reponse, parcours, affiches, lectures, sources, pr
 def message_mission(mission, cible):
     commun = {"origine_autorisee": cible["origine"], "page_de_depart": cible["entree"], "pilotage": mission["pilotage"],
               "appareil": mission["appareil"]}
+    if cible.get("connexion"):
+        commun["connexion"] = ("Commence par te connecter, une seule fois, en remplissant les champs avec fill_secret_at (le coffre), "
+                               "puis suis la mission en consultation seule.")
     if mission["pilotage"] == "exploration":
         limite = cible["limites"]["exploration"]["max_pages"]
         return json.dumps({**commun, "max_pages": limite, "criteres": [],
@@ -730,19 +871,43 @@ def raconter(evenement, journal, cible, etat):
                     capture=image.get("source") if image.get("type") == "url" else None)
 
 
+def preparer_coffre(client, cible, identifiant, mot_de_passe):
+    """Un coffre H propre à l'essai, avec une seule entrée : l'agent remplit les champs sans jamais lire les valeurs."""
+    nom = f"hsentinel-qa-{cible['id']}-{datetime.now(timezone.utc):%Y%m%d-%H%M%S}"
+    coffre = client.vaults.create_vault(name=nom, provider_config=VaultCreateRequestProviderConfig_Internal()).id
+    try:
+        client.vaults.create_vault_item(coffre, name=f"{cible['nom']} · compte de test", urls=[cible["origine"]],
+                                        values={"username": identifiant, "email": identifiant, "password": mot_de_passe})
+    except Exception:
+        client.vaults.delete_vault(coffre)
+        raise
+    return coffre
+
+
+def supprimer_coffre(client, coffre):
+    """Le coffre de l'essai est supprimé à la fin, entrées comprises."""
+    for item in client.vaults.list_vault_items(coffre, limit=100).items:
+        client.vaults.delete_vault_item(coffre, item.id)
+    client.vaults.delete_vault(coffre)
+
+
 def jouer_session(client, mission, cible, controle, journal):
     """Lancer l'agent, suivre ses gestes en direct, l'arrêter si besoin, puis relever toute sa trajectoire."""
-    agent = assurer_agent(client)
+    connectee = bool(cible.get("connexion"))
+    agent = assurer_agent(client, connecte=connectee)
     journal(f"Agent {agent['name']} confirmé dans H ({agent['action']})", "info")
     limites = cible["limites"][mission["pilotage"]]
     overrides = {"agent.environments[kind=web].start_url": cible["entree"],
                  "agent.environments[kind=web].mode": APPAREILS[mission["appareil"]]}
+    if connectee:
+        overrides["agent.environments[kind=web].vault_id"] = mission["coffre"]  # le coffre de cet essai, jamais dans la définition
     if mission["modele_h"] != MODELE:
         overrides["agent.model"] = mission["modele_h"]
     debut = time.monotonic()
-    handle = client.start_session(agent=NOM, messages=message_mission(mission, cible), answer_schema=ReponseQA, overrides=overrides,
-                                  max_steps=limites["max_steps"], max_time_s=max(30, min(limites["max_time_s"], int(controle.restant()))))
-    session = {"agent": NOM, "modele": mission["modele_h"], "session": handle.id, "replay": None, "statut": "running",
+    handle = client.start_session(agent=agent["name"], messages=message_mission(mission, cible), answer_schema=ReponseQA,
+                                  overrides=overrides, max_steps=limites["max_steps"],
+                                  max_time_s=max(30, min(limites["max_time_s"], int(controle.restant()))))
+    session = {"agent": agent["name"], "modele": mission["modele_h"], "session": handle.id, "replay": None, "statut": "running",
                "steps": None, "tokens": None, "cout_dollars": None, "duree_s": None}
     try:
         session["replay"] = handle.get().agent_view_url
@@ -761,6 +926,10 @@ def jouer_session(client, mission, cible, controle, journal):
             nouveaux = [e.model_dump(mode="json") if hasattr(e, "model_dump") else e for e in changes.new_events or []]
             for e in nouveaux:
                 raconter(e, journal, cible, etat)
+                interdit = garde_connectee(e, cible, etat) if connectee else None
+                if interdit:
+                    journal(f"Geste qui peut écrire sur un site connecté : {interdit}. Session arrêtée.", "erreur")
+                    raise Interruption("write_risk")
             index = (changes.first_index if changes.first_index is not None else index) + len(nouveaux)
             statut_courant = getattr(changes.status, "value", changes.status)
             if statut_courant in FINIS:
@@ -851,7 +1020,9 @@ def executer_qa(demande, client, journal=lambda *a, **k: None, arret=lambda: Fal
     debut = time.monotonic()
     limites = cible["limites"][mission["pilotage"]]
     plan = mission["plan"]
-    rapport = {"schema_version": VERSION, "phase": "completed", "mode": "qa", "request": mission,
+    # Le marqueur d'identité sert à la vérification, jamais au rapport : il est masqué dans la demande enregistrée.
+    demande_lisible = {**mission, "identite": ["•••"] * len(mission["identite"])} if mission.get("identite") else mission
+    rapport = {"schema_version": VERSION, "phase": "completed", "mode": "qa", "request": demande_lisible,
                "titre": plan["titre"] if plan else "Exploration bornée du site", "scope_snapshot": cible, "started_at": maintenant(),
                "results": [], "parcours": [], "evidence": [], "sessions": [], "violations": [], "hors_origine": [],
                "cost_h": None, "cost_hf": None, "preparation": (plan or {}).get("preparation"), "interruption": None}
@@ -879,8 +1050,7 @@ def executer_qa(demande, client, journal=lambda *a, **k: None, arret=lambda: Fal
         rapport["hors_origine"] = sorted({o["url"] for o in observations if o["url"] not in ("", "about:blank") and chemin_cible(cible, o["url"]) is None})
         rapport["lectures_directes"] = [str(g["args"].get("url") or "")[:300] for g in gestes if g["outil"] == "web_fetch"]
         rapport["violations"] = [decrire_geste(g["outil"], g["args"]) for g in gestes
-                                 if g["outil"] in ("write", "fill_secret_at") or (g["outil"] == "go_to_web"
-                                 and chemin_cible(cible, g["args"].get("url", "")) != chemin_cible(cible, cible["entree"]))]
+                                 if violation(cible, g["outil"], g["args"], page_de(cible, observations, g["i"]))]
         captures = {r for res in resultats for r in res["preuves"] if r.startswith("obs-")} | {v["capture"] for v in rapport["visites"]}
         rapport["evidence"] = [{"id": f"obs-{o['i']}", "kind": "capture", "session": session["session"], "url": o["url"], "titre": o["titre"],
                                 "quand": o["quand"], "image": o["image"]} for o in observations if f"obs-{o['i']}" in captures and o["image"]]
@@ -973,6 +1143,10 @@ def main():
     parser.add_argument("--plan", help="Un plan JSON déjà relu, au lieu de la préparation par Hugging Face")
     parser.add_argument("--preparer-seulement", action="store_true", help="Afficher le plan préparé, sans lancer H")
     parser.add_argument("--reverifier", metavar="RAPPORT_JSON", help="Rejouer la vérification d'un rapport avec le moteur actuel")
+    parser.add_argument("--email", help="Site connecté : l'adresse du compte de test (le mot de passe est lu sur l'entrée standard)")
+    parser.add_argument("--identite", action="append", default=[], help="Site connecté : un nom attendu à l'écran après la connexion")
+    parser.add_argument("--repetitions", type=int, default=1, choices=range(1, 11), metavar="1-10",
+                        help="Rejouer la même mission, avec le même plan et le même coffre")
     args = parser.parse_args()
     if args.reverifier:
         from hai_agents import Client
@@ -1007,8 +1181,34 @@ def main():
         extra = f" · {donnees['replay']}" if donnees.get("replay") else ""
         print(f"[{time.strftime('%H:%M:%S')}] {type:8s} {message}{extra}", flush=True)
 
-    rapport = executer_qa(demande, Client(timeout=30, max_retries=1), journal)
-    print(f"Rapport : {ecrire_rapport(rapport)}", flush=True)
+    client = Client(timeout=30, max_retries=1)
+    coffre = None
+    if cible.get("connexion"):
+        if not args.email:
+            parser.error("Ce site se teste connecté : --email est obligatoire.")
+        # Le mot de passe va droit au coffre H : jamais en argument (visible dans ps), jamais dans un fichier ni un journal.
+        mot_de_passe = getpass.getpass("Mot de passe du compte de test : ") if sys.stdin.isatty() else sys.stdin.readline().rstrip("\r\n")
+        if not mot_de_passe:
+            parser.error("Aucun mot de passe reçu.")
+        valider_mission({**demande, "coffre": "00000000-0000-0000-0000-000000000000", "identite": args.identite})  # avant de créer le coffre
+        coffre = preparer_coffre(client, cible, args.email, mot_de_passe)
+        demande.update(coffre=coffre, identite=args.identite)
+        print(f"Coffre de l'essai créé : {coffre}", flush=True)
+    try:
+        for n in range(1, args.repetitions + 1):
+            if args.repetitions > 1:
+                print(f"── Répétition {n}/{args.repetitions}", flush=True)
+            rapport = executer_qa(demande, client, journal)
+            if coffre:
+                rapport["coffre"] = {"id": coffre, "etat": "créé pour cet essai, supprimé à la fin"}
+            print(f"Rapport : {ecrire_rapport(rapport)}", flush=True)
+    finally:
+        if coffre:
+            try:
+                supprimer_coffre(client, coffre)
+                print(f"Coffre de l'essai supprimé : {coffre}", flush=True)
+            except Exception as erreur:
+                print(f"Suppression du coffre {coffre} non confirmée ({erreur.__class__.__name__}) : à supprimer à la main.", flush=True)
 
 
 if __name__ == "__main__":

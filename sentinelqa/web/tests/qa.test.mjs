@@ -34,6 +34,12 @@ test('Les formes inconnues sont refusées, l’exploration n’a pas de plan', (
   assert.equal(validerMissionQa({ ...base, pilotage: 'exploration', plan: null }).plan, null);
 });
 
+test('Un site connecté ne se lance pas depuis la web, qui ne sait pas fournir son coffre', () => {
+  assert.ok(cibleQa('peer-review').connexion);
+  assert.throws(() => validerMissionQa({ ...base, target_id: 'peer-review' }), /connecté/);
+  assert.throws(() => validerMissionQa({ ...base, coffre: '3b8d9c2e-6f1a-4e5b-8c7d-0a9b8c7d6e5f' }));
+});
+
 test('Les étiquettes d’un résultat et le bilan des critères', () => {
   assert.equal(libelleStatut('inconclusive', 'agent_reported_gap'), 'Écart signalé · à confirmer');
   assert.equal(libelleStatut('inconclusive', 'repeated_attempts'), 'Parcours difficile · à revoir');

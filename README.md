@@ -7,13 +7,18 @@ Des agents IA de H Company testent un site web autorisé comme un humain : ils n
 
 **[Architecture](ARCHITECTURE.md)**, avec ce qui a changé depuis le document illustré du 17/11 · **[Suivi du projet, ce qui reste à faire](SUIVI.md)**
 
-## État au 18/11, 15 h
+Hors de `main` : la branche `jahdiel/suivi-n8n` (le suivi des alertes n8n, repris dans SUIVI.md) et `agents-ia-qa-pentest` (le bac à sable de Mohamed). Voir [ARCHITECTURE.md, section 14](ARCHITECTURE.md#14-les-travaux-de-léquipe-hors-de-main).
+
+## État au 18/11, 19 h 15
 
 | Volet | Fonctionne, vérifié en réel | Manque |
 |---|---|---|
 | QA | Consigne tapée ou dictée, puis plan Hugging Face, agent H, vérification par le code et rapport web. 9 missions sur eugeniaschool.com, sur ordinateur et sur mobile : 0,033 $ et 76 s en moyenne | Dictée avec une vraie voix, mesure du temps gagné, déploiement |
+| QA connecté : Peer Review | L'agent se connecte par un coffre H créé pour l'essai, puis consulte sans rien modifier. Compte d'Alec : 1 mission réelle (43 s, 0,021 $), connexion, identité et une page vérifiées par le code ; 2 constats confirmés sur capture seulement | Compte de Nathan refusé par le site (2 essais) : son mot de passe en vigueur ; répétitions ; lancement depuis la web (le terminal seulement aujourd'hui) |
 | Pentest : banc | Paie Express, une application de test à failles injectées : 59 failles prouvées sur 60, en 10 audits, 0 faux positif | — |
-| Pentest : Peer Review | Agent H créé ; une session réelle, la connexion du compte A | Contrôle authentifié jamais exécuté en entier ; modules non intégrés (`contributions/`) |
+| Pentest : Peer Review | Connexion HTTP de A validée en réel ; ressource témoin et règle de visibilité confirmées (Kimi) | B refusé par le site ; agent H illisible (500) ; contrôle A/B jamais exécuté ; modules non raccordés (`contributions/`) |
+| Alertes n8n (Jahdiel) | W1, W3, W4 testés en réel sur la base `hsentinel-dev` (rapporté) | Une seule base avec le runner ; les failles prouvées écrites dans `constats` |
+| Interface : `web-console` | Prototype exporté de v0 (accueil, onboarding, console), arrivé à 19 h 06, en local | Données simulées : relié ni à Supabase, ni au runner, ni à H ; pas encore publié |
 
 ## Lancer le volet QA
 
@@ -37,6 +42,8 @@ Sans la web :
 
 ```sh
 .venv/bin/python sentinelqa/runner/qa_moteur.py --consigne "Ouvre Programmes puis le Bachelor et vérifie qu'il affiche « Bac+3 »"
+.venv/bin/python sentinelqa/runner/qa_moteur.py --cible peer-review --email <compte> --identite "<nom affiché>" \
+  --consigne "Une fois connecté, vérifie…"   # site connecté : le mot de passe est demandé, puis va au coffre H ; --repetitions 10 pour répéter
 .venv/bin/python sentinelqa/runner/qa_moteur.py --exploration --mobile
 .venv/bin/python sentinelqa/runner/qa_moteur.py --reverifier sentinelqa/rapports/qa-….json   # rejoue la vérification, sans agent
 ```
@@ -60,6 +67,7 @@ cd sentinelqa/web && npm test
 |---|---|
 | `sentinelqa/runner/` | Le moteur Python : QA (`qa_*.py`), pentest (`sentinelqa.py`, `missions.py`), agents H |
 | `sentinelqa/web/` | La web Next.js : lancement, suivi en direct, arrêt, rapports |
+| `sentinelqa/web-console/` | Un prototype d'interface (v0), sur des données simulées (en local, pas encore publié) |
 | `sentinelqa/contrats/` | Les cibles autorisées et les règles partagées entre le runner et la web |
 | `sentinelqa/supabase/` | Les schémas SQL |
 | `sentinelqa/cobaye/` | Paie Express, l'application de test à failles injectées (comptes fictifs) |
@@ -73,6 +81,8 @@ cd sentinelqa/web && npm test
 - H relit un agent avec ses valeurs par défaut (`headless`, `lazy`, `settle_s`…) : comparez seulement les champs que vous fixez.
 - Le menu de chaque page cite les autres pages : un texte attendu se cherche dans le contenu, hors `nav`, `header` et `footer`.
 - L'agent H dispose d'un outil absent de la documentation, `web_fetch`, qui lit une page sans l'afficher : il est interdit dans sa consigne et relevé dans le rapport.
+- H refuse désormais `start_url: "about:blank"` à la création d'un agent (422). Ne fixez pas de page de départ dans la définition : chaque session impose la sienne.
+- Sur un titre à styles mêlés (« Bonne *soirée*, Alec »), le texte relevé par H ne garde que la partie en italique. Une citation exacte y devient introuvable : le rapport le dit (`h_text_partial`) et renvoie à la capture.
 - `next build` télécharge les polices chez Google. Le 18/11 à 15 h, ce téléchargement a échoué trois fois de suite, alors qu'une requête isolée passait : relancez, ou intégrez les polices au projet (tâche 18 du suivi).
 
 ## Règles

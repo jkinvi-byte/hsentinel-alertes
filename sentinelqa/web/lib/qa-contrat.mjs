@@ -80,6 +80,8 @@ export function validerMissionQa(d) {
     throw new Error('Le format de la mission QA est invalide.');
   }
   const cible = cibleQa(d.target_id);
+  // Un site connecté demande un coffre H par essai : la web ne sait pas encore le fournir, le terminal si.
+  if (cible.connexion) throw new Error('Ce site se teste connecté, depuis le terminal pour l’instant.');
   const appareil = d.appareil ?? 'ordinateur';
   if (!Object.hasOwn(catalogue.pilotages, d.pilotage) || !Object.hasOwn(catalogue.appareils, appareil)) {
     throw new Error('Le pilotage ou l’appareil est inconnu.');

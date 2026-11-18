@@ -10,7 +10,7 @@ from hai_agents.core.api_error import ApiError
 import qa_agent
 from agents_h import MODELE
 
-NOMS = {"qa": "sentinelqa-qa", "security": "sentinelqa-pentest"}
+NOMS = {"qa": qa_agent.NOM, "security": "sentinelqa-pentest"}  # l'agent QA a une seule source : qa_agent.py
 CONSIGNES = (
     "Tu effectues un scénario HSentinel autorisé en consultation uniquement. "
     "La mission fournit scenario, urls_autorisees et attendu ; si l'un manque, "

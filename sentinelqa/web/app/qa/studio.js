@@ -87,7 +87,7 @@ export default function Studio() {
         <label className="champ">
           <span>Site autorisé</span>
           <select value={targetId} disabled={occupe} onChange={(e) => { setTargetId(e.target.value); setPlan(null); }}>
-            {CATALOGUE_QA.cibles.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+            {CATALOGUE_QA.cibles.filter((c) => !c.connexion).map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
           </select>
         </label>
         <p className="qa-origine">{cible.entree} · consultation seule, sans connexion ni formulaire envoyé</p>

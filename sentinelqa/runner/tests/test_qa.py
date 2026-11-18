@@ -252,11 +252,10 @@ class DifficulteTest(unittest.TestCase):
 class ClientH:
     """Un client H simulé qui rejoue les événements de la fixture, page par page."""
 
-    def __init__(self, arret_au_tour=None):
+    def __init__(self, arret_au_tour=None, evenements=None, reponse=FIXTURE["reponse"]):
         self.agents = CatalogueH()
         self.tours, self.arret_au_tour, self.annulee = 0, arret_au_tour, False
-        evenements = [SimpleNamespace(model_dump=lambda mode=None, e=e: e) for e in FIXTURE["evenements"]]
-        reponse = FIXTURE["reponse"]
+        evenements = [SimpleNamespace(model_dump=lambda mode=None, e=e: e) for e in evenements or FIXTURE["evenements"]]
         client = self
 
         class Sessions:
@@ -317,6 +316,153 @@ class ExecutionTest(unittest.TestCase):
         self.assertEqual(rapport["interruption"], "cancelled")
         self.assertIn(rapport["results"][0]["status"], ("passed", "skipped"))  # jamais « écart » faute de preuve
         self.assertNotIn("failed", [r["status"] for r in rapport["results"]])
+
+
+# ── Un site connecté : Peer Review, en consultation, connecté par un coffre H ──────────────────────────────────
+
+PEER = qa_moteur.trouver_cible("peer-review")
+COFFRE = "3b8d9c2e-6f1a-4e5b-8c7d-0a9b8c7d6e5f"
+CAPTURE = "https://agp.eu.hcompany.ai/api/v1/trajectories/s/resources/capture.png"
+LOGIN, ESPACE = "https://peer-review-black.vercel.app/connexion", "https://peer-review-black.vercel.app/etudiant"
+
+
+def vue(url, texte=""):
+    return {"type": "AgentEvent", "timestamp": None, "data": {"kind": "observation_event", "content": "",
+            "metadata": {"url": url, "title": "", "text": texte}, "image": {"type": "url", "source": CAPTURE}}}
+
+
+def geste(outil, **args):
+    return {"type": "AgentEvent", "timestamp": None, "data": {"kind": "policy_event", "content": "", "tool_reqs": [{"tool_name": outil, "args": args}]}}
+
+
+CONNEXION = [vue(LOGIN, "Bonjour, connecte-toi. Adresse email Mot de passe Se connecter"),
+             geste("fill_secret_at", element="Champ Adresse email"), geste("fill_secret_at", element="Champ Mot de passe"),
+             geste("click_web", element="Bouton Se connecter"),
+             vue(ESPACE, "Bonjour Camille Martin · Évaluations du soir · 3 coéquipiers à évaluer")]
+
+
+def transport_peer():
+    """Peer Review simulé : la connexion est publique ; toute autre page renvoie une lecture anonyme à la connexion."""
+    def repondre(request):
+        if request.url.path == "/connexion":
+            return httpx.Response(200, headers={"content-type": "text/html; charset=utf-8"}, text="<h1>Bonjour, connecte-toi</h1>")
+        return httpx.Response(307, headers={"location": "/connexion"})
+    return httpx.MockTransport(repondre)
+
+
+def demande_connectee(criteres, identite=("Camille Martin",)):
+    return {"schema_version": 3, "mode": "qa", "target_id": "peer-review", "pilotage": "guide", "instruction": "Essai",
+            "plan": {"titre": "Espace étudiant", "etapes": ["Ouvrir l'espace étudiant"], "criteres": criteres},
+            "coffre": COFFRE, "identite": list(identite)}
+
+
+class ConnexionTest(unittest.TestCase):
+    def verifier(self, evenements, identite=("Camille Martin",), criteres=None):
+        m = valider_mission(demande_connectee(criteres or [{"type": "page", "description": "Espace atteint", "valeur": "/etudiant"}],
+                                              identite))[0]
+        obs, gestes, _ = lire_trajectoire(evenements)
+        lectures = Lectures(PEER, Controle(30), transport_peer())
+        try:
+            return verifier(m, PEER, None, obs, gestes, lectures)[0], lectures
+        finally:
+            lectures.close()
+
+    def test_un_site_connecte_exige_son_coffre_et_un_site_public_n_en_recoit_jamais(self):
+        for d in ({**demande_connectee([]), "coffre": None}, {**demande_connectee([]), "coffre": "pas-un-uuid"},
+                  {**demande_connectee([]), "pilotage": "exploration", "plan": None},
+                  {**demande_connectee([]), "identite": ["x" * 121]}):
+            with self.assertRaises(ValueError):
+                valider_mission(d)
+        with self.assertRaises(ValueError):
+            valider_mission({"schema_version": 3, "mode": "qa", "target_id": "eugenia-public", "pilotage": "exploration", "coffre": COFFRE})
+        m = valider_mission(demande_connectee([{"type": "constat", "description": "Titre visible", "valeur": ""}]))[0]
+        self.assertEqual((m["coffre"], m["identite"]), (COFFRE, ["Camille Martin"]))
+        self.assertNotIn("coffre", valider_mission({"schema_version": 3, "mode": "qa", "target_id": "eugenia-public",
+                                                     "pilotage": "exploration"})[0])
+
+    def test_la_connexion_n_est_jamais_hors_perimetre_sur_un_site_connecte(self):
+        plan = {"criteres": [{"type": "constat", "description": "Titre visible", "valeur": ""}],
+                "hors_perimetre": ["Se connecter", "Remplir et envoyer des évaluations", "Se déconnecter"]}
+        self.assertEqual(qa_moteur.valider_plan(plan, PEER)["hors_perimetre"], ["Remplir et envoyer des évaluations", "Se déconnecter"])
+        self.assertEqual(len(qa_moteur.valider_plan(plan, CIBLE)["hors_perimetre"]), 3)  # un site public garde l'interdit
+
+    def test_connexion_identite_et_page_privee_prouvees_par_la_trajectoire(self):
+        r, lectures = self.verifier(CONNEXION)
+        statuts = {x["id"]: (x["status"], x["reason_code"]) for x in r}
+        self.assertEqual(statuts["K1"], ("passed", "logged_in"))
+        self.assertEqual(statuts["K2"], ("passed", "identity_shown"))
+        self.assertEqual(statuts["C1"], ("passed", "page_reached"))
+        self.assertIn("Page privée", next(x for x in r if x["id"] == "C1")["observe"])
+        # La lecture anonyme de /etudiant (la connexion) ne sert jamais de preuve sur l'espace connecté.
+        self.assertFalse(any(x["type"] == "auto" and x["chemin"] == "/etudiant" for x in r))
+        self.assertEqual(lectures.privees, {"/etudiant"})
+        self.assertNotIn("Camille", json.dumps(r, ensure_ascii=False))  # le marqueur d'identité n'est jamais recopié
+
+    def test_identite_absente_connexion_refusee_coffre_inutilise(self):
+        r, _ = self.verifier(CONNEXION, identite=("Dominique Durand",))
+        self.assertEqual(next(x for x in r if x["id"] == "K2")["reason_code"], "identity_not_shown")
+        refusee = CONNEXION[:4] + [vue(LOGIN, "Identifiants incorrects")]
+        r, _ = self.verifier(refusee)
+        self.assertEqual([(x["id"], x["status"], x["reason_code"]) for x in r[:2]],
+                         [("K1", "inconclusive", "login_not_completed"), ("K2", "inconclusive", "not_logged_in")])
+        r, _ = self.verifier([CONNEXION[0]])
+        self.assertEqual((r[0]["status"], r[0]["reason_code"]), ("inconclusive", "vault_not_used"))
+
+    def test_un_titre_tronque_par_le_releve_de_h_est_explique_jamais_prouve(self):
+        # Le vrai relevé de /etudiant le 18/11 : « Bonne *soirée*, Alec » → « *soirée* », « Soir *3* sur 4 » → « *3* ».
+        texte = "Accueil\nMon parcours\n*soirée*\n« Note ce que tu as observé aujourd'hui »\n*3*\n5 coéquipiers à évaluer\nCamille Martin"
+        reponse = {"etapes": [], "pages": [], "bloque": False, "raison": "", "criteres": [
+            {"id": f"C{n}", "statut": "conforme", "constat": "Vu", "url": ESPACE, "citation": c}
+            for n, c in enumerate(["Bonne soirée, Camille", "Soir 3 sur 4", "5 coéquipiers à évaluer"], 1)]}
+        m = valider_mission(demande_connectee([{"type": "constat", "description": f"Constat {i}", "valeur": ""} for i in range(3)]))[0]
+        obs, gestes, _ = lire_trajectoire(CONNEXION[:4] + [vue(ESPACE, texte)])
+        lectures = Lectures(PEER, Controle(30), transport_peer())
+        try:
+            r = verifier(m, PEER, reponse, obs, gestes, lectures)[0]
+        finally:
+            lectures.close()
+        codes = {x["id"]: (x["status"], x["reason_code"]) for x in r}
+        self.assertEqual(codes["C1"], ("inconclusive", "h_text_partial"))
+        self.assertEqual(codes["C2"], ("inconclusive", "citation_not_found"))  # « 3 » est trop court pour expliquer quoi que ce soit
+        self.assertEqual(codes["C3"], ("passed", "citation_found"))
+
+    def test_gestes_qui_peuvent_ecrire_et_regles_publiques_inchangees(self):
+        risque = lambda outil, url, **args: qa_moteur.risque_d_ecriture(PEER, outil, args, url)
+        self.assertTrue(risque("click_web", ESPACE, element="Bouton « Évaluer » de Léa"))
+        self.assertTrue(risque("click_web", ESPACE, element="Bouton Envoyer"))
+        self.assertFalse(risque("click_web", ESPACE, element="Onglet Mes évaluations"))  # un nom, pas un geste d'écriture
+        self.assertFalse(risque("fill_secret_at", LOGIN))
+        self.assertFalse(risque("click_web", LOGIN, element="Bouton Se connecter"))
+        self.assertTrue(risque("fill_secret_at", ESPACE))
+        self.assertTrue(risque("write", LOGIN))
+        self.assertTrue(risque("select_option", ESPACE))
+        public = lambda outil, **args: qa_moteur.violation(CIBLE, outil, args, "https://www.eugeniaschool.com/")
+        self.assertEqual([public("write"), public("fill_secret_at"), public("click_web", element="Envoyer"),
+                          public("go_to_web", url="https://www.eugeniaschool.com/"), public("go_to_web", url="/candidature")],
+                         [True, True, False, False, True])
+
+    def test_l_agent_connecte_est_distinct_et_ne_porte_aucun_coffre(self):
+        catalogue = SimpleNamespace(agents=CatalogueH())
+        self.assertEqual(qa_agent.assurer_agent(catalogue, connecte=True), {"name": "sentinelqa-qa-connecte", "action": "créé"})
+        self.assertNotIn(qa_agent.NOM, catalogue.agents.agents)  # l'agent public garde sa règle « ne te connecte pas »
+        self.assertTrue(all(not env.get("vault_id") for env in qa_agent.definition(True)["environments"]))
+        # H refuse une page de départ qui n'est pas http(s) à la création (422 du 18/11 à 18 h 36).
+        self.assertTrue(all(str(env.get("start_url", "https://")).startswith(("http://", "https://"))
+                            for connecte in (False, True) for env in qa_agent.definition(connecte)["environments"]))
+
+    def test_un_geste_a_risque_arrete_la_session_connectee(self):
+        evenements = CONNEXION + [geste("click_web", element="Bouton Envoyer l'évaluation"), vue(ESPACE, "Merci, évaluation envoyée")]
+        client, fil = ClientH(evenements=evenements, reponse=None), []
+        rapport = executer_qa(demande_connectee([{"type": "constat", "description": "Titre visible", "valeur": ""}]), client,
+                              lambda m, t="info", **d: fil.append((t, m)), transport=transport_peer())
+        self.assertEqual(client.params["agent"], "sentinelqa-qa-connecte")
+        self.assertEqual(client.params["overrides"]["agent.environments[kind=web].vault_id"], COFFRE)
+        self.assertEqual(client.params["overrides"]["agent.environments[kind=web].start_url"], LOGIN)
+        self.assertEqual((rapport["interruption"], client.annulee), ("write_risk", True))
+        self.assertIn("Clic · Bouton Envoyer l'évaluation", rapport["violations"])
+        self.assertEqual(rapport["request"]["identite"], ["•••"])
+        self.assertTrue(any(t == "erreur" and "Session arrêtée" in m for t, m in fil))
+        self.assertEqual(next(x for x in rapport["results"] if x["id"] == "K1")["status"], "passed")
 
 
 if __name__ == "__main__":

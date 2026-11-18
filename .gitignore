@@ -12,6 +12,7 @@
 /sentinelqa/README.md
 /sentinelqa/rapports/
 /contributions/qa-demo/
+/contributions/kimi-pentest/preuves/
 
 # Jamais : secrets, dépendances, artefacts générés
 .env
