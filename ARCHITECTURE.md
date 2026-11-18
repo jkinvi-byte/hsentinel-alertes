@@ -21,7 +21,7 @@
 
 ## 0. Ce qui a changé depuis le document du 17/11
 
-Le grand document illustré (HTML et PDF, 24 pages, déposé sur Notion) date du 17/11 à 17 h. Depuis, ces décisions en ont changé le fond. **Là où les deux se contredisent, c'est ce document qui fait foi.**
+Le grand document illustré déposé sur Notion le 17/11 (24 pages) est périmé : ces décisions en ont changé le fond. Il a été corrigé le 18/11 (27 pages, mêmes revirements en pages 2 et 3) ; c'est la nouvelle version qu'il faut déposer. **En cas de doute, ce document fait foi.**
 
 | Sujet | Document du 17/11 | Aujourd'hui | Décision |
 |---|---|---|---|
