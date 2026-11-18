@@ -1,6 +1,6 @@
 # Suivi du projet
 
-> Mis à jour le 18/11/2026 à 23 h 55. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
+> Mis à jour le 19/11/2026 à 0 h 15. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
 >
 > Priorité **P0** : indispensable à la démo de vendredi. **P1** : utile, mais elle peut s'en passer.
 
@@ -69,7 +69,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 30 | La clé H en service est la troisième (validée par H à 20 h 37 ; mission publique réelle conforme à 20 h 39). Les trois clés sont apparues dans la conversation : révoquer celles qui ne servent plus, puis remplacer la troisième, en copiant la nouvelle sans la coller et en tapant `! pbpaste \| holo login --key --force` (le mot `--key` tel quel) | Plateforme | P1 | Aurian | Jeu 19 |
 | 31 | Lever les bloquants relevés par la revue de Codex avant toute reprise de la branche de Mohamed : verdict « fuite » sur deux textes vides, session échouée comptée comme refus, budgets non transmis, noms d'agents divergents | Pentest | P1 | Mohamed | Jeu 19 |
 | 32 | Chaque poste qui lance le runner : créer sa clé dans l'espace H de Jahdiel | Plateforme | P1 | Tous | Jeu 19 |
-| 34 | Console : QA connecté et page Alertes raccordés, 28 tests locaux et compilation réussis. **Reste la recette navigateur et réelle** : compte chiffré → K1/K2, arrêt, filtre des alertes et ticket. Chrome ne démarre pas dans la session Codex ; les tests navigateur ne sont pas validés. [Contrat et état](ARCHITECTURE.md#11-la-web) | Plateforme | P0 | Codex, Aurian | Jeu 19 |
+| 34 | Console : QA connecté et page Alertes raccordés. **Recette faite par Claude le 19/11** : 12 tests navigateur sur 12 en production, puis en réel une dictée, une mission publique et une mission connectée (K1/K2). Reste : l'arrêt d'une mission réelle, puis le filtre des alertes et un ticket avec de vrais constats (après la tâche 25). [Contrat et état](ARCHITECTURE.md#11-la-web) | Plateforme | P0 | Codex, Aurian | Jeu 19 |
 | 35 | Pentest (`runner/missions.py`) : le même piège que le QA, à vérifier. H passe une session à « idle » avant d'y attacher la réponse, et `wait_for_completion` peut alors rendre `answer = None`, compté « agent_incomplete ». Le QA s'en protège avec `qa_moteur.lire_fin`, qui relit la session 10 s au plus | Pentest | P1 | Kimi | Jeu 19 |
 | 33 | ~~Obtenir de Jahdiel le SQL de `hsentinel-dev`~~ : il n'existe pas en fichier. Réécrit dans notre base (`supabase/alertes.sql`, `runner/constats.py`) et testé sur une base locale qui imite Supabase | Plateforme | P0 | Claude | Fait |
 | 22 | Signaler à H : agents enregistrés avec `about:blank` illisibles (500 au GET et au PATCH), `about:blank` refusé sans annonce, titres à styles mêlés tronqués dans le texte relevé, action `list_secrets` absente de la doc | Plateforme | P1 | Aurian | Ven 20 |
@@ -99,6 +99,8 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 18/11 | Garde du QA connecté renforcée après l'ouverture d'une évaluation (22 h 48, rien de noté) : la review du soir devient une zone interdite, la session s'arrête sur une page interdite, « Commencer » compte comme geste à risque, la mission porte les interdits et la consigne de l'agent est clarifiée | 3 tests qui échouent sans le correctif ; puis 12 missions réelles sans aucune évaluation ouverte |
 | 18/11 | 10 répétitions par scénario QA : guidé, exploration, Peer Review connecté | Guidé 10/10, exploration 10/10, connecté 10/10 pour la connexion et l'identité ([ARCHITECTURE.md §3](ARCHITECTURE.md#3-volet-qa--le-trajet-dune-mission)) |
 | 18/11 | Réponse de l'agent lue trop tôt (session « idle » avant la réponse) : la lecture finale attend la réponse | Un test reproduit la course et échoue sans le correctif ; la session `d58b6def`, revérifiée, donne « Mon parcours » conforme |
+| 19/11 | Écritures refusées (403) sur 127.0.0.1 dans la console (dictée, plan, lancement, arrêt) et dans l'ancienne web : une seule garde d'origine, comparée à l'hôte appelé | Reproduit au curl ; un test qui échoue sans le correctif ; console rechargée : 403 → accepté, origine étrangère toujours refusée |
+| 19/11 | Recette réelle de la console dans Chrome, sans fenêtre (Playwright) | Dictée transcrite, mission publique 3/3, mission connectée K1/K2 ; 12 tests navigateur sur 12 en production |
 
 ## Risques connus
 
@@ -108,4 +110,5 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 - **Les sessions d'avant 19 h 39 restent dans l'ancien espace H** : leurs replays, et les captures des anciens rapports dans la web, ne se lisent plus avec la nouvelle clé.
 - **Les workflows n8n lisent encore `hsentinel-dev`.** Notre base est prête : SQL, déclencheur et secrets de W3. Une faille prouvée appelle donc déjà n8n, mais rien ne garantit encore un ticket : la recette reste à faire (tâche 25).
 - **H a souvent déjà exécuté un geste quand notre garde le voit.** Les événements arrivent par lots, et l'arrêt prend 2 à 3 s (18/11, 22 h 48). Sur un site réel, la consigne, les interdits de la mission et les zones interdites du contrat protègent d'abord ; la garde borne la suite.
+- **Un test navigateur qui simule l'API ne voit pas les gardes du serveur.** Les tests de la console passaient alors que toutes ses écritures étaient refusées (19/11). Avant de déclarer une interface prête, une recette réelle passe par le vrai serveur.
 - **Plusieurs agents IA modifient les mêmes fichiers.** Faire un `git status` avant chaque commit, et ne pousser que des fichiers nommés.

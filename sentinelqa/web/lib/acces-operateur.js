@@ -16,7 +16,12 @@ export function autoriseOperateur(request, env = process.env) {
 }
 
 export function memeOrigine(request) {
-  // Les POST utilisent une authentification navigateur : fermer le chemin CSRF.
-  try { return new URL(request.headers.get('origin')).origin === new URL(request.url).origin; }
-  catch { return false; }
+  // Les POST utilisent une authentification navigateur : fermer le chemin CSRF. L'origine de la page se compare à l'hôte
+  // que le navigateur a appelé (Host, ou X-Forwarded-Host derrière un proxy), comme Next pour ses Server Actions.
+  // Jamais à request.url : en développement, Next y écrit « localhost » même pour une page servie sur 127.0.0.1, et
+  // chaque écriture était refusée (dictée, plan, lancement ; 18/11). La console importe cette même garde.
+  try {
+    const hote = request.headers.get('x-forwarded-host')?.split(',')[0].trim() || request.headers.get('host') || new URL(request.url).host;
+    return new URL(request.headers.get('origin')).host === hote;
+  } catch { return false; }
 }

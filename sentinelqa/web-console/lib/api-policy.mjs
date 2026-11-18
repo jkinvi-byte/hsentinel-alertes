@@ -1,7 +1,5 @@
-export function sameOrigin(request) {
-  try { return new URL(request.headers.get('origin')).origin === new URL(request.url).origin }
-  catch { return false }
-}
+// Une seule garde d'origine pour les deux webs : celle de web/lib, qui compare l'origine à l'hôte réellement appelé.
+export { memeOrigine as sameOrigin } from '../../web/lib/acces-operateur.js'
 export async function readBody(request, maxBytes) {
   if (Number(request.headers.get('content-length')) > maxBytes) throw new RangeError('Demande trop volumineuse.')
   const reader = request.body?.getReader()

@@ -9,7 +9,7 @@ Des agents IA de H Company testent un site web autorisé comme un humain : ils n
 
 Hors de `main` : la branche `jahdiel/suivi-n8n` (le suivi des alertes n8n, repris dans SUIVI.md) et `agents-ia-qa-pentest` (le bac à sable de Mohamed). Voir [ARCHITECTURE.md, section 14](ARCHITECTURE.md#14-les-travaux-de-léquipe-hors-de-main).
 
-## État au 18/11, 23 h 55
+## État au 19/11, 0 h 15
 
 | Volet | Fonctionne, vérifié en réel | Manque |
 |---|---|---|
@@ -18,7 +18,7 @@ Hors de `main` : la branche `jahdiel/suivi-n8n` (le suivi des alertes n8n, repri
 | Pentest : banc | Paie Express, une application de test à failles injectées : 59 failles prouvées sur 60, en 10 audits, 0 faux positif | — |
 | Pentest : Peer Review | Connexion HTTP de A validée en réel ; ressource témoin et règle de visibilité confirmées (Kimi) | B refusé par le site ; agent H recréé par Kimi et confirmé (20 h 38) ; contrôle A/B jamais exécuté ; modules non raccordés (`contributions/`) |
 | Alertes n8n (Jahdiel) | W1, W3, W4 construits par Jahdiel ; leur SQL réécrit et en place dans notre base (`supabase/alertes.sql`) ; chaque faille prouvée du banc écrite dans `constats` (`runner/constats.py`) | Secrets de W3 en place dans le coffre Supabase (vérifié à 23 h). Restent la bascule des workflows vers notre base, le secret de W1 et la recette d'un ticket (`sentinelqa/n8n/README.md`) |
-| Interface : la console de l'équipe (`web-console`) | L'interface d'un camarade, raccordée par Codex aux services de la web (`/api/console`), avec QA connecté et page Alertes ; 28 tests locaux et compilation réussis | Aucune mission réelle lancée depuis elle ; recette dans un navigateur à faire (Chrome ne démarre pas dans la session de Codex) ; publiée sur `main`, pas encore déployée |
+| Interface : la console de l'équipe (`web-console`) | L'interface d'un camarade, raccordée par Codex aux services de la web (`/api/console`), avec QA connecté et page Alertes ; 28 tests locaux et compilation réussis | Recette réelle faite dans Chrome le 19/11 : dictée, mission publique, mission connectée (K1/K2). Restent à recetter l'arrêt d'une mission réelle et la page Alertes avec de vrais constats. Publiée sur `main`, pas encore déployée |
 
 ## Lancer le volet QA
 

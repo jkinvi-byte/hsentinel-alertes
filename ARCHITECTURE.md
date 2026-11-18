@@ -1,6 +1,6 @@
 # Architecture de HSentinel
 
-> État au 18/11/2026, 23 h 55, relu contre le code à cette heure. Depuis 19 h 39, l'équipe travaille dans l'espace H de Jahdiel. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md). Kimi corrige `contributions/kimi-pentest` en ce moment : la section 6 décrit l'état lu à 19 h 05.
+> État au 19/11/2026, 0 h 15, relu contre le code à cette heure. Depuis 19 h 39, l'équipe travaille dans l'espace H de Jahdiel. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md). Kimi corrige `contributions/kimi-pentest` en ce moment : la section 6 décrit l'état lu à 19 h 05.
 
 0. [Ce qui a changé depuis le document du 17/11](#0-ce-qui-a-changé-depuis-le-document-du-1711)
 1. [Vue d'ensemble](#1-vue-densemble)
@@ -291,7 +291,7 @@ flowchart LR
 | `/examen` | L'index des relevés pentest, par date, application ou thème |
 
 - **Routes QA** (`app/api/qa/`) : `plan`, `transcription`, `missions`, `missions/[id]`, `missions/[id]/arret`, `captures`.
-- **Accès** : `proxy.js` réserve tout à l'opérateur. En développement, seule la boucle locale est admise ; en production, il faut le jeton `HSENTINEL_OPERATOR_TOKEN`. Chaque écriture vérifie l'origine de la requête.
+- **Accès** : `proxy.js` réserve tout à l'opérateur. En développement, seule la boucle locale est admise ; en production, il faut le jeton `HSENTINEL_OPERATOR_TOKEN`. Chaque écriture vérifie l'origine de la requête contre l'hôte réellement appelé (`Host`, ou `X-Forwarded-Host` derrière un proxy). Elle ne compare jamais à `request.url`, que Next réécrit en « localhost » en développement : le 19/11, toutes les écritures de la console étaient ainsi refusées sur 127.0.0.1, dictée comprise. Une seule garde, `web/lib/acces-operateur.js`, sert les deux webs.
 - **Captures** : celles de l'agent restent chez H. Le serveur web les relaie (`/api/qa/captures`), et seules les adresses de la trajectoire de la session passent.
 - Next.js 16 et React 19, sans autre dépendance.
 
@@ -312,7 +312,14 @@ flowchart LR
   - **le QA connecté.** `validerMissionQa` accepte `compte: { identifiant, secret_chiffre, identite }`, et `cleRunner()` (`web/lib/qa.js`) donne la clé publique `{ id, jwk }`. Le navigateur chiffre `JSON.stringify({ mot_de_passe })` en RSA-OAEP SHA-256, comme `web/app/audits/nouveau/formulaire-cobaye.js`. Les nouveaux résultats sont `connexion` (K1) et `identite` (K2), et `rapport.interruption` peut valoir `write_risk` ou `forbidden_page` ;
   - **les alertes.** Côté serveur, `web/lib/alertes.js` fournit `listerAlertes({ application, limite })`, `bilanAlertes()` et `listerApplications()`. Chaque ligne donne la gravité, l'accès, le type, l'état de l'alerte et le ticket GitHub, sans aucune donnée du site testé.
 - **Raccordé côté console (Codex)** : les cibles connectées sont proposées avec l’adresse, le mot de passe et jusqu’à trois noms attendus. `/api/console/cle-runner` fournit uniquement la clé publique ; elle est relue avant le chiffrement et une clé absente bloque le lancement. Le rapport distingue K1/K2 et utilise les libellés de `h_text_partial`, `write_risk` et `forbidden_page`. `/api/console/alertes` et `/app/alertes` réutilisent les services d’alertes en lecture.
-- **État vérifié dans ce lot** : 28 tests locaux réussis, dont un chiffrement WebCrypto déchiffré avec une clé de test ; TypeScript et compilation Webpack réussis. Douze tests navigateur sont préparés, mais l’exécution tentée est bloquée au démarrage de Chrome avant l’ouverture des pages. La recette navigateur et une mission réelle depuis cette interface restent à faire. Les modules de Kimi restent un chantier distinct. L’accès est réservé à l’opérateur ; le développement local peut fonctionner sans jeton.
+- **État vérifié dans ce lot** : 28 tests locaux réussis, dont un chiffrement WebCrypto déchiffré avec une clé de test ; TypeScript et compilation Webpack réussis. **Recette réelle par Claude (19/11, 0 h 05)**, sans simulation, dans Chrome sans fenêtre (Playwright) :
+  - dictée sur micro synthétique : une phrase lue par macOS, transcrite par Whisper ;
+  - plan préparé par Hugging Face ;
+  - mission publique : 3 sur 3 conformes, 35 s, 0,010 $ ;
+  - mission connectée sur Peer Review : K1 et K2 conformes, « Mon parcours » conforme, titre de l'accueil tronqué par H, 39 s, 0,015 $ ;
+  - captures et journal visibles, et aucune réponse en erreur de la console.
+
+  Les 12 tests navigateur de Codex passent en production (`next start`). Deux sélecteurs de test y étaient faux : l'annonceur de route de Next porte lui aussi `role="alert"`, et un `<select>` placé dans son `<label>` échappe à `getByLabel` exact. Restent à recetter l'arrêt d'une mission réelle et la page Alertes avec de vrais constats. Les modules de Kimi restent un chantier distinct. L’accès est réservé à l’opérateur ; le développement local peut fonctionner sans jeton.
 
 ## 12. L'état de chaque brique
 
@@ -329,7 +336,7 @@ flowchart LR
 | Pentest : HF vers contrôles | Un appel réel sur un inventaire synthétique ; 50 tests sur 50. Jamais exécuté sur Peer Review |
 | Modules de Kimi | 23 tests sur 23 ; confirmation H testée avec le `start_url` ajouté par défaut, sans PATCH inutile |
 | Déploiement de la web | Pas fait : tout tourne en local |
-| Console de l'équipe (`web-console`) | Raccordée par Codex aux services de la web, avec QA connecté et page Alertes : 28 tests et TypeScript réussis (revérifiés à 23 h 50). Aucune mission réelle lancée depuis elle ; publiée, pas déployée |
+| Console de l'équipe (`web-console`) | Raccordée par Codex aux services de la web, avec QA connecté et page Alertes : 28 tests, TypeScript et 12 tests navigateur en production réussis. Recette réelle faite le 19/11 : dictée, mission publique, mission connectée. Publiée, pas déployée |
 | n8n : W1, W3, W4 (Jahdiel) | Testés en réel sur `hsentinel-dev` (rapporté). Dans notre base : SQL appliqué, runner relié, déclencheur et secrets de W3 en place (vérifié à 23 h). Restent la bascule des workflows et la recette d'un ticket |
 | Mesure du temps humain gagné | Pas faite |
 

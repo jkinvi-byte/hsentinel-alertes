@@ -84,7 +84,7 @@ test('Connexion opérateur : un faux code est refusé', async ({ page }) => {
   await page.goto('/login')
   await page.getByLabel('Code d’accès de l’équipe').fill('not-the-token')
   await page.getByRole('button', { name: 'Ouvrir la console' }).click()
-  await expect(page.getByRole('alert')).toHaveText('Ce code d’accès n’est pas reconnu.')
+  await expect(page.getByRole('alert').filter({ hasText: 'Ce code d’accès n’est pas reconnu.' })).toHaveText('Ce code d’accès n’est pas reconnu.')
 })
 
 })
@@ -96,7 +96,7 @@ test('Historique vide et erreur réseau restent explicites', async ({ page }) =>
   await expect(page.getByRole('button', { name: 'Simuler un déploiement' })).toHaveCount(0)
   calls.failed = true
   await page.getByRole('button', { name: 'Pentest', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('Service temporairement indisponible.')
+  await expect(page.getByRole('alert').filter({ hasText: 'Service temporairement indisponible.' })).toBeVisible()
   calls.failed = false
   await page.getByRole('button', { name: 'Réessayer' }).click()
   await expect(page.getByText('Votre première mission commence ici')).toBeVisible()
@@ -178,7 +178,7 @@ test('Un arrêt demandé deux fois ne déclenche qu’une mutation', async ({ pa
 test('QA connecté : mot de passe chiffré, trois noms au plus, K1/K2 et motif d’arrêt visibles', async ({ page }) => {
   await loginCookie(page); const calls = await fixtures(page)
   await page.goto('/app/nouveau?cible=peer-review')
-  await expect(page.getByLabel('Application', { exact: true })).toHaveValue('peer-review')
+  await expect(page.getByRole('combobox', { name: 'Application' })).toHaveValue('peer-review')
   await page.getByLabel('Adresse du compte de test').fill('test@example.invalid')
   const password = 'mot-de-passe-synthetique-qa'
   await page.getByLabel('Mot de passe du compte de test').fill(password)
@@ -218,7 +218,7 @@ test('Une clé absente au chargement ou au lancement empêche toute mise en file
   await expect(page.getByRole('button', { name: 'Lancer la mission' })).toBeEnabled()
   calls.keyAvailable = false
   await page.getByRole('button', { name: 'Lancer la mission' }).click()
-  await expect(page.getByRole('alert')).toContainText('n’est pas prêt')
+  await expect(page.getByRole('alert').filter({ hasText: 'n’est pas prêt' })).toBeVisible()
   expect(calls.starts).toHaveLength(0)
 })
 
@@ -227,11 +227,11 @@ test('Changer de cible efface le compte et ne le joint jamais à un QA public', 
   await page.goto('/app/nouveau?cible=peer-review')
   await page.getByLabel('Adresse du compte de test').fill('test@example.invalid')
   await page.getByLabel('Mot de passe du compte de test').fill('synthetic-password')
-  await page.getByLabel('Application', { exact: true }).selectOption('eugenia-public')
-  await page.getByLabel('Application', { exact: true }).selectOption('peer-review')
+  await page.getByRole('combobox', { name: 'Application' }).selectOption('eugenia-public')
+  await page.getByRole('combobox', { name: 'Application' }).selectOption('peer-review')
   await expect(page.getByLabel('Mot de passe du compte de test')).toHaveValue('')
   await expect(page.getByLabel('Adresse du compte de test')).toHaveValue('')
-  await page.getByLabel('Application', { exact: true }).selectOption('eugenia-public')
+  await page.getByRole('combobox', { name: 'Application' }).selectOption('eugenia-public')
   await page.getByRole('button', { name: 'Exploration', exact: true }).click()
   await page.getByRole('button', { name: 'Lancer la mission' }).click()
   await expect(page).toHaveURL(new RegExp(`/app/missions/qa/${id}`))
@@ -253,5 +253,5 @@ test('Alertes : filtre, état d’envoi, ticket et panne du service', async ({ p
   await page.screenshot({ path: 'test-results/apercus/alertes-mobile.png', fullPage: true })
   calls.alertsFailed = true
   await page.getByRole('button', { name: 'Actualiser', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('Alertes momentanément indisponibles.')
+  await expect(page.getByRole('alert').filter({ hasText: 'Alertes momentanément indisponibles.' })).toBeVisible()
 })

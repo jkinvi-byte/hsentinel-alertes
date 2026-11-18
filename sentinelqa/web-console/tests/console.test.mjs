@@ -120,6 +120,10 @@ test('Les mutations demandent la même origine', () => {
   assert.equal(sameOrigin(new Request('https://console.example/api', { headers: { origin: 'https://console.example' } })), true)
   assert.equal(sameOrigin(new Request('https://console.example/api', { headers: { origin: 'https://elsewhere.example' } })), false)
   assert.equal(sameOrigin(new Request('https://console.example/api')), false)
+  // Next en développement : request.url dit « localhost », la page est servie sur 127.0.0.1:3101 (dictée refusée, 18/11).
+  const dev = origin => new Request('http://localhost:3101/api/console/transcription', { headers: { origin, host: '127.0.0.1:3101' } })
+  assert.equal(sameOrigin(dev('http://127.0.0.1:3101')), true)
+  assert.equal(sameOrigin(dev('https://elsewhere.example')), false)
 })
 test('Le corps est borné même sans Content-Length', async () => {
   const body = new ReadableStream({ start(c) { c.enqueue(new Uint8Array(5)); c.enqueue(new Uint8Array(6)); c.close() } })

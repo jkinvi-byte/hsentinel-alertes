@@ -48,4 +48,12 @@ test('POST depuis une autre origine ou sans origine refusé', () => {
   assert.equal(memeOrigine(new Request('http://127.0.0.1:3100/api/audits')), false);
   assert.equal(memeOrigine(new Request('http://127.0.0.1:3100/api/audits', { headers: { origin: 'https://autre.example' } })), false);
   assert.equal(memeOrigine(new Request('http://127.0.0.1:3100/api/audits', { headers: { origin: 'http://127.0.0.1:3100' } })), true);
+  // Next en développement : request.url dit « localhost », le navigateur a appelé 127.0.0.1 (403 sur toute écriture, 18/11).
+  const dev = (origin, extra = {}) => new Request('http://localhost:3100/api/qa/plan', { headers: { origin, host: '127.0.0.1:3100', ...extra } });
+  assert.equal(memeOrigine(dev('http://127.0.0.1:3100')), true);
+  assert.equal(memeOrigine(dev('http://127.0.0.1:3999')), false);  // un autre port est une autre origine
+  assert.equal(memeOrigine(dev('https://autre.example')), false);
+  assert.equal(memeOrigine(dev('null')), false);
+  // Derrière un proxy (Vercel), l'hôte public arrive par X-Forwarded-Host.
+  assert.equal(memeOrigine(dev('https://hsentinel.vercel.app', { 'x-forwarded-host': 'hsentinel.vercel.app' })), true);
 });
