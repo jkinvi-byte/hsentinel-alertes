@@ -51,8 +51,12 @@ UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 # (noter, envoyer…). Le code arrête alors la session ; H a peut-être déjà exécuté ce clic : l'arrêt borne les suites.
 VERBES_A_RISQUE = {"envoyer", "enregistrer", "sauvegarder", "valider", "soumettre", "confirmer", "publier", "supprimer", "modifier",
                    "noter", "evaluer", "commenter", "voter", "activer", "desactiver", "reinitialiser",
-                   "submit", "send", "save", "confirm", "delete", "rate", "publish"}
+                   "commencer", "demarrer", "reprendre", "repondre", "ajouter", "creer",  # ouvrent ou remplissent un formulaire
+                   "submit", "send", "save", "confirm", "delete", "rate", "publish", "start", "begin", "reply", "add", "create"}
 FINIS = {"completed", "idle", "failed", "timed_out", "interrupted"}
+# H passe la session à « idle » avant d'y attacher la réponse (AgentCompletionEvent jusqu'à 2 s plus tard, 18/11) :
+# lue trop tôt, une réponse bien donnée paraissait absente (1 essai sur 10, session d58b6def).
+ATTENTE_REPONSE_S = 10
 ROUTEUR_HF = "https://router.huggingface.co/v1/chat/completions"
 # Textes qui trahissent une page cassée quand ils s'affichent tels quels : le code les reconnaît sans l'agent.
 ANOMALIES = ("lorem ipsum", "undefined", "object object", "page introuvable", "page not found", "404 not found",
@@ -110,9 +114,12 @@ def chemin_cible(cible, url):
     if f"{parts.scheme}://{parts.netloc}" != cible["origine"] or parts.username or parts.password:
         return None
     chemin = (parts.path.rstrip("/") or "/")
-    if any(chemin == x or chemin.startswith(x.rstrip("/") + "/") for x in cible.get("chemins_exclus", [])):
-        return None
-    return chemin
+    return None if chemin_exclu(cible, chemin) else chemin
+
+
+def chemin_exclu(cible, chemin):
+    """Un chemin que le contrat interdit (chemins_exclus) : sur un site connecté, une page où l'on écrit, comme la review du soir."""
+    return any(chemin == x or chemin.startswith(x.rstrip("/") + "/") for x in cible.get("chemins_exclus", []))
 
 
 def _texte(valeur, maxi, nom):
@@ -507,14 +514,25 @@ def violation(cible, outil, args, url_page):
 
 
 def garde_connectee(evenement, cible, etat):
-    """En direct : le premier geste demandé qui peut écrire sur une cible connectée, ou None."""
+    """En direct, sur une cible connectée : (code, motif) pour arrêter la session, ou None.
+
+    Un geste qui peut écrire, ou une page que le contrat interdit, quel que soit le libellé qui y a mené. H a déjà exécuté
+    le geste quand son événement arrive, souvent par lots de plusieurs pas : l'arrêt borne la suite, il n'empêche pas ce geste.
+    """
     data = evenement.get("data") or {}
-    if evenement.get("type") != "AgentEvent" or data.get("kind") != "policy_event":
+    if evenement.get("type") != "AgentEvent":
+        return None
+    if data.get("kind") == "observation_event":
+        parts = urlsplit((data.get("metadata") or {}).get("url") or "")
+        if f"{parts.scheme}://{parts.netloc}" == cible["origine"] and chemin_exclu(cible, parts.path.rstrip("/") or "/"):
+            return "forbidden_page", f"Page interdite sur un site connecté : {parts.path}"
+        return None
+    if data.get("kind") != "policy_event":
         return None
     for req in data.get("tool_reqs") or []:
         outil, args = req.get("tool_name"), req.get("args") or {}
         if outil != "answer" and risque_d_ecriture(cible, outil, args, etat.get("url") or cible["entree"]):
-            return decrire_geste(outil, args)
+            return "write_risk", f"Geste qui peut écrire sur un site connecté : {decrire_geste(outil, args)}"
     return None
 
 
@@ -837,6 +855,8 @@ def message_mission(mission, cible):
     if cible.get("connexion"):
         commun["connexion"] = ("Commence par te connecter, une seule fois, en remplissant les champs avec fill_secret_at (le coffre), "
                                "puis suis la mission en consultation seule.")
+    if cible.get("interdits"):
+        commun["interdits_du_site"] = cible["interdits"]
     if mission["pilotage"] == "exploration":
         limite = cible["limites"]["exploration"]["max_pages"]
         return json.dumps({**commun, "max_pages": limite, "criteres": [],
@@ -891,6 +911,17 @@ def supprimer_coffre(client, coffre):
     client.vaults.delete_vault(coffre)
 
 
+def lire_fin(client, session_id):
+    """La session finale et sa réponse : tant qu'elle est « idle » sans réponse, H n'a pas fini de l'écrire."""
+    limite = time.monotonic() + ATTENTE_REPONSE_S
+    while True:
+        final = client.sessions.get_session(session_id)
+        etat = getattr(final.status, "status", final.status)
+        if final.latest_answer is not None or str(getattr(etat, "value", etat)) != "idle" or time.monotonic() >= limite:
+            return final
+        time.sleep(0.5)
+
+
 def jouer_session(client, mission, cible, controle, journal):
     """Lancer l'agent, suivre ses gestes en direct, l'arrêter si besoin, puis relever toute sa trajectoire."""
     connectee = bool(cible.get("connexion"))
@@ -926,10 +957,10 @@ def jouer_session(client, mission, cible, controle, journal):
             nouveaux = [e.model_dump(mode="json") if hasattr(e, "model_dump") else e for e in changes.new_events or []]
             for e in nouveaux:
                 raconter(e, journal, cible, etat)
-                interdit = garde_connectee(e, cible, etat) if connectee else None
-                if interdit:
-                    journal(f"Geste qui peut écrire sur un site connecté : {interdit}. Session arrêtée.", "erreur")
-                    raise Interruption("write_risk")
+                arret = garde_connectee(e, cible, etat) if connectee else None
+                if arret:
+                    journal(f"{arret[1]}. Session arrêtée.", "erreur")
+                    raise Interruption(arret[0])
             index = (changes.first_index if changes.first_index is not None else index) + len(nouveaux)
             statut_courant = getattr(changes.status, "value", changes.status)
             if statut_courant in FINIS:
@@ -953,7 +984,7 @@ def jouer_session(client, mission, cible, controle, journal):
         if not items:
             break
         evenements += items
-    final = client.sessions.get_session(handle.id)
+    final = lire_fin(client, handle.id)
     statut = client.sessions.get_session_status(handle.id)
     etat_final = getattr(final.status, "status", final.status)  # Session.status est un objet SessionStatus
     session["statut"] = str(getattr(etat_final, "value", etat_final))

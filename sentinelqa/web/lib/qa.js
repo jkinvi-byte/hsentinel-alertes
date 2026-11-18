@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { requete } from './supabase';
-import { CATALOGUE_QA, cibleQa, validerPlan, validerMissionQa } from './qa-contrat.mjs';
+import { CATALOGUE_QA, cibleQa, sansSecret, validerPlan, validerMissionQa } from './qa-contrat.mjs';
 
 export { CATALOGUE_QA, cibleQa, validerMissionQa };
 
@@ -98,7 +98,7 @@ export async function creerMission(mission) {
 export async function lireMission(id) {
   if (!UUID.test(id)) return null;
   const [ligne] = await requete(`qa_missions?select=id,cree_le,statut,demande,rapport,erreur,debut,fin,arret_demande&id=eq.${id}`);
-  return ligne ?? null;
+  return ligne ? { ...ligne, demande: sansSecret(ligne.demande) } : null;
 }
 
 export async function lireEvenementsQa(id, apres = 0) {
@@ -108,11 +108,18 @@ export async function lireEvenementsQa(id, apres = 0) {
 }
 
 export async function listerMissions() {
-  return requete('qa_missions?select=id,cree_le,statut,demande,erreur,resume:rapport->summary,criteres:rapport->summary_criteres,'
+  const lignes = await requete('qa_missions?select=id,cree_le,statut,demande,erreur,resume:rapport->summary,criteres:rapport->summary_criteres,'
     + 'duree:rapport->duration_s,cout:rapport->cost_h,titre:rapport->titre&order=cree_le.desc&limit=12');
+  return lignes.map((l) => ({ ...l, demande: sansSecret(l.demande) }));
 }
 
 // L'arrêt : avant le départ, la mission se ferme ici ; ensuite, le worker annule la session H et garde les preuves.
+// La clé publique du runner (JWK), avec laquelle le navigateur chiffre le mot de passe d'un site connecté.
+export async function cleRunner() {
+  const [cle] = await requete('cles_runner?select=id,cle_publique&order=id.desc&limit=1');
+  return cle ? { id: cle.id, jwk: cle.cle_publique } : null;
+}
+
 export async function demanderArret(id) {
   const ligne = await lireMission(id);
   if (!ligne) return null;
@@ -131,7 +138,8 @@ export async function demanderArret(id) {
     };
     // Comparaison avec le statut : ne jamais écraser une mission que le worker vient de prendre.
     const fermees = await requete(`qa_missions?id=eq.${id}&statut=eq.en_attente`, {
-      methode: 'PATCH', prefer: 'return=representation', corps: { statut: 'termine', fin: instant, arret_demande: true, rapport },
+      // La demande relue est déjà sans texte chiffré : elle le remplace dans la base, la mission ne partira plus.
+      methode: 'PATCH', prefer: 'return=representation', corps: { statut: 'termine', fin: instant, arret_demande: true, rapport, demande: ligne.demande },
     });
     if (fermees.length) return { termine: true };
   }

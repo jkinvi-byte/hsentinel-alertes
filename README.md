@@ -9,15 +9,15 @@ Des agents IA de H Company testent un site web autorisé comme un humain : ils n
 
 Hors de `main` : la branche `jahdiel/suivi-n8n` (le suivi des alertes n8n, repris dans SUIVI.md) et `agents-ia-qa-pentest` (le bac à sable de Mohamed). Voir [ARCHITECTURE.md, section 14](ARCHITECTURE.md#14-les-travaux-de-léquipe-hors-de-main).
 
-## État au 18/11, 19 h 50
+## État au 18/11, 23 h 15
 
 | Volet | Fonctionne, vérifié en réel | Manque |
 |---|---|---|
-| QA | Consigne tapée ou dictée, puis plan Hugging Face, agent H, vérification par le code et rapport web. 9 missions sur eugeniaschool.com, sur ordinateur et sur mobile : 0,033 $ et 76 s en moyenne | Dictée avec une vraie voix, mesure du temps gagné, déploiement |
-| QA connecté : Peer Review | L'agent se connecte par un coffre H créé pour l'essai, puis consulte sans rien modifier. Compte d'Alec : 2 missions réelles, dont une dans l'espace H de Jahdiel (42 s, 0,022 $) ; connexion, identité et pages vérifiées par le code | Compte de Nathan refusé par le site (2 essais) : son mot de passe en vigueur ; répétitions ; lancement depuis la web (le terminal seulement aujourd'hui) |
+| QA | Consigne tapée ou dictée, puis plan Hugging Face, agent H, vérification par le code et rapport web. 33 missions sur eugeniaschool.com le 18/11, sur ordinateur et sur mobile (0,904 $ au total). Répétitions, 10 par scénario : parcours guidé 10/10 (29 s, 0,007 $), exploration 10/10 (103 s, 0,051 $) | Dictée avec une vraie voix, mesure du temps gagné, déploiement |
+| QA connecté : Peer Review | L'agent se connecte par un coffre H créé pour l'essai, puis consulte sans rien modifier. Compte d'Alec : 18 missions réelles (0,259 $), depuis le terminal ou la file web, où le mot de passe est chiffré dans le navigateur. 10 répétitions : connexion et identité prouvées 10/10, « Mon parcours » 10/10, aucune évaluation ouverte, 40 s et 0,015 $ en moyenne. La garde a été renforcée après une évaluation ouverte à 22 h 48 (rien de noté) | Compte de Nathan refusé par le site (2 essais) : son mot de passe en vigueur ; le formulaire du compte dans la console (Codex) ; titres de l'accueil tronqués par H, donc non concluants |
 | Pentest : banc | Paie Express, une application de test à failles injectées : 59 failles prouvées sur 60, en 10 audits, 0 faux positif | — |
-| Pentest : Peer Review | Connexion HTTP de A validée en réel ; ressource témoin et règle de visibilité confirmées (Kimi) | B refusé par le site ; agent H illisible (500) ; contrôle A/B jamais exécuté ; modules non raccordés (`contributions/`) |
-| Alertes n8n (Jahdiel) | W1, W3, W4 construits par Jahdiel ; leur SQL réécrit et en place dans notre base (`supabase/alertes.sql`) ; chaque faille prouvée du banc écrite dans `constats` (`runner/constats.py`) | Bascule de n8n vers notre base, coffre, recette (`sentinelqa/n8n/README.md`) |
+| Pentest : Peer Review | Connexion HTTP de A validée en réel ; ressource témoin et règle de visibilité confirmées (Kimi) | B refusé par le site ; agent H recréé par Kimi et confirmé (20 h 38) ; contrôle A/B jamais exécuté ; modules non raccordés (`contributions/`) |
+| Alertes n8n (Jahdiel) | W1, W3, W4 construits par Jahdiel ; leur SQL réécrit et en place dans notre base (`supabase/alertes.sql`) ; chaque faille prouvée du banc écrite dans `constats` (`runner/constats.py`) | Secrets de W3 en place dans le coffre Supabase (vérifié à 23 h). Restent la bascule des workflows vers notre base, le secret de W1 et la recette d'un ticket (`sentinelqa/n8n/README.md`) |
 | Interface : la console de l'équipe (`web-console`) | L'interface d'un camarade, raccordée par Codex aux services de la web (`/api/console`) ; tests de contrat | Aucune mission réelle lancée depuis elle ; en local, pas encore publiée |
 
 ## Lancer le volet QA

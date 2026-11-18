@@ -33,7 +33,8 @@
       "connexion": {
         "chemin": "/connexion"
       },
-      "chemins_exclus": ["/connexion/activation"],
+      "chemins_exclus": ["/connexion/activation", "/etudiant/sessions"],
+      "interdits": ["Ne clique jamais sur « Évaluer », « Commencer », une note ou « Reprendre mes notes » : ces boutons ouvrent ou remplissent la review du soir, qui compte dans la note des étudiants. Ne l'ouvre pas, même pour la regarder."],
       "limites": {
         "guide": {
           "max_steps": 25,

@@ -8,7 +8,8 @@ export const VERIFICATIONS = { code: 'Vérifié par le code', citation: 'Citatio
 export const TYPES_CRITERES = { page: 'Page atteinte', texte: 'Texte exact', constat: 'Constat cité' };
 // Un écart que l'agent signale et cite, sans preuve du code : il reste non concluant, mais il se lit comme tel.
 const LIBELLES_RAISONS = { agent_reported_gap: 'Écart signalé · à confirmer', agent_disagrees: 'Désaccord · à confirmer',
-  repeated_attempts: 'Parcours difficile · à revoir' };
+  repeated_attempts: 'Parcours difficile · à revoir', h_text_partial: 'Titre tronqué par H · à voir sur la capture',
+  write_risk: 'Mission arrêtée · geste à risque', forbidden_page: 'Mission arrêtée · page interdite' };
 export const libelleStatut = (status, raison) => (status === 'inconclusive' && LIBELLES_RAISONS[raison]) || STATUTS_QA[status] || status;
 export function bilanCriteres(rapport) {
   if (rapport.summary_criteres) return rapport.summary_criteres;
@@ -17,7 +18,36 @@ export function bilanCriteres(rapport) {
 }
 export const MODELES_H = ['holo4-35b-a3b', 'holo4-27b'];
 const CHAMPS = new Set(['schema_version', 'mode', 'target_id', 'pilotage', 'appareil', 'instruction', 'source', 'plan', 'modele_h',
-  'preparation_humaine_s']);
+  'preparation_humaine_s', 'compte']);
+const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}$/;
+const CHIFFRE = /^[A-Za-z0-9+/]+={0,2}$/;
+
+// Le compte de test d'un site connecté. Le mot de passe arrive chiffré par le navigateur avec la clé publique du runner
+// (RSA-OAEP, SHA-256, JSON {"mot_de_passe": …}) : ce serveur ne le voit jamais en clair, le runner le verse dans un coffre H.
+export function validerCompte(c) {
+  if (!c || typeof c !== 'object' || Array.isArray(c) || Object.keys(c).some((k) => !['identifiant', 'secret_chiffre', 'identite'].includes(k))) {
+    throw new Error('Ce site se teste connecté : il faut un compte de test.');
+  }
+  if (typeof c.identifiant !== 'string' || !EMAIL.test(c.identifiant.trim())) throw new Error('L’adresse du compte de test est invalide.');
+  if (typeof c.secret_chiffre !== 'string' || c.secret_chiffre.length < 100 || c.secret_chiffre.length > 2000 || !CHIFFRE.test(c.secret_chiffre)) {
+    throw new Error('Le mot de passe doit arriver chiffré par le navigateur.');
+  }
+  const identite = c.identite ?? [];
+  if (!Array.isArray(identite) || identite.length > 3 || identite.some((x) => typeof x !== 'string' || !x.trim() || x.length > 120)) {
+    throw new Error('Le nom attendu à l’écran est invalide.');
+  }
+  return { identifiant: c.identifiant.trim(), secret_chiffre: c.secret_chiffre, identite: identite.map((x) => x.trim()) };
+}
+
+// Une demande relue pour le navigateur : jamais le texte chiffré, même s'il n'a pas encore quitté la base.
+export function sansSecret(demande) {
+  if (!demande?.compte) return demande;
+  const { secret_chiffre: _, ...compte } = demande.compte;
+  return { ...demande, compte };
+}
+
+const sansAccents = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^0-9a-z]+/g, ' ');
+const CONNEXION = /\b(se connecter|connexion|s identifier|login|log in|sign in)\b/;
 
 export function cibleQa(id) {
   const cible = catalogue.cibles.find((c) => c.id === id);
@@ -63,7 +93,9 @@ export function validerPlan(plan, cible) {
   if (!criteres.length) throw new Error('Le plan doit contenir au moins un critère vérifiable.');
   const propre = {
     titre: texte(plan.titre, 120, 'Le titre') || 'Parcours QA', etapes, criteres: criteres.slice(0, regles.max_criteres),
-    hors_perimetre: (plan.hors_perimetre ?? []).map((h) => texte(h, 300, 'Une mention hors périmètre')).filter(Boolean).slice(0, 6),
+    // Sur un site connecté, l'agent se connecte lui-même avec le coffre : « Se connecter » hors périmètre contredirait sa mission.
+    hors_perimetre: (plan.hors_perimetre ?? []).map((h) => texte(h, 300, 'Une mention hors périmètre')).filter(Boolean)
+      .filter((h) => !cible.connexion || !CONNEXION.test(sansAccents(h))).slice(0, 6),
     inconnues: (plan.inconnues ?? []).map((h) => texte(h, 300, 'Une inconnue')).filter(Boolean).slice(0, 6),
   };
   const prep = plan.preparation;
@@ -80,12 +112,14 @@ export function validerMissionQa(d) {
     throw new Error('Le format de la mission QA est invalide.');
   }
   const cible = cibleQa(d.target_id);
-  // Un site connecté demande un coffre H par essai : la web ne sait pas encore le fournir, le terminal si.
-  if (cible.connexion) throw new Error('Ce site se teste connecté, depuis le terminal pour l’instant.');
   const appareil = d.appareil ?? 'ordinateur';
   if (!Object.hasOwn(catalogue.pilotages, d.pilotage) || !Object.hasOwn(catalogue.appareils, appareil)) {
     throw new Error('Le pilotage ou l’appareil est inconnu.');
   }
+  if (!Object.hasOwn(cible.limites, d.pilotage)) throw new Error('Ce pilotage n’est pas ouvert sur ce site.');
+  // Un site connecté : un compte de test, dont le runner versera le mot de passe dans un coffre H propre à la mission.
+  const compte = cible.connexion ? validerCompte(d.compte) : null;
+  if (!cible.connexion && d.compte != null) throw new Error('Un site public ne reçoit aucun compte.');
   const source = d.source ?? 'texte';
   if (!['texte', 'voix'].includes(source)) throw new Error('La source de la consigne est inconnue.');
   const modele = d.modele_h ?? MODELES_H[0];
@@ -100,6 +134,7 @@ export function validerMissionQa(d) {
     if (d.plan == null) throw new Error('Un parcours guidé demande un plan relu.');
     mission.plan = validerPlan(d.plan, cible);
   }
+  if (compte) mission.compte = compte;
   return mission;
 }
 

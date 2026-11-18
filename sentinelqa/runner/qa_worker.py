@@ -17,7 +17,8 @@ import httpx
 from hai_agents import Client
 
 from base import Base, env_postgres, lire_cles
-from qa_moteur import ecrire_rapport, executer_qa, maintenant
+from cle_runner import cle_privee, dechiffrer, publier
+from qa_moteur import ecrire_rapport, executer_qa, maintenant, preparer_coffre, supprimer_coffre, trouver_cible
 
 SCHEMA_QA = Path(__file__).resolve().parent.parent / "supabase" / "qa.sql"
 
@@ -49,6 +50,23 @@ class JournalQA:
                 print(f"   (fil Supabase indisponible : {erreur.__class__.__name__})", flush=True)
 
 
+def preparer_compte(base, client, mission_id, demande, journal):
+    """Site connecté : le mot de passe, chiffré par le navigateur avec la clé publique du runner, quitte la base avant tout,
+    est déchiffré en mémoire, puis versé dans un coffre H propre à la mission. Il n'est jamais écrit ni journalisé."""
+    compte = demande.pop("compte", None)
+    if compte is None:
+        return None
+    base.modifier("qa_missions", {"demande": demande}, id=f"eq.{mission_id}")
+    cible = trouver_cible(demande.get("target_id"))
+    if not cible.get("connexion"):
+        raise ValueError("Un site public ne reçoit aucun compte.")
+    mot_de_passe = dechiffrer(cle_privee(), compte["secret_chiffre"])["mot_de_passe"]
+    coffre = preparer_coffre(client, cible, compte["identifiant"], mot_de_passe)
+    demande.update(coffre=coffre, identite=compte.get("identite") or [])
+    journal("Coffre H créé pour la mission : l'agent se connectera sans voir le mot de passe.", "info")
+    return coffre
+
+
 def traiter(base, client, ligne):
     mission_id = ligne["id"]
     journal = JournalQA(base, mission_id)
@@ -64,8 +82,10 @@ def traiter(base, client, ligne):
                 pass
         return arret_lu[0]
 
+    demande, coffre = dict(ligne["demande"]), None
     try:
-        rapport = executer_qa(ligne["demande"], client, journal, arret)
+        coffre = preparer_compte(base, client, mission_id, demande, journal)
+        rapport = executer_qa(demande, client, journal, arret)
         print(f"Rapport local : {ecrire_rapport(rapport)}", flush=True)
         base.modifier("qa_missions", {"statut": "termine", "fin": maintenant(), "rapport": rapport}, id=f"eq.{mission_id}")
     except BaseException as erreur:
@@ -74,10 +94,19 @@ def traiter(base, client, ligne):
         base.modifier("qa_missions", {"statut": "echec", "fin": maintenant(), "erreur": message}, id=f"eq.{mission_id}")
         if isinstance(erreur, KeyboardInterrupt):
             raise
+    finally:
+        if coffre:
+            try:
+                supprimer_coffre(client, coffre)
+                journal("Coffre H de la mission supprimé.", "info")
+            except Exception as erreur:
+                journal(f"Coffre {coffre} non supprimé ({erreur.__class__.__name__}) : à supprimer à la main.", "erreur")
 
 
 def surveiller():
     base, client = Base(), Client(api_key=cle_h(), timeout=30, max_retries=1)
+    # La clé publique du runner, avec laquelle la web chiffre le mot de passe d'un site connecté.
+    print(f"Clé publique du runner publiée (cles_runner n° {publier(base, cle_privee())})", flush=True)
     print("Worker QA prêt : en attente des missions de la web (Ctrl-C pour arrêter)…", flush=True)
     pause = 2
     while True:

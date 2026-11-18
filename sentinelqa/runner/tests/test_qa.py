@@ -5,6 +5,7 @@ import copy
 import json
 import sys
 import unittest
+import unittest.mock
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -252,9 +253,10 @@ class DifficulteTest(unittest.TestCase):
 class ClientH:
     """Un client H simulé qui rejoue les événements de la fixture, page par page."""
 
-    def __init__(self, arret_au_tour=None, evenements=None, reponse=FIXTURE["reponse"]):
+    def __init__(self, arret_au_tour=None, evenements=None, reponse=FIXTURE["reponse"], reponse_tardive=0):
         self.agents = CatalogueH()
         self.tours, self.arret_au_tour, self.annulee = 0, arret_au_tour, False
+        self.lectures_fin = 0
         evenements = [SimpleNamespace(model_dump=lambda mode=None, e=e: e) for e in evenements or FIXTURE["evenements"]]
         client = self
 
@@ -270,8 +272,12 @@ class ClientH:
                 return SimpleNamespace(model_dump=lambda mode=None: {"items": items})
 
             def get_session(self, sid):
-                return SimpleNamespace(status="interrupted" if client.annulee else "idle",
-                                       latest_answer=None if client.annulee else reponse)
+                client.lectures_fin += 1
+                if client.annulee:
+                    return SimpleNamespace(status="interrupted", latest_answer=None)
+                if client.lectures_fin <= reponse_tardive:  # « idle », la réponse n'est pas encore attachée
+                    return SimpleNamespace(status="idle", latest_answer=None)
+                return SimpleNamespace(status="completed" if reponse_tardive else "idle", latest_answer=reponse)
 
             def get_session_status(self, sid):
                 return SimpleNamespace(steps=4, error_code=None, usage_per_model=[SimpleNamespace(
@@ -317,6 +323,15 @@ class ExecutionTest(unittest.TestCase):
         self.assertIn(rapport["results"][0]["status"], ("passed", "skipped"))  # jamais « écart » faute de preuve
         self.assertNotIn("failed", [r["status"] for r in rapport["results"]])
 
+    def test_une_reponse_attachee_apres_idle_est_bien_lue(self):
+        # H rend « idle » avant d'attacher la réponse : lue trop tôt, elle paraissait absente (session d58b6def, 18/11).
+        client = ClientH(reponse_tardive=2)
+        with unittest.mock.patch.object(qa_moteur.time, "sleep"):
+            rapport = executer_qa(self.DEMANDE, client, transport=transport({"/": (200, ACCUEIL), "/programme/bachelor-ia-business": (200, BACHELOR)}))
+        self.assertEqual((rapport["sessions"][0]["statut"], client.lectures_fin), ("completed", 3))
+        self.assertIsNotNone(rapport["agent"]["bloque"])  # la réponse de l'agent est lue, pas « absente »
+        self.assertNotIn("agent_incomplete", [r["reason_code"] for r in rapport["results"]])
+
 
 # ── Un site connecté : Peer Review, en consultation, connecté par un coffre H ──────────────────────────────────
 
@@ -324,6 +339,8 @@ PEER = qa_moteur.trouver_cible("peer-review")
 COFFRE = "3b8d9c2e-6f1a-4e5b-8c7d-0a9b8c7d6e5f"
 CAPTURE = "https://agp.eu.hcompany.ai/api/v1/trajectories/s/resources/capture.png"
 LOGIN, ESPACE = "https://peer-review-black.vercel.app/connexion", "https://peer-review-black.vercel.app/etudiant"
+# La review du soir, telle qu'ouverte par l'agent le 18/11 à 22 h 48 (session 0be8c3bf) : un formulaire de notes.
+REVIEW = "https://peer-review-black.vercel.app/etudiant/sessions/ses_1/2026-11-18/review/mbr_1"
 
 
 def vue(url, texte=""):
@@ -430,6 +447,7 @@ class ConnexionTest(unittest.TestCase):
         risque = lambda outil, url, **args: qa_moteur.risque_d_ecriture(PEER, outil, args, url)
         self.assertTrue(risque("click_web", ESPACE, element="Bouton « Évaluer » de Léa"))
         self.assertTrue(risque("click_web", ESPACE, element="Bouton Envoyer"))
+        self.assertTrue(risque("click_web", ESPACE, element="Bouton Commencer"))  # ouvre la review du soir
         self.assertFalse(risque("click_web", ESPACE, element="Onglet Mes évaluations"))  # un nom, pas un geste d'écriture
         self.assertFalse(risque("fill_secret_at", LOGIN))
         self.assertFalse(risque("click_web", LOGIN, element="Bouton Se connecter"))
@@ -438,8 +456,9 @@ class ConnexionTest(unittest.TestCase):
         self.assertTrue(risque("select_option", ESPACE))
         public = lambda outil, **args: qa_moteur.violation(CIBLE, outil, args, "https://www.eugeniaschool.com/")
         self.assertEqual([public("write"), public("fill_secret_at"), public("click_web", element="Envoyer"),
-                          public("go_to_web", url="https://www.eugeniaschool.com/"), public("go_to_web", url="/candidature")],
-                         [True, True, False, False, True])
+                          public("go_to_web", url="https://www.eugeniaschool.com/"), public("go_to_web", url="/candidature"),
+                          public("click_web", element="Commencer")],
+                         [True, True, False, False, True, False])
 
     def test_l_agent_connecte_est_distinct_et_ne_porte_aucun_coffre(self):
         catalogue = SimpleNamespace(agents=CatalogueH())
@@ -466,6 +485,26 @@ class ConnexionTest(unittest.TestCase):
         self.assertEqual(rapport["request"]["identite"], ["•••"])
         self.assertTrue(any(t == "erreur" and "Session arrêtée" in m for t, m in fil))
         self.assertEqual(next(x for x in rapport["results"] if x["id"] == "K1")["status"], "passed")
+
+    def test_une_page_interdite_arrete_la_session_quel_que_soit_le_libelle(self):
+        evenements = CONNEXION + [geste("click_web", element="Lien Léa Fontaine"), vue(REVIEW, "0/5 critères notés"),
+                                  geste("click_web", element="Bouton 3 du critère Fiabilité")]
+        client, fil = ClientH(evenements=evenements, reponse=None), []
+        rapport = executer_qa(demande_connectee([{"type": "constat", "description": "Titre visible", "valeur": ""}]), client,
+                              lambda m, t="info", **d: fil.append((t, m)), transport=transport_peer())
+        self.assertEqual((rapport["interruption"], client.annulee), ("forbidden_page", True))
+        self.assertTrue(any(t == "erreur" and "Page interdite" in m and "Session arrêtée" in m for t, m in fil))
+        self.assertFalse(any("Bouton 3" in m for _, m in fil))  # la garde s'arrête avant de relayer le geste suivant
+        self.assertIn(REVIEW, rapport["hors_origine"])
+        self.assertEqual(next(x for x in rapport["results"] if x["id"] == "C1")["reason_code"], "forbidden_page")
+
+    def test_les_interdits_du_site_arrivent_dans_la_mission(self):
+        m = valider_mission(demande_connectee([{"type": "constat", "description": "Titre", "valeur": ""}]))[0]
+        self.assertIn("« Évaluer »", json.loads(qa_moteur.message_mission(m, PEER))["interdits_du_site"][0])
+        self.assertTrue(qa_moteur.chemin_exclu(PEER, "/etudiant/sessions/ses_1/2026-11-18/review/mbr_1"))
+        self.assertFalse(qa_moteur.chemin_exclu(PEER, "/etudiant/parcours"))  # « Mon parcours » reste consultable
+        public = valider_mission({"schema_version": 3, "mode": "qa", "target_id": "eugenia-public", "pilotage": "exploration"})[0]
+        self.assertNotIn("interdits_du_site", json.loads(qa_moteur.message_mission(public, CIBLE)))
 
 
 if __name__ == "__main__":

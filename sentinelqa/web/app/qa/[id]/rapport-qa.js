@@ -6,7 +6,9 @@ const TYPES_AUTO = { auto: 'Contrôle automatique', texte_anormal: 'Contrôle au
   lien: 'Lien vérifié', liens: 'Liens vérifiés', difficulte: 'Gestes de l’agent' };
 const STATUTS_AGENT = { conforme: 'conforme', ecart: 'écart', non_verifie: 'non vérifié' };
 const INTERRUPTIONS = { cancelled: 'arrêtée à la demande de l’opérateur', budget_exceeded: 'arrêtée par son budget de durée',
-  agent_blocked: 'arrêtée : l’agent attendait une action humaine', execution_error: 'interrompue par une erreur d’exécution' };
+  agent_blocked: 'arrêtée : l’agent attendait une action humaine', execution_error: 'interrompue par une erreur d’exécution',
+  write_risk: 'arrêtée par la garde : l’agent a fait un geste qui peut écrire sur le site connecté',
+  forbidden_page: 'arrêtée par la garde : l’agent a atteint une page interdite du site connecté' };
 const pluriel = (n, un, plusieurs) => `${n} ${n > 1 ? plusieurs : un}`;
 
 function Preuves({ resultat, captures, http, appareil }) {
@@ -99,7 +101,7 @@ export default function RapportQa({ mission }) {
         <div className="qa-alerte"><p className="kicker">Écart à la consigne de l’agent</p>
           <ul>
             {r.violations.map((v) => <li key={v}>{v}</li>)}
-            {r.hors_origine.map((u) => <li key={u}>Page hors du site autorisé : {u}</li>)}
+            {r.hors_origine.map((u) => <li key={u}>Page hors du périmètre autorisé : {u}</li>)}
           </ul></div>
       )}
 

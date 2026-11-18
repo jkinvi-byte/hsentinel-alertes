@@ -1,6 +1,6 @@
 # Suivi du projet
 
-> Mis à jour le 18/11/2026 à 19 h 50. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
+> Mis à jour le 18/11/2026 à 23 h 15. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
 >
 > Priorité **P0** : indispensable à la démo de vendredi. **P1** : utile, mais elle peut s'en passer.
 
@@ -20,7 +20,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | **Ven 20, 15 h** | Checkpoint 4 : deck de 8 à 12 slides, coût de run compris | 16 | Tugdual, Alec |
 
 **Charge à revoir :** 10 tâches sur 18 sont au nom d'Aurian, dont 7 pour jeudi. Pour le soulager, une proposition, à trancher en équipe :
-- Mohamed fait les 10 répétitions (tâche 3), en ligne de commande ;
+- ~~Mohamed fait les 10 répétitions (tâche 3)~~ : faites par Claude le 18/11 au soir ;
 - Jahdiel ou Aziz déploie la web (tâche 9) ;
 - Tugdual valide la dictée avec une vraie voix (tâche 1), puisqu'elle fait partie de sa démo.
 
@@ -40,7 +40,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 |---|---|---|---|---|---|
 | 1 | Tester la dictée avec une vraie voix, sur le micro de la démo | QA | P0 | Aurian | Jeu 19 |
 | 2 | Mesurer le temps gagné : 3 parcours faits à la main puis par HSentinel, chronométrés | QA | P0 | Tugdual | Jeu 19 |
-| 3 | Répéter chaque scénario QA de la démo 10 fois et noter le taux de réussite (3 répétitions faites pour « 4 étapes ») ; `qa_moteur.py --repetitions 10` | QA | P0 | Aurian | Jeu 19 |
+| 3 | ~~Répéter chaque scénario QA de la démo 10 fois~~ : fait le 18/11 au soir, avec une réussite jugée par le code. Guidé « Bac+3 » 10/10 (29 s, 0,007 $) ; exploration 10/10 (103 s, 0,051 $) ; Peer Review connecté 10/10 pour la connexion et l'identité (40 s, 0,015 $). À refaire si le scénario final de la démo change (`qa_moteur.py --repetitions 10`) | QA | P0 | Claude | Fait |
 | 4 | Vider l'historique de test de `qa_missions` avant la démo | QA | P1 | Aurian | Ven 20 matin |
 | 5 | ~~Valider la connexion HTTP à Peer Review~~ : fait par Kimi pour A, le 18/11 à 18 h 39 (voir « Fait et vérifié ») | Pentest | P0 | Kimi | Fait |
 | 6 | ~~Obtenir un compte B actif~~ : le nouveau B est validé avec identité vérifiée ; le triplet HTTP réel A/anonyme/B a tourné. A et l'anonyme passent ; B reçoit sa propre vue sans le témoin de A, donc aucune fuite de A démontrée, mais pas de refus explicite | Pentest | P0 | Kimi | Fait |
@@ -57,11 +57,11 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 17 | Rédiger la fiche projet : problème, solution, stack, architecture, lien du prototype, comment tester | Démo | P0 | Tugdual | Ven 20 |
 | 18 | Intégrer les polices à la web (`next/font/local`) : la compilation ne dépendra plus du réseau | Plateforme | P1 | Aurian | Jeu 19 |
 | 19 | QA connecté : retester le compte de Nathan dès que son mot de passe en vigueur est connu. Aucun nouvel essai d'ici là, pour ne pas bloquer son compte | QA | P1 | Aurian | Jeu 19 |
-| 20 | Lancer le QA connecté depuis la web : mot de passe chiffré dans le navigateur (comme le cadrage B du pentest), coffre par essai côté worker | QA | P1 | Aurian | Jeu 19 |
+| 20 | ~~Lancer le QA connecté depuis la web, côté serveur~~ : fait et vérifié en réel le 18/11, avec 3 missions par la file web. Le texte chiffré est effacé avant le déchiffrement, le mot de passe ne se retrouve ni dans la base ni dans le fil, et le coffre est supprimé. Reste le formulaire du compte dans la console (tâche 34) | QA | P1 | Claude | Fait (serveur) |
 | 21 | ~~L'agent de Kimi `sentinelqa-pentest-acces`~~ : définition corrigée par Kimi (sans `about:blank`, relecture tolérant la valeur ajoutée par H) ; présent dans l'espace de Jahdiel et confirmé conforme par sa propre fonction, le 18/11 à 20 h 38 | Pentest | P0 | Kimi | Fait |
 | 23 | `contributions/kimi-pentest/preuves/` contient l'adresse de la ressource témoin, avec l'identifiant de la session d'Alec : il est exclu du dépôt par le `.gitignore` (18/11, 19 h 30). Pour le publier, l'anonymiser, puis retirer cette ligne | Pentest | P1 | Kimi | — |
 | 24 | Recette de la console de l'équipe (`web-console`) : un QA public réel depuis `/app/nouveau`, la demande vue dans `qa_missions`, le rapport et l'arrêt (plan de Codex : `web-console/INTEGRATION.md`) | Plateforme | P0 | Codex, Aurian | Jeu 19 |
-| 25 | **Alertes sur notre base** : le SQL (`supabase/alertes.sql`) est en place en production, version actuelle, droits vérifiés (18/11, 21 h 45 : clé publique refusée, clé secrète acceptée). Restent : les secrets du coffre (`hsentinel_w3_url`, `hsentinel_w3_secret`, plus tard `github_webhook_secret`), la bascule des 6 nœuds et de l'identifiant Supabase de n8n, la trace de W1, puis la recette (`constats.py … --limite 1` → un ticket). Pas à pas : `sentinelqa/n8n/README.md` | Plateforme | P0 | Aurian, Jahdiel | Jeu 19 |
+| 25 | **Alertes sur notre base** : le SQL (`supabase/alertes.sql`) est en place en production, version actuelle, droits vérifiés (18/11, 21 h 45 : clé publique refusée, clé secrète acceptée). Les secrets de W3 sont dans le coffre Supabase (créés à 21 h 51 ; vérifié à 23 h, ainsi que le déclencheur `constat_ajoute`). Restent : `github_webhook_secret` pour W1, la bascule des 6 nœuds et de l'identifiant Supabase de n8n, la trace de W1, puis la recette (`constats.py … --limite 1` → un ticket). Pas à pas : `sentinelqa/n8n/README.md` | Plateforme | P0 | Aurian, Jahdiel | Jeu 19 |
 | 26 | ~~Écrire chaque faille prouvée du pentest dans la table `constats`~~ : fait pour le banc, à la fin de chaque audit (`runner/constats.py`) ; à étendre à S-PEER-02 quand il sera raccordé | Pentest | P1 | Claude | Fait (banc) |
 | 27 | Montrer l'alerte en démo : une faille prouvée → ticket dans ce dépôt + e-mail, en quelques secondes | Démo | P1 | Jahdiel | Ven 20 |
 | 28 | Brancher le webhook GitHub (*Deployment statuses*) d'une cible déployée sur Vercel vers W1, pour un audit à chaque mise en ligne | Plateforme | P1 | Jahdiel | Ven 20 |
@@ -69,6 +69,8 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 30 | La clé H en service est la troisième (validée par H à 20 h 37 ; mission publique réelle conforme à 20 h 39). Les trois clés sont apparues dans la conversation : révoquer celles qui ne servent plus, puis remplacer la troisième, en copiant la nouvelle sans la coller et en tapant `! pbpaste \| holo login --key --force` (le mot `--key` tel quel) | Plateforme | P1 | Aurian | Jeu 19 |
 | 31 | Lever les bloquants relevés par la revue de Codex avant toute reprise de la branche de Mohamed : verdict « fuite » sur deux textes vides, session échouée comptée comme refus, budgets non transmis, noms d'agents divergents | Pentest | P1 | Mohamed | Jeu 19 |
 | 32 | Chaque poste qui lance le runner : créer sa clé dans l'espace H de Jahdiel | Plateforme | P1 | Tous | Jeu 19 |
+| 34 | Console : brancher le QA connecté (champs du compte, chiffrement dans le navigateur, cibles connectées disponibles) et une page Alertes (`listerAlertes`, `bilanAlertes`). Le contrat : [ARCHITECTURE.md §11](ARCHITECTURE.md#11-la-web), « Prêt côté serveur pour la console » | Plateforme | P0 | Codex | Jeu 19 |
+| 35 | Pentest (`runner/missions.py`) : le même piège que le QA, à vérifier. H passe une session à « idle » avant d'y attacher la réponse, et `wait_for_completion` peut alors rendre `answer = None`, compté « agent_incomplete ». Le QA s'en protège avec `qa_moteur.lire_fin`, qui relit la session 10 s au plus | Pentest | P1 | Kimi | Jeu 19 |
 | 33 | ~~Obtenir de Jahdiel le SQL de `hsentinel-dev`~~ : il n'existe pas en fichier. Réécrit dans notre base (`supabase/alertes.sql`, `runner/constats.py`) et testé sur une base locale qui imite Supabase | Plateforme | P0 | Claude | Fait |
 | 22 | Signaler à H : agents enregistrés avec `about:blank` illisibles (500 au GET et au PATCH), `about:blank` refusé sans annonce, titres à styles mêlés tronqués dans le texte relevé, action `list_secrets` absente de la doc | Plateforme | P1 | Aurian | Ven 20 |
 
@@ -93,6 +95,10 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 18/11 | Le document d'architecture illustré corrigé (27 pages) et [ARCHITECTURE.md](ARCHITECTURE.md), avec les revirements depuis le 17/11 | Chaque page regardée en aperçu ; à déposer sur Notion à la place de la version du 17/11 |
 | 18/11 | Ce dépôt GitHub, avec une sélection technique et aucun secret | Les vraies valeurs des clés ont été cherchées avant l'envoi : aucune trouvée |
 | 17/11 | Banc pentest Paie Express | 59 failles prouvées sur 60, 0 faux positif, en 10 audits |
+| 18/11 | QA connecté lancé par la file web : mot de passe chiffré dans le navigateur, effacé de la base avant le déchiffrement, versé dans un coffre H propre à la mission, supprimé à la fin | 3 missions réelles (22 h 48 à 23 h 01) : mot de passe introuvable dans la base et dans le fil, coffre supprimé ; 4 tests du worker avec un vrai chiffrement RSA |
+| 18/11 | Garde du QA connecté renforcée après l'ouverture d'une évaluation (22 h 48, rien de noté) : la review du soir devient une zone interdite, la session s'arrête sur une page interdite, « Commencer » compte comme geste à risque, la mission porte les interdits et la consigne de l'agent est clarifiée | 3 tests qui échouent sans le correctif ; puis 12 missions réelles sans aucune évaluation ouverte |
+| 18/11 | 10 répétitions par scénario QA : guidé, exploration, Peer Review connecté | Guidé 10/10, exploration 10/10, connecté 10/10 pour la connexion et l'identité ([ARCHITECTURE.md §3](ARCHITECTURE.md#3-volet-qa--le-trajet-dune-mission)) |
+| 18/11 | Réponse de l'agent lue trop tôt (session « idle » avant la réponse) : la lecture finale attend la réponse | Un test reproduit la course et échoue sans le correctif ; la session `d58b6def`, revérifiée, donne « Mon parcours » conforme |
 
 ## Risques connus
 
@@ -100,5 +106,6 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 - **Un agent H varie d'une session à l'autre.** Un « écart » vu par l'agent seul ne compte jamais ; seul le code tranche.
 - **Le réseau de l'école bloque le port 7844**, celui du tunnel Cloudflare du banc pentest. Parade : partager la connexion d'un téléphone.
 - **Les sessions d'avant 19 h 39 restent dans l'ancien espace H** : leurs replays, et les captures des anciens rapports dans la web, ne se lisent plus avec la nouvelle clé.
-- **Deux bases Supabase en parallèle.** Les alertes n8n (W1, W3, W4) lisent `hsentinel-dev`, le runner écrit dans `auaitjryhgwdbczwkdef` : tant que la tâche 25 n'est pas faite, les vraies failles ne déclenchent aucune alerte.
+- **Les workflows n8n lisent encore `hsentinel-dev`.** Notre base est prête : SQL, déclencheur et secrets de W3. Une faille prouvée appelle donc déjà n8n, mais rien ne garantit encore un ticket : la recette reste à faire (tâche 25).
+- **H a souvent déjà exécuté un geste quand notre garde le voit.** Les événements arrivent par lots, et l'arrêt prend 2 à 3 s (18/11, 22 h 48). Sur un site réel, la consigne, les interdits de la mission et les zones interdites du contrat protègent d'abord ; la garde borne la suite.
 - **Plusieurs agents IA modifient les mêmes fichiers.** Faire un `git status` avant chaque commit, et ne pousser que des fichiers nommés.

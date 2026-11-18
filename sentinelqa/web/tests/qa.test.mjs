@@ -1,7 +1,7 @@
 // Le contrat du volet QA côté web : mêmes règles que runner/qa_moteur.py (le runner revalide toujours).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bilanCriteres, cheminCible, cibleQa, libelleStatut, urlCapture, validerMissionQa } from '../lib/qa-contrat.mjs';
+import { bilanCriteres, cheminCible, cibleQa, libelleStatut, sansSecret, urlCapture, validerMissionQa } from '../lib/qa-contrat.mjs';
 
 const cible = cibleQa('eugenia-public');
 const base = { schema_version: 3, mode: 'qa', target_id: 'eugenia-public', pilotage: 'guide', instruction: 'Essai',
@@ -34,10 +34,42 @@ test('Les formes inconnues sont refusées, l’exploration n’a pas de plan', (
   assert.equal(validerMissionQa({ ...base, pilotage: 'exploration', plan: null }).plan, null);
 });
 
-test('Un site connecté ne se lance pas depuis la web, qui ne sait pas fournir son coffre', () => {
-  assert.ok(cibleQa('peer-review').connexion);
-  assert.throws(() => validerMissionQa({ ...base, target_id: 'peer-review' }), /connecté/);
+test('Un site connecté se lance avec un compte de test dont le mot de passe arrive chiffré', () => {
+  const peer = { ...base, target_id: 'peer-review',
+    plan: { titre: 'Espace', etapes: ['Ouvrir'], criteres: [{ type: 'constat', description: 'Le titre de l’espace', valeur: '' }] } };
+  const compte = { identifiant: ' etudiant@example.test ', secret_chiffre: 'A'.repeat(512), identite: ['Camille Martin'] };
+  const m = validerMissionQa({ ...peer, compte });
+  assert.deepEqual(m.compte, { identifiant: 'etudiant@example.test', secret_chiffre: 'A'.repeat(512), identite: ['Camille Martin'] });
+  assert.throws(() => validerMissionQa(peer), /compte de test/);                                             // pas de compte
+  assert.throws(() => validerMissionQa({ ...peer, compte: { ...compte, secret_chiffre: 'motdepasse' } }), /chiffré/);  // jamais en clair
+  assert.throws(() => validerMissionQa({ ...peer, compte: { ...compte, identifiant: 'pas une adresse' } }), /adresse/);
+  assert.throws(() => validerMissionQa({ ...peer, compte: { ...compte, mot_de_passe: 'x' } }), /compte de test/);  // champ inconnu
+  assert.throws(() => validerMissionQa({ ...peer, compte, pilotage: 'exploration', plan: null }), /pilotage/);    // guidé seulement
+  assert.throws(() => validerMissionQa({ ...base, compte }), /public/);                                       // un site public, jamais
   assert.throws(() => validerMissionQa({ ...base, coffre: '3b8d9c2e-6f1a-4e5b-8c7d-0a9b8c7d6e5f' }));
+});
+
+test('Sur un site connecté, la connexion n’est jamais hors périmètre (même règle que le runner)', () => {
+  const plan = { criteres: [{ type: 'constat', description: 'Titre', valeur: '' }],
+    hors_perimetre: ['Se connecter', 'Remplir et envoyer des évaluations', 'Se déconnecter'] };
+  const m = validerMissionQa({ ...base, target_id: 'peer-review', plan,
+    compte: { identifiant: 'e@x.test', secret_chiffre: 'A'.repeat(512) } });
+  assert.deepEqual(m.plan.hors_perimetre, ['Remplir et envoyer des évaluations', 'Se déconnecter']);
+  assert.equal(validerMissionQa({ ...base, plan: { ...plan } }).plan.hors_perimetre.length, 3);  // un site public garde l'interdit
+});
+
+test('Sur Peer Review, la review du soir est hors périmètre ; « Mon parcours » reste consultable', () => {
+  const peer = cibleQa('peer-review');
+  assert.equal(cheminCible(peer, '/etudiant/sessions/ses_1/2026-11-18/review/mbr_1'), null);
+  assert.equal(cheminCible(peer, '/etudiant/parcours'), '/etudiant/parcours');
+  assert.equal(libelleStatut('inconclusive', 'forbidden_page'), 'Mission arrêtée · page interdite');
+  assert.equal(libelleStatut('inconclusive', 'write_risk'), 'Mission arrêtée · geste à risque');
+});
+
+test('Le texte chiffré ne revient jamais au navigateur', () => {
+  const lue = sansSecret({ target_id: 'peer-review', compte: { identifiant: 'e@x.test', secret_chiffre: 'B'.repeat(512), identite: [] } });
+  assert.deepEqual(lue.compte, { identifiant: 'e@x.test', identite: [] });
+  assert.equal(sansSecret({ target_id: 'eugenia-public' }).compte, undefined);
 });
 
 test('Les étiquettes d’un résultat et le bilan des critères', () => {
