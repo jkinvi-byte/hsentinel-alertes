@@ -1,0 +1,114 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-schibsted), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-martian), ui-monospace, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-safe: var(--safe);
+  --color-subtle: var(--subtle);
+  --color-steel: var(--steel);
+
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.25);
+}
+
+:root {
+  --font-instrument: 'Inter', 'Segoe UI', Arial;
+  --font-schibsted: 'Inter', 'Segoe UI', Arial;
+  --font-martian: 'SFMono-Regular', Consolas, monospace;
+  color-scheme: dark;
+  --background: #0b0e14;
+  --foreground: #e6e9ef;
+  --card: #111722;
+  --card-foreground: #e6e9ef;
+  --popover: #111722;
+  --popover-foreground: #e6e9ef;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #161d2a;
+  --secondary-foreground: #e6e9ef;
+  --muted: #161d2a;
+  --muted-foreground: #8a94a6;
+  --subtle: #5a6476;
+  --accent: rgb(255 255 255 / 0.04);
+  --accent-foreground: #e6e9ef;
+  --destructive: #ff5a52;
+  --border: rgb(255 255 255 / 0.08);
+  --input: rgb(255 255 255 / 0.1);
+  --ring: #3b82f6;
+  --steel: #3b82f6;
+  --danger: #ff5a52;
+  --danger-soft: #170f13;
+  --safe: #49d08b;
+  --radius: 0.5rem;
+}
+
+@utility panel {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.console-field { width: 100%; border: 1px solid var(--input); border-radius: 6px; background: var(--background); color: var(--foreground); padding: 10px 12px; font-size: 13px; outline: none; }
+.console-field:focus-visible { border-color: var(--steel); box-shadow: 0 0 0 2px rgb(59 130 246 / .22); }
+.console-field:disabled { opacity: .55; }
+.console-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 13px; border-radius: 6px; border: 1px solid var(--border); font-size: 13px; font-weight: 500; cursor: pointer; }
+.console-button:hover { background: rgb(255 255 255 / .05); }
+.console-button:focus-visible { outline: 2px solid var(--steel); outline-offset: 3px; }
+.console-button:disabled { opacity: .45; cursor: not-allowed; }
+.console-button.primary { background: var(--steel); color: white; border-color: var(--steel); }
+.console-button.primary:hover:not(:disabled) { background: #2f72e0; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+@utility label-mono {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/60;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading;
+  }
+  ::selection {
+    background: rgb(59 130 246 / 0.35);
+  }
+}

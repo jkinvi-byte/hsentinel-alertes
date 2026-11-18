@@ -1,6 +1,6 @@
 # Architecture de HSentinel
 
-> État au 18/11/2026, 23 h 15, relu contre le code à cette heure. Depuis 19 h 39, l'équipe travaille dans l'espace H de Jahdiel. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md). Kimi corrige `contributions/kimi-pentest` en ce moment : la section 6 décrit l'état lu à 19 h 05.
+> État au 18/11/2026, 23 h 55, relu contre le code à cette heure. Depuis 19 h 39, l'équipe travaille dans l'espace H de Jahdiel. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md). Kimi corrige `contributions/kimi-pentest` en ce moment : la section 6 décrit l'état lu à 19 h 05.
 
 0. [Ce qui a changé depuis le document du 17/11](#0-ce-qui-a-changé-depuis-le-document-du-1711)
 1. [Vue d'ensemble](#1-vue-densemble)
@@ -58,7 +58,7 @@ flowchart TD
 ```
 
 - **Web** (`sentinelqa/web`) : on y lance une mission, on la suit en direct, on l'arrête, et on lit le rapport. Elle tourne en local et n'est pas encore déployée.
-- **La console de l'équipe** (`sentinelqa/web-console`, en local, pas encore publiée) : l'interface d'un camarade (v0), que Codex raccorde depuis le 18/11 au soir. Son API `/api/console` réutilise les services de la web : plan, dictée, lancement, suivi, arrêt et rapports (section 11).
+- **La console de l'équipe** (`sentinelqa/web-console`, publiée sur `main` le 18/11, pas encore déployée) : l'interface d'un camarade (v0), que Codex raccorde depuis le 18/11 au soir. Son API `/api/console` réutilise les services de la web : plan, dictée, lancement, suivi, arrêt et rapports (section 11).
 - **Runner** (`sentinelqa/runner`) : deux processus Python sur un poste de l'équipe, le worker QA (`qa_worker.py`) et le runner du pentest (`sentinelqa.py --surveiller`). Ils prennent les missions dans Supabase, pilotent les agents H et vérifient les résultats.
 - **H Agents API** : des agents qui voient l'écran et cliquent, dans un navigateur cloud que H fournit à chaque session.
 - **Supabase** : les files de missions, le fil en direct et les rapports. Le QA et le pentest ont chacun leurs tables.
@@ -295,29 +295,31 @@ flowchart LR
 - **Captures** : celles de l'agent restent chez H. Le serveur web les relaie (`/api/qa/captures`), et seules les adresses de la trajectoire de la session passent.
 - Next.js 16 et React 19, sans autre dépendance.
 
-**La console de l'équipe, `sentinelqa/web-console`** : l'interface d'un camarade, exportée de v0 (TypeScript, Tailwind, shadcn), que Codex raccorde depuis le 18/11 au soir. En local, pas encore publiée. Sa note de raccordement : `web-console/INTEGRATION.md`.
+**La console de l'équipe, `sentinelqa/web-console`** : l'interface d'un camarade, exportée de v0 (TypeScript, Tailwind, shadcn), que Codex raccorde depuis le 18/11 au soir. Publiée sur `main` le 18/11, pas encore déployée. Sa note de raccordement : `web-console/INTEGRATION.md`.
 
 | Page | Rôle |
 |---|---|
-| `/`, `/login`, `/onboarding` | L'accueil du produit, une connexion d'équipe provisoire, l'onboarding en étapes |
+| `/`, `/login`, `/onboarding` | L'accueil du produit, une connexion d'équipe provisoire, puis une redirection vers le studio pour l'onboarding |
 | `/app` | Le tableau de bord |
 | `/app/nouveau` | Le studio de mission : QA (consigne, dictée, plan) ou pentest |
 | `/app/missions/[module]/[id]` | Le suivi, puis le rapport d'une mission |
 | `/app/cibles` | Les cibles autorisées |
+| `/app/alertes` | Les constats, états d’envoi et tickets GitHub, filtrables par application |
 
 - **Son API `/api/console` réutilise les services de la web**, importés directement : `web/lib/qa.js` (plan, dictée, lancement, suivi, arrêt, captures), `web/lib/missions.js` et `audits.js` pour le pentest. Le QA part dans `qa_missions`, le pentest dans `audits`, et les deux workers existants les traitent. Elle ne calcule aucun verdict : elle traduit les statuts des rapports.
-- **Les anciens widgets de démonstration** (`/api/audit`) gardent des données simulées tant que `ORCHESTRATOR_URL` n'est pas défini.
+- **Les anciens widgets de démonstration** ne sont plus utilisés par les routes actives. `/api/audit` répond 410 ; `ORCHESTRATOR_URL` n’est pas requis.
 - **Prêt côté serveur pour la console** (Claude, 18/11 à 23 h ; tests `web/tests/qa.test.mjs` et `alertes.test.mjs`) :
-  - **le QA connecté.** `validerMissionQa` accepte `compte: { identifiant, secret_chiffre, identite }`, et `cleRunner()` (`web/lib/qa.js`) donne la clé publique `{ id, jwk }`. Le navigateur chiffre `JSON.stringify({ mot_de_passe })` en RSA-OAEP SHA-256, comme `web/app/audits/nouveau/formulaire-cobaye.js`. La console marque encore les cibles connectées comme indisponibles (`available: !c.connexion`). Les nouveaux résultats sont `connexion` (K1) et `identite` (K2), et `rapport.interruption` peut valoir `write_risk` ou `forbidden_page` ;
+  - **le QA connecté.** `validerMissionQa` accepte `compte: { identifiant, secret_chiffre, identite }`, et `cleRunner()` (`web/lib/qa.js`) donne la clé publique `{ id, jwk }`. Le navigateur chiffre `JSON.stringify({ mot_de_passe })` en RSA-OAEP SHA-256, comme `web/app/audits/nouveau/formulaire-cobaye.js`. Les nouveaux résultats sont `connexion` (K1) et `identite` (K2), et `rapport.interruption` peut valoir `write_risk` ou `forbidden_page` ;
   - **les alertes.** Côté serveur, `web/lib/alertes.js` fournit `listerAlertes({ application, limite })`, `bilanAlertes()` et `listerApplications()`. Chaque ligne donne la gravité, l'accès, le type, l'état de l'alerte et le ticket GitHub, sans aucune donnée du site testé.
-- **État** (*rapporté* par Codex, 19 h 33) : 17 tests réussis, TypeScript et compilation réussis. La recette dans un navigateur et une mission réelle lancée depuis cette interface restent à faire ; le QA connecté et les modules de Kimi n'y sont pas encore portés. L'accès à `/app` demande un jeton d'opérateur, configuré côté serveur.
+- **Raccordé côté console (Codex)** : les cibles connectées sont proposées avec l’adresse, le mot de passe et jusqu’à trois noms attendus. `/api/console/cle-runner` fournit uniquement la clé publique ; elle est relue avant le chiffrement et une clé absente bloque le lancement. Le rapport distingue K1/K2 et utilise les libellés de `h_text_partial`, `write_risk` et `forbidden_page`. `/api/console/alertes` et `/app/alertes` réutilisent les services d’alertes en lecture.
+- **État vérifié dans ce lot** : 28 tests locaux réussis, dont un chiffrement WebCrypto déchiffré avec une clé de test ; TypeScript et compilation Webpack réussis. Douze tests navigateur sont préparés, mais l’exécution tentée est bloquée au démarrage de Chrome avant l’ouverture des pages. La recette navigateur et une mission réelle depuis cette interface restent à faire. Les modules de Kimi restent un chantier distinct. L’accès est réservé à l’opérateur ; le développement local peut fonctionner sans jeton.
 
 ## 12. L'état de chaque brique
 
 | Brique | État au 18/11, 23 h 15 |
 |---|---|
 | QA : parcours guidé, exploration, mobile | Exécuté en réel : 33 missions sur eugeniaschool.com le 18/11, 0,904 $ au total, dont 10 répétitions par scénario (guidé 10/10, exploration 10/10) |
-| QA connecté : Peer Review | Compte d'Alec : 18 missions réelles (0,259 $), depuis le terminal et la file web. Répétitions : connexion et identité 10/10, aucune évaluation ouverte depuis le renforcement de la garde. Compte de Nathan refusé par le site (2 essais). La console n'a pas encore le formulaire du compte |
+| QA connecté : Peer Review | Compte d'Alec : 18 missions réelles (0,259 $), depuis le terminal et la file web. Répétitions : connexion et identité 10/10, aucune évaluation ouverte depuis le renforcement de la garde. Compte de Nathan refusé par le site (2 essais). Formulaire du compte et chiffrement raccordés à la console ; recette réelle de cette interface restante |
 | QA : dictée | Exécutée de bout en bout dans un navigateur, avec une voix de synthèse ; à essayer avec une vraie voix |
 | QA : vérification par le code | 66 tests Python ; faux écarts trouvés en réel puis corrigés et revérifiés |
 | Web QA | 39 tests JavaScript réussis ; compilation réussie à 14 h 37, puis bloquée à 15 h par le téléchargement des polices Google |
@@ -327,7 +329,7 @@ flowchart LR
 | Pentest : HF vers contrôles | Un appel réel sur un inventaire synthétique ; 50 tests sur 50. Jamais exécuté sur Peer Review |
 | Modules de Kimi | 23 tests sur 23 ; confirmation H testée avec le `start_url` ajouté par défaut, sans PATCH inutile |
 | Déploiement de la web | Pas fait : tout tourne en local |
-| Console de l'équipe (`web-console`) | Raccordée par Codex aux services de la web ; tests de contrat ; aucune mission réelle lancée depuis elle ; en local |
+| Console de l'équipe (`web-console`) | Raccordée par Codex aux services de la web, avec QA connecté et page Alertes : 28 tests et TypeScript réussis (revérifiés à 23 h 50). Aucune mission réelle lancée depuis elle ; publiée, pas déployée |
 | n8n : W1, W3, W4 (Jahdiel) | Testés en réel sur `hsentinel-dev` (rapporté). Dans notre base : SQL appliqué, runner relié, déclencheur et secrets de W3 en place (vérifié à 23 h). Restent la bascule des workflows et la recette d'un ticket |
 | Mesure du temps humain gagné | Pas faite |
 
@@ -355,7 +357,7 @@ sentinelqa/
     app/examen/         index des relevés pentest
     app/api/            routes serveur
     lib/                accès Supabase, contrat QA, dictée, formats
-  web-console/          la console de l'équipe (interface d'un camarade, raccordée par Codex) ; en local, non publiée
+  web-console/          la console de l'équipe (interface d'un camarade, raccordée par Codex) ; publiée, pas déployée
   contrats/qa.json      cibles QA, budgets, consignes de préparation
   contrats/catalogue.json  scénarios sur sites réels (pentest)
   supabase/             schémas SQL ; alertes.sql : applications, constats et les fonctions de n8n
@@ -372,7 +374,7 @@ contributions/
 |---|---|---|---|
 | Les alertes n8n (Jahdiel) | n8n ; les trois exports, leur contrat et leur SQL réécrit pour notre base sont dans [`sentinelqa/n8n/`](sentinelqa/n8n/README.md) et `supabase/alertes.sql` | W1 : un déploiement prêt (`deployment_status` GitHub, signature vérifiée) devient une demande d'audit. W3 : une faille prouvée (table `constats`) devient un ticket GitHub et un e-mail, rouvert si elle revient. W4 : chaque nuit à 2 h, une demande de pentest pour chaque application abonnée | Testés en réel sur `hsentinel-dev` (rapporté par Jahdiel, non vérifié ici). Notre base est prête (SQL appliqué, déclencheur et secrets de W3 en place, runner relié) ; les workflows restent à basculer, puis à recetter |
 | Le bac à sable des agents (Mohamed) | Branche `agents-ia-qa-pentest`, historique séparé (18 fichiers) | Ses propres agents `hsentinel-explorateur`, `-verificateur` et `-preparateur`, des coffres par compte, et deux cibles : Paie Express et une instance Juice Shop à déployer soi-même | Ses agents sont dans l'ancien espace H. Non fusionné. Son README donne en exemple `auditer.py cadence` : Cadence n'est pas une cible autorisée (D-24) |
-| La console de l'équipe | `sentinelqa/web-console`, en local, pas encore publiée | L'interface d'un camarade (v0), raccordée par Codex aux services de la web (section 11) | Tests de contrat ; validation réelle à faire (`INTEGRATION.md`) |
+| La console de l'équipe | `sentinelqa/web-console`, publiée sur `main` le 18/11, pas encore déployée | L'interface d'un camarade (v0), raccordée par Codex aux services de la web (section 11) | Tests de contrat ; validation réelle à faire (`INTEGRATION.md`) |
 
 **La revue de la branche de Mohamed par Codex** (`revues/agents-ia-qa-pentest/REVUE.md`, locale ; *rapporté* : ses huit cas n'ont pas été reproduits ici) :
 - **À reprendre dans le moteur actuel** : le guidage Hugging Face des explorations, avec une comparaison activé et désactivé à budget égal ; le comparatif des modèles ; la distinction entre ressources privées et partagées ; Juice Shop comme banc supplémentaire.

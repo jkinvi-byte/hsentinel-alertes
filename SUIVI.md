@@ -1,6 +1,6 @@
 # Suivi du projet
 
-> Mis à jour le 18/11/2026 à 23 h 15. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
+> Mis à jour le 18/11/2026 à 23 h 55. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
 >
 > Priorité **P0** : indispensable à la démo de vendredi. **P1** : utile, mais elle peut s'en passer.
 
@@ -57,7 +57,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 17 | Rédiger la fiche projet : problème, solution, stack, architecture, lien du prototype, comment tester | Démo | P0 | Tugdual | Ven 20 |
 | 18 | Intégrer les polices à la web (`next/font/local`) : la compilation ne dépendra plus du réseau | Plateforme | P1 | Aurian | Jeu 19 |
 | 19 | QA connecté : retester le compte de Nathan dès que son mot de passe en vigueur est connu. Aucun nouvel essai d'ici là, pour ne pas bloquer son compte | QA | P1 | Aurian | Jeu 19 |
-| 20 | ~~Lancer le QA connecté depuis la web, côté serveur~~ : fait et vérifié en réel le 18/11, avec 3 missions par la file web. Le texte chiffré est effacé avant le déchiffrement, le mot de passe ne se retrouve ni dans la base ni dans le fil, et le coffre est supprimé. Reste le formulaire du compte dans la console (tâche 34) | QA | P1 | Claude | Fait (serveur) |
+| 20 | ~~Lancer le QA connecté depuis la web, côté serveur~~ : fait et vérifié en réel le 18/11, avec 3 missions par la file web. Le texte chiffré est effacé avant le déchiffrement, le mot de passe ne se retrouve ni dans la base ni dans le fil, et le coffre est supprimé. Le formulaire console est raccordé ; recette restante (tâche 34) | QA | P1 | Claude | Fait (serveur) |
 | 21 | ~~L'agent de Kimi `sentinelqa-pentest-acces`~~ : définition corrigée par Kimi (sans `about:blank`, relecture tolérant la valeur ajoutée par H) ; présent dans l'espace de Jahdiel et confirmé conforme par sa propre fonction, le 18/11 à 20 h 38 | Pentest | P0 | Kimi | Fait |
 | 23 | `contributions/kimi-pentest/preuves/` contient l'adresse de la ressource témoin, avec l'identifiant de la session d'Alec : il est exclu du dépôt par le `.gitignore` (18/11, 19 h 30). Pour le publier, l'anonymiser, puis retirer cette ligne | Pentest | P1 | Kimi | — |
 | 24 | Recette de la console de l'équipe (`web-console`) : un QA public réel depuis `/app/nouveau`, la demande vue dans `qa_missions`, le rapport et l'arrêt (plan de Codex : `web-console/INTEGRATION.md`) | Plateforme | P0 | Codex, Aurian | Jeu 19 |
@@ -69,7 +69,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 30 | La clé H en service est la troisième (validée par H à 20 h 37 ; mission publique réelle conforme à 20 h 39). Les trois clés sont apparues dans la conversation : révoquer celles qui ne servent plus, puis remplacer la troisième, en copiant la nouvelle sans la coller et en tapant `! pbpaste \| holo login --key --force` (le mot `--key` tel quel) | Plateforme | P1 | Aurian | Jeu 19 |
 | 31 | Lever les bloquants relevés par la revue de Codex avant toute reprise de la branche de Mohamed : verdict « fuite » sur deux textes vides, session échouée comptée comme refus, budgets non transmis, noms d'agents divergents | Pentest | P1 | Mohamed | Jeu 19 |
 | 32 | Chaque poste qui lance le runner : créer sa clé dans l'espace H de Jahdiel | Plateforme | P1 | Tous | Jeu 19 |
-| 34 | Console : brancher le QA connecté (champs du compte, chiffrement dans le navigateur, cibles connectées disponibles) et une page Alertes (`listerAlertes`, `bilanAlertes`). Le contrat : [ARCHITECTURE.md §11](ARCHITECTURE.md#11-la-web), « Prêt côté serveur pour la console » | Plateforme | P0 | Codex | Jeu 19 |
+| 34 | Console : QA connecté et page Alertes raccordés, 28 tests locaux et compilation réussis. **Reste la recette navigateur et réelle** : compte chiffré → K1/K2, arrêt, filtre des alertes et ticket. Chrome ne démarre pas dans la session Codex ; les tests navigateur ne sont pas validés. [Contrat et état](ARCHITECTURE.md#11-la-web) | Plateforme | P0 | Codex, Aurian | Jeu 19 |
 | 35 | Pentest (`runner/missions.py`) : le même piège que le QA, à vérifier. H passe une session à « idle » avant d'y attacher la réponse, et `wait_for_completion` peut alors rendre `answer = None`, compté « agent_incomplete ». Le QA s'en protège avec `qa_moteur.lire_fin`, qui relit la session 10 s au plus | Pentest | P1 | Kimi | Jeu 19 |
 | 33 | ~~Obtenir de Jahdiel le SQL de `hsentinel-dev`~~ : il n'existe pas en fichier. Réécrit dans notre base (`supabase/alertes.sql`, `runner/constats.py`) et testé sur une base locale qui imite Supabase | Plateforme | P0 | Claude | Fait |
 | 22 | Signaler à H : agents enregistrés avec `about:blank` illisibles (500 au GET et au PATCH), `about:blank` refusé sans annonce, titres à styles mêlés tronqués dans le texte relevé, action `list_secrets` absente de la doc | Plateforme | P1 | Aurian | Ven 20 |
