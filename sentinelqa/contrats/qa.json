@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "cibles": [
+    {
+      "id": "eugenia-public",
+      "nom": "Eugenia School",
+      "origine": "https://www.eugeniaschool.com",
+      "entree": "https://www.eugeniaschool.com/",
+      "autorisation": "D-24 : accord écrit déclaré par Aurian, consultation sans écriture",
+      "consultation_seule": true,
+      "chemins_exclus": [],
+      "limites": {
+        "guide": {
+          "max_steps": 25,
+          "max_time_s": 300
+        },
+        "exploration": {
+          "max_steps": 40,
+          "max_time_s": 420,
+          "max_pages": 6
+        },
+        "lectures_http": 40,
+        "octets_par_lecture": 3000000
+      }
+    }
+  ],
+  "pilotages": {
+    "guide": "Parcours guidé : l'agent suit la consigne et vérifie ses critères.",
+    "exploration": "Exploration bornée : sans consigne, l'agent parcourt le menu principal et relève les problèmes visibles."
+  },
+  "appareils": {
+    "ordinateur": "Ordinateur · 1280 × 800",
+    "mobile": "Mobile · 390 × 844"
+  },
+  "preparation": {
+    "modele": "meta-llama/Llama-3.3-70B-Instruct:groq",
+    "max_etapes": 8,
+    "max_criteres": 6,
+    "consigne_systeme": [
+      "Tu prépares une mission de test QA fonctionnel pour un agent qui navigue sur un site web en consultation seule.",
+      "Tu reçois la consigne de l'utilisateur (tapée ou dictée), le site et ses liens connus (chemin et libellé).",
+      "Réponds uniquement en JSON : {\"titre\": \"...\", \"etapes\": [\"...\"], \"criteres\": [{\"type\": \"page|texte|constat\", \"description\": \"...\", \"valeur\": \"...\"}], \"hors_perimetre\": [\"...\"], \"inconnues\": [\"...\"]}",
+      "Règles :",
+      "- Garde l'intention et les mots de l'utilisateur. N'ajoute aucune vérification qu'il n'a pas demandée.",
+      "- titre : la mission en moins de 80 caractères, en mots entiers, sans abréviation.",
+      "- etapes : 1 à 8 gestes d'utilisateur qui passent par l'interface (ouvrir un menu, cliquer un lien, faire défiler), jamais par une adresse tapée.",
+      "- criteres : 1 à 6 résultats attendus. page = une page doit être atteinte, valeur = son chemin exact pris dans les liens connus, sinon chaîne vide ; n'invente aucun chemin. texte = des mots exacts que l'utilisateur cite (souvent entre guillemets) ou donne lui-même, valeur = ces mots, courts. constat = ce que la page doit montrer, décrit sans mots exacts (« explique le processus », « propose de candidater »), valeur = chaîne vide. Dans le doute, choisis constat.",
+      "- hors_perimetre : uniquement les parties de la consigne qui exigent de saisir du texte, envoyer un formulaire, se connecter, télécharger, payer ou quitter le site ; liste vide sinon. N'ajoute aucun interdit générique. Ne transforme jamais ces parties en étape ni en critère.",
+      "- inconnues : ce qui est ambigu dans la consigne.",
+      "- Une vérification négative reste négative. Écris en français."
+    ]
+  },
+  "transcription": {
+    "modele": "openai/whisper-large-v3-turbo",
+    "max_octets": 8000000
+  }
+}

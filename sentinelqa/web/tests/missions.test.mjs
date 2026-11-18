@@ -1,0 +1,51 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { CATALOGUE, ligneMission, normaliserMission, validerMission, cibleReelle } from '../lib/missions.js';
+import { autoriseOperateur, memeOrigine } from '../lib/acces-operateur.js';
+
+const demande = { schema_version: 2, mode: 'qa', target_id: 'eugenia-public', scenario_id: 'Q-PUB-01', instruction: '' };
+
+test('les deux volets entrent dans la même file sans compte ni mot de passe', () => {
+  for (const scenario of CATALOGUE.scenarios.filter((s) => s.available)) {
+    const row = ligneMission({ ...demande, mode: scenario.mode, target_id: scenario.target_id, scenario_id: scenario.id });
+    assert.deepEqual(row.comptes, []);
+    assert.equal(row.secrets_chiffres, null);
+    assert.equal(row.ecriture_autorisee, false);
+    assert.equal(row.rapport.phase, 'queued');
+  }
+});
+
+test('la cible, le volet et la politique ne peuvent pas être substitués', () => {
+  for (const payload of [null, [], { ...demande, target_id: 'autre' }, { ...demande, mode: 'security' },
+    { ...demande, cible: 'http://127.0.0.1' }, { ...demande, ecriture_autorisee: true },
+    { ...demande, instruction: 42 }, { ...demande, instruction: 'x'.repeat(2001) }]) {
+    assert.throws(() => validerMission(payload));
+  }
+  assert.equal(cibleReelle('https://peer-review-black.vercel.app.:443/etudiant'), true);
+});
+
+test('une demande en file ne devient pas un faux rapport de sécurité', () => {
+  const row = { id: 'test', cree_le: '2026-11-18T00:00:00Z', ...ligneMission(demande) };
+  const normal = normaliserMission(row, {});
+  assert.equal(normal.score, null);
+  assert.equal(normal.mode, 'qa');
+  row.rapport = { ...row.rapport, phase: 'completed', summary: { passed: 0, failed: 1, inconclusive: 0, skipped: 0 }, results: [] };
+  assert.equal(normaliserMission(row, {}).score.prouvees, 0); // échec QA ≠ faille
+});
+
+test('accès opérateur fermé en production sans configuration, et authentifié sinon', () => {
+  const request = (url, headers) => new Request(url, { headers });
+  assert.equal(autoriseOperateur(request('https://demo.example'), { NODE_ENV: 'production' }), false);
+  assert.equal(autoriseOperateur(request('http://127.0.0.1:3100'), { NODE_ENV: 'development' }), true);
+  assert.equal(autoriseOperateur(request('http://demo.example'), { NODE_ENV: 'development' }), false);
+  const env = { NODE_ENV: 'production', HSENTINEL_OPERATOR_TOKEN: 'synthetic-test-token' };
+  assert.equal(autoriseOperateur(request('https://demo.example'), env), false);
+  assert.equal(autoriseOperateur(request('https://demo.example', { authorization: 'Basic ' + Buffer.from('equipe:synthetic-test-token').toString('base64') }), env), true);
+  assert.equal(autoriseOperateur(request('https://demo.example', { authorization: 'Basic invalide' }), env), false);
+});
+
+test('POST depuis une autre origine ou sans origine refusé', () => {
+  assert.equal(memeOrigine(new Request('http://127.0.0.1:3100/api/audits')), false);
+  assert.equal(memeOrigine(new Request('http://127.0.0.1:3100/api/audits', { headers: { origin: 'https://autre.example' } })), false);
+  assert.equal(memeOrigine(new Request('http://127.0.0.1:3100/api/audits', { headers: { origin: 'http://127.0.0.1:3100' } })), true);
+});

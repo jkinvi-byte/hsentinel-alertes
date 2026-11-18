@@ -1,0 +1,73 @@
+{
+  "description": "Failles injectées volontairement dans l'application cobaye, documentées avant les tests. Ce fichier n'est jamais montré aux agents : il sert à mesurer le taux de détection et les faux positifs. Thèmes : lecture (B lit les données de A), ecriture (B modifie les données de A), admin (un salarié dépasse son rôle).",
+  "failles": [
+    {
+      "id": "F1",
+      "theme": "lecture",
+      "type": "IDOR sur une page",
+      "motif": "^/fiches-de-paie/[^/?]+$",
+      "description": "La page d'une fiche de paie ne vérifie pas que la fiche appartient à l'entreprise de l'utilisateur connecté."
+    },
+    {
+      "id": "F2",
+      "theme": "lecture",
+      "type": "IDOR sur une API",
+      "motif": "^/api/fiches-de-paie/[^/?]+$",
+      "description": "L'API d'une fiche de paie vérifie la connexion, mais pas l'entreprise propriétaire."
+    },
+    {
+      "id": "F3",
+      "theme": "lecture",
+      "type": "Paramètre caché",
+      "motif": "^/salaries\\?entreprise=",
+      "description": "La liste des salariés fait confiance au paramètre « entreprise » de l'URL."
+    },
+    {
+      "id": "F4",
+      "theme": "ecriture",
+      "type": "Écriture sans contrôle",
+      "motif": "^/api/fiches-de-paie/[^/?]+$",
+      "description": "L'enregistrement du commentaire RH d'une fiche de paie vérifie la connexion, mais ni le rôle ni l'entreprise propriétaire."
+    },
+    {
+      "id": "F5",
+      "theme": "admin",
+      "type": "Page d'administration sans contrôle de rôle",
+      "motif": "^/administration$",
+      "description": "La page d'administration vérifie la connexion, mais pas le rôle : un salarié y entre."
+    },
+    {
+      "id": "F6",
+      "theme": "admin",
+      "type": "Fiche d'un collègue",
+      "motif": "^(/api)?/fiches-de-paie/[^/?]+$",
+      "description": "Un salarié ouvre la fiche de paie d'un collègue : ni la page ni l'API ne vérifient le titulaire."
+    }
+  ],
+  "controles_sains": [
+    {
+      "id": "C1",
+      "theme": "lecture",
+      "motif": "^/factures/[^/?]+$",
+      "description": "La page d'une facture vérifie l'entreprise propriétaire : un autre client reçoit une page 404."
+    },
+    {
+      "id": "C2",
+      "theme": "ecriture",
+      "motif": "^/api/factures/[^/?]+$",
+      "description": "L'enregistrement d'une facture vérifie le rôle et l'entreprise propriétaire : un autre client reçoit une 404."
+    },
+    {
+      "id": "C3",
+      "theme": "admin",
+      "motif": "^/administration/parametres$",
+      "description": "Les paramètres de paie vérifient le rôle d'administrateur : un salarié reçoit une page 404."
+    },
+    {
+      "id": "C4",
+      "theme": "admin",
+      "motif": "^/(salaries|factures)",
+      "description": "Les salariés et les factures sont réservés aux administrateurs : un salarié reçoit une page 404."
+    }
+  ]
+}

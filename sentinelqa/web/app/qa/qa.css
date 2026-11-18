@@ -1,0 +1,139 @@
+/* Le volet QA, dans la salle blanche : les mêmes cartes, les mêmes boutons, les mêmes sens de couleur.
+   Rouge = un problème prouvé (ici, un écart constaté par le code) ; vert = conforme, en texte seulement ;
+   un état se dit par le texte, un trait ou un bord, jamais par un rond (MARQUE.md). */
+
+.qa-studio { display: grid; gap: 18px; max-width: 860px; margin-top: 32px; }
+.qa-studio .bloc { display: grid; gap: 16px; padding: 26px 28px 28px; background: var(--carte-fond); border: 1px solid var(--filet); border-radius: 20px; box-shadow: var(--carte-ombre); }
+.qa-studio h2 { display: flex; align-items: baseline; gap: 16px; font-size: 22px; font-weight: 700; }
+.qa-studio h2 .numero { font-family: var(--mono); font-size: 11px; font-weight: 500; font-stretch: 87.5%; color: var(--doux); }
+.qa-studio .segment { margin: 0; }
+.qa-studio select, .qa-studio textarea {
+  width: 100%; min-height: 48px; padding: 12px 15px; font: inherit; font-size: 16px; color: var(--encre);
+  background: rgba(255, 255, 255, 0.92); border: 1px solid var(--filet-fort); border-radius: 12px;
+  transition: border-color var(--anim), box-shadow var(--anim);
+}
+.qa-studio textarea { min-height: 132px; resize: vertical; line-height: 1.5; }
+.qa-studio textarea:hover, .qa-studio select:hover { border-color: rgba(14, 17, 22, 0.26); }
+.qa-studio textarea:focus, .qa-studio select:focus { outline: none; border-color: var(--encre); box-shadow: 0 0 0 4px rgba(14, 17, 22, 0.07); }
+.qa-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.qa-reglages { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.qa-reglages .champ > div { display: flex; }
+.qa-reglages .segment { width: 100%; }
+.qa-reglages .segment button { flex: 1; justify-content: center; }
+.qa-origine { margin: -4px 0 0; font-family: var(--mono); font-size: 12px; font-stretch: 87.5%; color: var(--doux); overflow-wrap: anywhere; }
+.qa-note { margin: 0; font-size: 14px; color: var(--doux); }
+.qa-note b { color: var(--encre-2); font-weight: 600; }
+
+/* La dictée : le temps écoulé et un trait d'encre qui suit le niveau du micro (transform seulement) */
+.qa-dictee { display: grid; gap: 10px; }
+.qa-enregistrement { display: grid; gap: 8px; padding: 14px 16px; border-radius: 12px; background: rgba(14, 17, 22, 0.035); }
+.qa-enregistrement .kicker { color: var(--encre); }
+.qa-niveau { height: 2px; background: var(--filet); border-radius: 1px; overflow: hidden; }
+.qa-niveau span { display: block; height: 100%; background: var(--encre); transform-origin: left center; transform: scaleX(0.04); transition: transform 90ms linear; }
+
+/* Le plan préparé : les critères, chacun avec son type et sa valeur, retirables un à un */
+.qa-plan { display: grid; gap: 18px; }
+.qa-plan h3 { font-size: 20px; font-weight: 700; letter-spacing: -0.015em; text-wrap: balance; }
+.qa-criteres-plan { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--filet); }
+.qa-criteres-plan li { display: grid; grid-template-columns: 34px minmax(0, 1fr) 44px; gap: 6px 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--filet); }
+.qa-criteres-plan .id { font-family: var(--mono); font-size: 11px; font-stretch: 87.5%; color: var(--doux); }
+.qa-criteres-plan .type { display: block; margin-bottom: 3px; }
+.qa-criteres-plan .valeur { display: block; margin-top: 4px; font-family: var(--mono); font-size: 12.5px; font-stretch: 87.5%; color: var(--encre-2); overflow-wrap: anywhere; }
+.qa-etapes-plan { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--encre-2); }
+.qa-hors { margin: 0; padding: 12px 14px; border-left: 2px solid var(--encre); background: rgba(255, 255, 255, 0.6); font-size: 14.5px; color: var(--encre-2); }
+.qa-hors ul { margin: 6px 0 0; padding-left: 18px; }
+.qa-perime { margin: 0; padding: 12px 14px; border-radius: 12px; background: rgba(14, 17, 22, 0.05); color: var(--encre); font-size: 14.5px; }
+.qa-exploration { margin: 0; color: var(--encre-2); }
+
+/* Le suivi : chaque page vue arrive avec sa capture */
+.qa-suivi-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: 22px; }
+.qa-vignette { display: block; width: min(420px, 100%); margin-top: 10px; border-radius: 12px; border: 1px solid var(--filet); background: #fff; overflow: hidden; }
+.qa-vignette img { display: block; width: 100%; height: auto; }
+.evenement.type-action .message { color: var(--encre-2); }
+.evenement.type-action .pensee { margin: 4px 0 0; font-size: 13.5px; color: var(--doux); }
+.evenement.type-critere.failed .message { color: var(--signal); }
+.evenement .statut-court { margin: 4px 0 0; font-size: 13.5px; color: var(--encre-2); }
+
+/* Le rapport : le bilan en chiffres, puis une carte par critère */
+.qa-bilan { margin-top: 28px; padding: 20px 24px 18px; display: grid; gap: 12px; }
+.qa-bilan ul { display: flex; flex-wrap: wrap; gap: 6px 26px; margin: 0; padding: 0; list-style: none; font-size: 15px; color: var(--encre-2); }
+.qa-bilan b { font-family: var(--titre); font-size: 26px; font-weight: 800; color: var(--encre); margin-right: 4px; }
+.qa-bilan .ecart b { color: var(--signal); }
+.qa-mesures { margin: 0; font-family: var(--mono); font-size: 11px; font-stretch: 87.5%; letter-spacing: 0.06em; color: var(--doux); line-height: 1.8; }
+.qa-alerte { margin-top: 18px; padding: 14px 16px; border-radius: 12px; background: var(--signal-fond); color: var(--encre); }
+.qa-alerte .kicker { color: var(--signal); }
+.qa-resultats { display: grid; gap: 14px; margin-top: 26px; }
+.qa-critere { --bord: var(--filet-fort); padding: 20px 24px 18px; box-shadow: inset 4px 0 0 var(--bord), var(--carte-ombre); }
+.qa-critere.passed { --bord: var(--encre); }
+.qa-critere.failed { --bord: var(--signal); }
+.qa-critere.skipped { --bord: var(--filet); }
+.qa-critere-tete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.qa-statut { font-family: var(--mono); font-size: 11px; font-weight: 600; font-stretch: 87.5%; letter-spacing: 0.12em; text-transform: uppercase; color: var(--doux); }
+.qa-statut.passed { color: var(--sain); }
+.qa-statut.failed { color: var(--signal); }
+.qa-critere h3 { margin-top: 10px; font-size: 19px; font-weight: 700; line-height: 1.3; letter-spacing: -0.01em; text-wrap: balance; }
+.qa-critere dl { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px 16px; margin: 14px 0 0; font-size: 15px; }
+.qa-critere dt { font-family: var(--mono); font-size: 10.5px; font-stretch: 87.5%; letter-spacing: 0.12em; text-transform: uppercase; color: var(--doux); padding-top: 3px; }
+.qa-critere dd { margin: 0; color: var(--encre-2); overflow-wrap: anywhere; }
+.qa-critere blockquote { margin: 6px 0 0; padding: 10px 12px; border-radius: 10px; background: rgba(14, 17, 22, 0.035); font-size: 14.5px; color: var(--encre); }
+.qa-preuves { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; margin-top: 16px; }
+.qa-preuves figure { margin: 0; width: min(300px, 100%); }
+.qa-preuves figcaption, .qa-galerie figcaption { margin-top: 6px; font-family: var(--mono); font-size: 10.5px; font-stretch: 87.5%; letter-spacing: 0.06em; color: var(--doux); overflow-wrap: anywhere; }
+.qa-capture { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--filet); background: #fff; }
+.qa-http { margin: 0; font-family: var(--mono); font-size: 11.5px; font-stretch: 87.5%; color: var(--encre-2); overflow-wrap: anywhere; }
+.qa-annexes { margin-top: 34px; padding: 6px 24px; }
+.qa-gestes { margin: 0; padding-left: 22px; display: grid; gap: 8px; font-size: 14.5px; color: var(--encre-2); }
+.qa-gestes small { display: block; color: var(--doux); font-size: 13px; }
+.qa-galerie { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.qa-galerie figure { margin: 0; }
+
+/* Les missions récentes */
+.qa-historique { margin-top: 48px; max-width: 860px; }
+.qa-historique > .kicker { margin-bottom: 10px; }
+.qa-historique .liste.encadree { margin-top: 0; }
+
+@media (max-width: 560px) {
+  .qa-studio .bloc { padding: 20px 18px 22px; }
+  .qa-reglages { grid-template-columns: minmax(0, 1fr); }
+  .qa-critere { padding: 18px 18px 16px; }
+  .qa-critere dl { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .qa-critere dd { margin-bottom: 10px; }
+  .qa-bilan { padding: 18px; }
+  .qa-bilan ul { gap: 6px 18px; }
+  .qa-annexes { padding: 4px 12px; }
+  .qa-ligne .bouton { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qa-niveau span { transition: none; }
+}
+.qa-studio .bouton > svg { width: 17px; height: 17px; flex: none; }
+
+/* Passe du 18/11, 7 h 10 : le pilotage à sa taille, l'écart signalé (rouge pâle : non prouvé), les contrôles automatiques compacts */
+.qa-studio .segment.pilotage { justify-self: start; }
+.qa-critere.signale { --bord: #f4b6b1; }
+.qa-critere.signale .qa-statut { color: var(--encre-2); }
+.qa-auto { padding: 18px 24px; }
+.qa-auto-titre { margin: 6px 0 10px; font-weight: 600; }
+.qa-auto ul { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.qa-auto li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding: 8px 0; border-top: 1px solid var(--filet); font-size: 14px; color: var(--encre-2); }
+.qa-auto li.ko { color: var(--signal); }
+.qa-auto .mono { overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .qa-historique .rangee { grid-template-columns: minmax(0, 1fr) 20px; }
+  .qa-historique .rangee .valeur { display: block; grid-column: 1; grid-row: 2; margin-top: -4px; white-space: normal; }
+  .qa-historique .rangee .chevron { grid-column: 2; grid-row: 1 / span 2; }
+  .qa-auto { padding: 16px 18px; }
+}
+@media (max-width: 560px) {
+  .qa-studio .segment.pilotage { justify-self: stretch; display: flex; }
+  .qa-studio .segment.pilotage button { flex: 1; justify-content: center; padding: 0 10px; white-space: nowrap; font-size: 13px; }
+}
+/* Les captures d'un téléphone sont en portrait : plus étroites, pour que le rapport reste lisible d'un coup d'œil */
+.qa-preuves.portrait figure { width: min(180px, 46%); }
+.qa-galerie.portrait { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+
+/* Le volet QA dans « Lancer un audit » : le choix du volet, puis le studio */
+.qa-volet { max-width: 860px; margin-top: 30px; }
+.qa-volet .segment.choix-volet { margin: 0; }
+.qa-volet + .qa-studio { margin-top: 18px; }
+.qa-lien-historique { max-width: 860px; margin: 26px 0 0; }

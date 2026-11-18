@@ -1,0 +1,4 @@
+# Les dépendances Python du runner et des modules pentest (versions mesurées le 18/11/2026, Python 3.12).
+hai-agents==1.5.1
+httpx==0.28.1
+pydantic==2.14.3

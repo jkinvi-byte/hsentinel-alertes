@@ -1,0 +1,24 @@
+{
+  "description": "Comptes de test publics de l'application cobaye Paie Express (données fictives, pas des secrets).",
+  "A": {
+    "email": "claire@alpha-conseil.test",
+    "mot_de_passe": "Alpha-Demo-2026",
+    "nom": "Claire Martin",
+    "entreprise": "Alpha Conseil",
+    "acces": "admin"
+  },
+  "B": {
+    "email": "hugo@beta-logistique.test",
+    "mot_de_passe": "Beta-Demo-2026",
+    "nom": "Hugo Bernard",
+    "entreprise": "Bêta Logistique",
+    "acces": "admin"
+  },
+  "C": {
+    "email": "lea@alpha-conseil.test",
+    "mot_de_passe": "Alpha-Salariee-2026",
+    "nom": "Léa Fontaine",
+    "entreprise": "Alpha Conseil",
+    "acces": "salarie"
+  }
+}

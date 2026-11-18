@@ -1,0 +1,6 @@
+{
+  "target_id": "eugenia-public",
+  "scenario_id": "Q-PUB-01",
+  "mode": "qa",
+  "instruction": "Utilise le menu Programmes et arrête-toi sur la page du Bachelor."
+}

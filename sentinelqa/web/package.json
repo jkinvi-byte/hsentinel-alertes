@@ -1,0 +1,17 @@
+{
+  "name": "sentinelqa-web",
+  "private": true,
+  "type": "module",
+  "description": "La web app de SentinelQA : le cadrage des audits et les résultats des interventions des agents.",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 -p 3100",
+    "build": "next build",
+    "test": "node --experimental-vm-modules --test tests/*.test.mjs",
+    "start": "next start -p 3100"
+  },
+  "dependencies": {
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  }
+}

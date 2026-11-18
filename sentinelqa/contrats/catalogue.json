@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "targets": [
+    {
+      "id": "eugenia-public",
+      "name": "Eugenia School",
+      "origin": "https://www.eugeniaschool.com",
+      "entry_url": "https://www.eugeniaschool.com/",
+      "authorization_reference": "D-24",
+      "business_writes": false,
+      "role_changes": false,
+      "public_replay": false,
+      "navigation_paths": ["/", "/programme/bachelor-ia-business"],
+      "read_paths": ["/", "/programme/bachelor-ia-business"],
+      "limits": {"max_steps": 30, "max_time_s": 300, "max_reads": 5, "max_response_bytes": 2000000}
+    },
+    {
+      "id": "peer-review",
+      "name": "Peer Review",
+      "origin": "https://peer-review-black.vercel.app",
+      "entry_url": "https://peer-review-black.vercel.app/etudiant",
+      "login_url": "https://peer-review-black.vercel.app/connexion",
+      "authorization_reference": "D-24",
+      "business_writes": false,
+      "role_changes": false,
+      "public_replay": false,
+      "navigation_paths": ["/etudiant", "/connexion"],
+      "read_paths": ["/etudiant", "/connexion"],
+      "limits": {"max_steps": 15, "max_time_s": 180, "max_reads": 5, "max_response_bytes": 1000000}
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "Q-PUB-01", "version": 1, "target_id": "eugenia-public", "mode": "qa", "available": true,
+      "title": "Trouver le Bachelor depuis l’accueil",
+      "instruction": "Depuis l’accueil, ouvre le menu Programmes puis la page Bachelor IA Applied to Business. Vérifie le titre visible et arrête-toi sur cette page, sans ouvrir de formulaire.",
+      "expected": "La page du Bachelor est atteinte par le menu et son titre principal contient Bachelor.",
+      "expected_path": "/programme/bachelor-ia-business", "expected_heading": "Bachelor",
+      "actors": [], "assertion_type": "navigation_and_heading",
+      "limitations": "Un parcours public précis ; les formulaires et les autres fonctionnalités ne sont pas testés."
+    },
+    {
+      "id": "Q-PEER-01", "version": 1, "target_id": "peer-review", "mode": "qa", "available": false,
+      "title": "Consulter son tableau de bord étudiant",
+      "instruction": "Consulter le tableau de bord avec l’identité autorisée, sans modifier d’évaluation.",
+      "expected": "L’identité active et les données attendues correspondent au compte fourni.",
+      "actors": ["A"], "assertion_type": "authenticated_dashboard",
+      "missing_preconditions": ["Adaptateur de connexion et identité active vérifiés", "Critères du tableau de bord pour le compte de test"],
+      "limitations": "Le scénario reste non exécuté tant que ses préconditions ne sont pas établies."
+    },
+    {
+      "id": "S-PEER-01", "version": 1, "target_id": "peer-review", "mode": "security", "available": true,
+      "title": "Vérifier la barrière d’accès sans connexion",
+      "instruction": "Ouvre /etudiant dans une session vierge, observe si la connexion est demandée et arrête-toi. Ne saisis aucun identifiant et ne soumets aucun formulaire.",
+      "expected": "La requête anonyme vers /etudiant est refusée (401/403) ou redirigée vers /connexion.",
+      "actors": [], "assertion_type": "anonymous_access_gate",
+      "limitations": "Contrôle de la barrière d’entrée uniquement. Un HTML 200 sans preuve du contenu privé reste non concluant ; ce test ne prouve pas l’isolation entre étudiants ni la sécurité des API."
+    },
+    {
+      "id": "S-PEER-02", "version": 1, "target_id": "peer-review", "mode": "security", "available": false,
+      "title": "Vérifier l’accès à une ressource d’un autre étudiant",
+      "instruction": "Comparer la lecture légitime de A à la tentative de B sur une ressource connue et explicitement interdite à B.",
+      "expected": "A reçoit la ressource attendue ; B, correctement authentifié, n’en reçoit pas le contenu protégé.",
+      "actors": ["A", "B"], "assertion_type": "cross_actor_read",
+      "missing_preconditions": ["Deux identités vérifiées et sessions isolées", "Ressource de test et règle de visibilité", "Lecture HTTP ou capture réseau attribuable à chaque identité"],
+      "limitations": "Un code 200, une similarité de pages ou un avis d’agent ne prouvent pas une fuite."
+    }
+  ]
+}
