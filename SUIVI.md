@@ -125,7 +125,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 
 ## Risques connus
 
-- **Le Python du projet est sur un disque externe.** Si le disque est débranché, le worker s'arrête (code 138) : voir la tâche 13.
+- ~~**Le Python du projet est sur un disque externe.**~~ Réglé le 19/11 : les workers tournent sur un Python du disque interne (`/Users/aurian/.venvs/hsentinel`, géré par `uv`), et `.venv-holo` en est un lien. Les commandes documentées ne changent pas.
 - **Un agent H varie d'une session à l'autre.** Un « écart » vu par l'agent seul ne compte jamais ; seul le code tranche.
 - **Le réseau de l'école bloque le port 7844**, celui du tunnel Cloudflare du banc pentest. Parade : partager la connexion d'un téléphone.
 - **Les sessions d'avant 19 h 39 restent dans l'ancien espace H** : leurs replays, et les captures des anciens rapports dans la web, ne se lisent plus avec la nouvelle clé.
