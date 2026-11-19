@@ -1,95 +1,112 @@
 # HSentinel
 
-Des agents IA de H Company testent un site web autorisé comme un humain : ils naviguent, cliquent et observent. Ensuite, le code vérifie chaque résultat sur des preuves, et l'avis de l'agent seul ne suffit pas.
+> Votre IA code vite. Notre agent prouve ce qui fuit.
 
-- **QA** : le site fait-il ce qu'on attend ?
-- **Pentest** : un accès qui devrait être refusé est-il possible ?
+Des agents IA de H Company testent un site autorisé comme le ferait un humain : ils se connectent, naviguent, cliquent et observent l'écran. Le code tranche ensuite sur des preuves : l'avis de l'agent seul ne suffit jamais. Chaque faille prouvée et chaque écart constaté deviennent un ticket GitHub.
 
-**[Architecture](ARCHITECTURE.md)**, avec ce qui a changé depuis le document illustré du 17/11 · **[Suivi du projet, ce qui reste à faire](SUIVI.md)**
+**Démo en ligne : https://hsentinel-console.vercel.app** · accès par le code de l'équipe, communiqué sur demande · [Architecture](ARCHITECTURE.md) · [Suivi du projet](SUIVI.md)
 
-Hors de `main` : la branche `jahdiel/suivi-n8n` (le suivi des alertes n8n, repris dans SUIVI.md) et `agents-ia-qa-pentest` (le bac à sable de Mohamed). Voir [ARCHITECTURE.md, section 14](ARCHITECTURE.md#14-les-travaux-de-léquipe-hors-de-main).
+## Le problème
 
-## État au 19/11, 5 h 20
+Les équipes livrent chaque semaine, souvent avec du code écrit par l'IA. Les tests automatiques vérifient le code, pas ce qu'un utilisateur peut réellement faire dans l'application en ligne. À chaque mise en ligne, deux questions restent sans preuve :
 
-**La console en ligne : https://hsentinel-console.vercel.app** (accès par le jeton d'opérateur de l'équipe). Les workers QA et pentest tournent sur le Mac d'Aurian : sans eux, une mission reste en attente.
+- **le parcours marche-t-il encore ?** Une page attendue, un texte, un lien, un formulaire de connexion ;
+- **un utilisateur peut-il lire ou modifier les données d'un autre ?** Le contrôle d'accès défaillant est le n° 1 du Top 10 OWASP 2025.
 
-| Volet | Fonctionne, vérifié en réel | Manque |
+## Ce que fait HSentinel
+
+| Volet | Ce que fait l'agent H | Ce que vérifie le code |
 |---|---|---|
-| QA | Consigne tapée ou dictée, puis plan Hugging Face, agent H, vérification par le code et rapport web. 33 missions sur eugeniaschool.com le 18/11, sur ordinateur et sur mobile (0,904 $ au total). Répétitions, 10 par scénario : parcours guidé 10/10 (29 s, 0,007 $), exploration 10/10 (103 s, 0,051 $). **Veille des mises à jour** (D-43) : une empreinte HTTP de chaque site, toutes les 15 min ; une mise en ligne de la console a été détectée en 56 s, puis explorée automatiquement | Dictée avec une vraie voix, mesure du temps gagné, déploiement |
-| QA connecté : Peer Review | L'agent se connecte par un coffre H créé pour l'essai, puis consulte sans rien modifier. Compte d'Alec : 18 missions réelles (0,259 $), depuis le terminal ou la file web, où le mot de passe est chiffré dans le navigateur. 10 répétitions : connexion et identité prouvées 10/10, « Mon parcours » 10/10, aucune évaluation ouverte, 40 s et 0,015 $ en moyenne. La garde a été renforcée après une évaluation ouverte à 22 h 48 (rien de noté) | Compte de Nathan refusé par le site (2 essais) : son mot de passe en vigueur ; la recette du formulaire connecté désormais raccordé dans la console ; titres de l'accueil tronqués par H, donc non concluants |
-| Pentest : banc | Paie Express, une application de test à failles injectées : 59 failles prouvées sur 60, en 10 audits, 0 faux positif | — |
-| Pentest : Peer Review | S-PEER-01 (barrière d'accès sans connexion) exécuté en réel depuis la console le 19/11 : conforme, 307 vers `/connexion`, 24 s, 0,004 $. Connexion HTTP de A validée en réel ; ressource témoin et règle de visibilité confirmées (Kimi) | B refusé par le site ; agent H recréé par Kimi et confirmé (20 h 38) ; contrôle A/B jamais exécuté ; modules non raccordés (`contributions/`) |
-| Alertes n8n (Jahdiel) | W1, W3, W4 construits par Jahdiel ; leur SQL réécrit et en place dans notre base (`supabase/alertes.sql`) ; chaque faille prouvée du banc écrite dans `constats` (`runner/constats.py`), ainsi que chaque écart QA prouvé par le code et chaque faille prouvée d'une mission pentest (D-42). Recette réelle du 19/11 : un constat de test devient le ticket GitHub n° 7, son état revient dans la base et la console l'affiche ; republié, il commente le même ticket (« Toujours présente ») | Le webhook instantané est refusé par n8n (403) : l'identifiant de W3 et notre coffre n'ont pas le même secret (Jahdiel). D'ici là, l'alerte part par le rattrapage, en 15 min au plus. Restent aussi le secret de W1 et un destinataire d'e-mail |
-| Interface : la console de l'équipe (`web-console`) | L'interface d'un camarade, raccordée par Codex aux services de la web (`/api/console`), avec QA connecté et page Alertes ; 28 tests locaux et compilation réussis | Recette réelle faite dans Chrome le 19/11 : dictée, mission publique, mission connectée (K1/K2). Restent à recetter l'arrêt d'une mission réelle et la page Alertes avec de vrais constats. En ligne : https://hsentinel-console.vercel.app |
+| **QA fonctionnel** | Il suit un parcours tapé ou dicté, que Hugging Face découpe en étapes et en critères, relus avant le lancement. Ou il explore le site, 6 pages au plus. Sur ordinateur ou sur mobile, connecté ou non. | La page atteinte, le texte exact relu par HTTP, la citation de l'agent retrouvée dans la page, les erreurs HTTP, les liens cassés. |
+| **Pentest : tests IDOR** | Deux comptes de test, de deux entreprises différentes, rangés dans des coffres H : l'agent ne voit jamais les mots de passe. L'agent cartographie les pages du compte A. Le compte B tente ensuite de les ouvrir, puis de les modifier. Un salarié tente d'atteindre l'administration. | B reçoit-il la page de A (rejeu HTTP, similarité d'au moins 0,95) ? Son marqueur d'écriture apparaît-il chez A ? L'agent confirme ensuite chaque faille à l'écran. Une règle écrite calcule la gravité. |
+| **Pentest : barrière d'accès** | Un visiteur sans compte ouvre une page réservée. | Le serveur le refuse (401 ou 403) ou le renvoie vers la connexion. |
+| **Veille des mises à jour** | Aucun agent : deux lectures HTTP de la page d'entrée, toutes les 15 minutes. | Si l'empreinte du site change (compilation, ressources, titres), une mission QA part toute seule. Rien n'est à installer chez le client. |
+| **Alertes** | — | Chaque faille prouvée et chaque écart constaté deviennent un constat. n8n en fait un ticket GitHub, et un e-mail si un destinataire est choisi. Si la même faille revient, le ticket reçoit un commentaire au lieu d'un doublon. |
 
-## Lancer le volet QA
+Les tests IDOR, c'est-à-dire un compte qui lit ou modifie l'objet d'un autre en changeant un identifiant, sont le cœur du volet Pentest depuis le premier jour. Dans le code, ce sont les thèmes `lecture` et `ecriture` ; l'élévation de droits d'un salarié est le thème `admin`.
 
-Ce qu'il faut :
-- Python 3.12 et Node 20 ou plus ;
-- un compte H dans l'espace de Jahdiel, où l'équipe travaille depuis le 18/11 : créez-y une clé (Settings, API keys), puis `pbpaste | holo login --key --force` l'écrit dans `~/.config/hai/.env` sans l'afficher ;
-- `~/.config/sentinelqa/.env` : les clés Supabase et `HF_TOKEN`, sur le modèle de [`sentinelqa/.env.example`](sentinelqa/.env.example).
+## Résultats mesurés
 
-Les clés restent toujours hors du dépôt.
+| Test | Résultat | Durée et coût |
+|---|---|---|
+| Tests IDOR sur le banc Paie Express : 6 failles injectées, 4 contrôles sains, vérité terrain écrite avant l'audit | **59 failles prouvées sur 60, en 10 audits, 0 faux positif** | 0,13 à 0,21 $ par audit |
+| QA guidé sur eugeniaschool.com (« Bac+3 » sur la page du Bachelor), 10 répétitions | 10 sur 10 | 29 s et 0,007 $ en moyenne |
+| QA en exploration bornée, 10 répétitions | 10 sur 10 | 103 s et 0,051 $ en moyenne |
+| QA connecté sur Peer Review, 10 répétitions | Connexion et identité prouvées 10 sur 10, aucune écriture | 40 s et 0,015 $ en moyenne |
+| Barrière d'accès de Peer Review (S-PEER-01) | Conforme : 307 vers `/connexion` | 24 s, 0,004 $ |
+| Veille : la console est redéployée | Mise à jour détectée en 56 s, exploration faite 30 s plus tard | 0,010 $ |
+
+Les coûts H sont lus dans l'API H, session par session.
+
+## Architecture
+
+```
+Console (Next.js, Vercel) ──► Supabase : files qa_missions et audits, constats, applications
+                                  ▲                          │
+          Workers Python (Mac) ───┘                          └──► n8n : W3 (ticket GitHub et e-mail)
+            ├─ H Agents API : agents, coffres, sessions             W4 (pentest régulier, la nuit)
+            ├─ Hugging Face : plan du parcours, dictée (Whisper)
+            └─ Veille des mises à jour (empreinte HTTP)
+```
+
+Le principe : **l'agent montre, le code décide.** Hugging Face prépare le plan et transcrit la dictée, mais il n'entre jamais dans le verdict. Le détail est dans [ARCHITECTURE.md](ARCHITECTURE.md).
+
+**Stack** : H Agents API (`holo4-35b-a3b`, coffres, replays) · Hugging Face Inference Providers (Llama 3.3 70B, Whisper large v3 turbo) · Supabase (PostgreSQL, RLS, coffre, `pg_net`) · Next.js sur Vercel · n8n · GitHub Issues.
+
+## Tester
+
+- **En ligne** : https://hsentinel-console.vercel.app, avec le code de l'équipe. Lancez un QA (consigne tapée ou dictée, puis « Préparer le plan » et « Lancer la mission »), le pentest « Vérifier la barrière d'accès sans connexion », puis ouvrez la page Alertes. Les missions sont exécutées par les workers de l'équipe : s'ils sont arrêtés, une mission reste en attente.
+- **En local** : il faut Python 3.12, Node 20 ou plus, une clé H (`pbpaste | holo login --key --force`), et les clés Supabase et `HF_TOKEN` dans `~/.config/sentinelqa/.env`, sur le modèle de [`sentinelqa/.env.example`](sentinelqa/.env.example). Les clés ne vont jamais dans le dépôt.
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -r sentinelqa/requirements.txt
-.venv/bin/python sentinelqa/runner/qa_worker.py --schema   # une fois : crée la file QA dans Supabase
-.venv/bin/python sentinelqa/runner/qa_worker.py            # le worker qui exécute les missions
-cd sentinelqa/web && npm install && npm run dev            # http://localhost:3100
+.venv/bin/python sentinelqa/runner/qa_worker.py                 # worker QA, avec la veille des mises à jour
+.venv/bin/python sentinelqa/runner/sentinelqa.py --surveiller   # worker pentest
+cd sentinelqa/web-console && npm install && npm run dev         # console sur http://127.0.0.1:3101
 ```
 
-Dans la web : « Lancer un audit », onglet **QA**, puis « Dicter la consigne » ou une consigne tapée, « Préparer le plan » et « Lancer l'agent ».
-
-Sans la web :
+Sans console :
 
 ```sh
 .venv/bin/python sentinelqa/runner/qa_moteur.py --consigne "Ouvre Programmes puis le Bachelor et vérifie qu'il affiche « Bac+3 »"
-.venv/bin/python sentinelqa/runner/qa_moteur.py --cible peer-review --email <compte> --identite "<nom affiché>" \
-  --consigne "Une fois connecté, vérifie…"   # site connecté : le mot de passe est demandé, puis va au coffre H ; --repetitions 10 pour répéter
 .venv/bin/python sentinelqa/runner/qa_moteur.py --exploration --mobile
-.venv/bin/python sentinelqa/runner/qa_moteur.py --reverifier sentinelqa/rapports/qa-….json   # rejoue la vérification, sans agent
+sentinelqa/demo.sh            # le banc IDOR : Paie Express, un tunnel public, puis l'audit
 ```
 
-## Lancer le banc pentest
+Tests : `.venv/bin/python -m unittest discover -s sentinelqa/runner/tests`, puis `npm test` dans `sentinelqa/web` et dans `sentinelqa/web-console`. `npm run test:browser` lance les tests navigateur de la console.
 
-`sentinelqa/demo.sh` démarre Paie Express et un tunnel public, puis lance l'audit. Il demande le feu vert avant toute écriture et ouvre le rapport à la fin. Avec `--surveiller`, il traite les demandes envoyées par la web.
+## Limites
 
-## Tests
-
-```sh
-.venv/bin/python -m unittest discover -s sentinelqa/runner/tests -p 'test_*.py'
-.venv/bin/python -m unittest discover -s contributions/kimi-pentest/tests
-.venv/bin/python -m unittest discover -s contributions/hf-pentest/tests
-cd sentinelqa/web && npm test
-```
-
-## Structure
-
-| Chemin | Contenu |
-|---|---|
-| `sentinelqa/runner/` | Le moteur Python : QA (`qa_*.py`), pentest (`sentinelqa.py`, `missions.py`), agents H |
-| `sentinelqa/web/` | La web Next.js : lancement, suivi en direct, arrêt, rapports |
-| `sentinelqa/web-console/` | La console de l'équipe : l'interface d'un camarade, raccordée par Codex (en ligne sur https://hsentinel-console.vercel.app depuis le 19/11 (Vercel, accès par jeton d'opérateur)) |
-| `sentinelqa/contrats/` | Les cibles autorisées et les règles partagées entre le runner et la web |
-| `sentinelqa/supabase/` | Les schémas SQL ; `alertes.sql` : applications, constats et les fonctions des alertes |
-| `sentinelqa/n8n/` | Les workflows n8n W1, W3 et W4 (exports et versions prêtes à importer) et leur mise en service |
-| `sentinelqa/cobaye/` | Paie Express, l'application de test à failles injectées (comptes fictifs) |
-| `contributions/` | Les modules pentest en cours, non intégrés (voir leur [état](contributions/README.md)) |
-
-## Pièges connus
-
-- Ouvrir `localhost`, pas `127.0.0.1` : en `next dev`, le contrôle d'origine refuse sinon toute écriture.
-- `holo login` écrit la clé entre guillemets : retirez-les à la lecture, sinon H répond 403.
-- Ne lancez pas `next dev` dans un dossier où tourne déjà un `next start` : les deux écrivent dans le même `.next`.
-- H relit un agent avec ses valeurs par défaut (`headless`, `lazy`, `settle_s`, `start_url`…) : comparez seulement les champs que vous fixez.
-- Le menu de chaque page cite les autres pages : un texte attendu se cherche dans le contenu, hors `nav`, `header` et `footer`.
-- L'agent H dispose d'un outil absent de la documentation, `web_fetch`, qui lit une page sans l'afficher : il est interdit dans sa consigne et relevé dans le rapport.
-- H refuse désormais `start_url: "about:blank"` à la création d'un agent (422). Ne fixez pas de page de départ dans la définition : chaque session impose la sienne.
-- Sur un titre à styles mêlés (« Bonne *soirée*, Alec »), le texte relevé par H ne garde que la partie en italique. Une citation exacte y devient introuvable : le rapport le dit (`h_text_partial`) et renvoie à la capture.
-- `next build` télécharge les polices chez Google. Le 18/11 à 15 h, ce téléchargement a échoué trois fois de suite, alors qu'une requête isolée passait : relancez, ou intégrez les polices au projet (tâche 18 du suivi).
+- HSentinel **complète** un audit humain : il ne remplace ni un pentest qualifié, ni un TLPT, ni un audit PCI.
+- Il ne teste que des sites contrôlés par l'équipe ou autorisés par écrit : eugeniaschool.com et Peer Review, en consultation seule, et notre propre console. Les tests d'écriture se font uniquement sur le banc Paie Express.
+- La veille voit ce qui change dans la page d'entrée : un changement purement côté serveur peut lui échapper.
+- Le test IDOR entre deux comptes de Peer Review (S-PEER-02) attend un second compte qui se connecte. Le webhook instantané des alertes reste à réaligner : en attendant, un ticket part en 15 minutes au plus.
 
 ## Règles
 
-- Uniquement des sites contrôlés par l'équipe, ou autorisés par écrit (article 323-1 du Code pénal). Aujourd'hui : eugeniaschool.com et peer-review-black.vercel.app, en consultation, sans aucune écriture.
-- Aucun secret dans le dépôt. Le `.gitignore` fonctionne en liste blanche : seuls les chemins listés sont publiés.
-- « Conforme » ou « écart » : seulement avec une preuve relevée par le code.
+- Uniquement des cibles autorisées (article 323-1 du Code pénal), avec un périmètre écrit pour chacune dans [`sentinelqa/contrats/`](sentinelqa/contrats).
+- « Conforme », « écart constaté » ou « faille prouvée » : seulement avec une preuve relevée par le code.
+- Aucun secret dans le dépôt. Le `.gitignore` fonctionne en liste blanche, et le dépôt est public.
+
+## Pour l'équipe
+
+| Chemin | Contenu |
+|---|---|
+| `sentinelqa/runner/` | Le moteur Python : QA (`qa_*.py`), veille (`veille.py`), pentest (`sentinelqa.py`, `missions.py`), constats (`constats.py`) |
+| `sentinelqa/web-console/` | La console, déployée sur Vercel |
+| `sentinelqa/web/` | Les services partagés avec la console (`lib/`) et l'ancienne interface |
+| `sentinelqa/contrats/` | Les cibles autorisées et leurs limites, lues par le runner et par la console |
+| `sentinelqa/supabase/` | Les schémas SQL, dont `alertes.sql` : applications, constats, fonctions de n8n |
+| `sentinelqa/n8n/` | Les workflows W1, W3 et W4 et leur mise en service |
+| `sentinelqa/cobaye/` | Paie Express, le banc IDOR à failles injectées (comptes et données fictifs) |
+| `contributions/` | Les modules pentest en cours d'intégration (S-PEER-02, Hugging Face vers contrôles) |
+
+Pièges qui ont déjà mordu :
+- **Garde d'origine** : elle compare l'en-tête `Origin` à l'hôte appelé (`Host`), jamais à `request.url`, que Next réécrit en `localhost` en développement.
+- **Déploiement sur Vercel** : le builder ignore un `distDir` personnalisé et empaquette `.next/`. On compile donc dans `.next` (`cd sentinelqa && vercel build --prod && vercel deploy --prebuilt --prod`), puis on vérifie la date de la route empaquetée.
+- **Clé H** : `holo login` l'écrit entre guillemets. Il faut les retirer à la lecture, sinon H répond 403.
+- **Page de départ d'un agent** : H refuse `start_url: "about:blank"` à la création d'un agent. Chaque session impose sa page de départ.
+- **Titres à styles mêlés** : dans un titre comme « Bonne *soirée* », le texte relevé par H ne garde que la partie en italique. Le rapport le signale (`h_text_partial`) et renvoie à la capture.
+- **Événements H** : ils arrivent par lots, et H a souvent déjà exécuté un geste quand notre garde le voit. Sur un site réel, la consigne et les zones interdites protègent d'abord ; la garde borne la suite.
+
+L'état détaillé, daté, et la liste de ce qui reste à faire sont dans [SUIVI.md](SUIVI.md). Les décisions et leurs raisons sont dans [ARCHITECTURE.md](ARCHITECTURE.md).
