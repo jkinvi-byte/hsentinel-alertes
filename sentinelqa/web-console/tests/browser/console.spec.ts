@@ -25,7 +25,7 @@ async function loginCookie(page: Page) {
 }
 async function fixtures(page: Page) {
   const calls = { starts: [] as any[], plans: [] as any[], stops: 0, transcriptions: 0, failed: false, running: false,
-    keys: 0, keyAvailable: true, alertsFailed: false }
+    keys: 0, keyAvailable: true, alertsFailed: false, expert: [] as any[] }
   await page.route('**/api/console/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname
     const response = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
@@ -41,6 +41,10 @@ async function fixtures(page: Page) {
       return response({ application, limite: 50, alertes: rows, bilan: bilanAlertes(rows), applications: [{ id: 'eugenia-public', nom: 'Eugenia' }, { id: 'peer-review', nom: 'Peer Review' }] })
     }
     if (path === '/api/console/plan') { calls.plans.push(request.postDataJSON()); return response({ plan }) }
+    if (path === '/api/console/expert') {
+      calls.expert.push(request.postDataJSON())
+      return response({ reponse: 'Réponse synthétique de l’expert.', consigne_proposee: 'Ouvrir le menu « Programmes », puis vérifier le texte « Bac+3 ».', fiches: ['consigne'], modele: 'fixture', latence_s: 0.1 })
+    }
     if (path === '/api/console/transcription') {
       calls.transcriptions++; await new Promise(resolve => setTimeout(resolve, 350))
       return response({ texte: 'Vérifie le Bachelor et son diplôme.', latence_s: .35, modele: 'fixture' })
@@ -326,6 +330,36 @@ test('Dictée sur microphone synthétique : bloque le lancement et ajoute du tex
   await page.getByRole('button', { name: 'Lancer la mission' }).click()
   await expect(page).toHaveURL(new RegExp(`/app/missions/qa/${id}`))
   expect(calls.starts[0].source).toBe('voix')
+})
+
+test('Expert du studio : question écrite ou dite, réponse lue, consigne reprise sur demande, Entrée ne lance rien', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __lu: string[] }
+    w.__lu = []
+    window.speechSynthesis.speak = (u: SpeechSynthesisUtterance) => { w.__lu.push(u.text) }
+  })
+  await loginCookie(page); const calls = await fixtures(page)
+  await page.goto('/app/nouveau')
+  await expect(page.getByRole('heading', { name: 'L’expert QA' })).toBeVisible()
+  await page.getByLabel('Votre question à l’expert').fill('Comment formuler ma consigne ?')
+  await page.getByLabel('Votre question à l’expert').press('Enter')
+  await expect(page.getByText('Réponse synthétique de l’expert.')).toBeVisible()
+  expect(calls.starts).toHaveLength(0)
+  expect(calls.expert[0]).toMatchObject({ volet: 'qa', question: 'Comment formuler ma consigne ?', historique: [] })
+  expect(await page.evaluate(() => (window as unknown as { __lu: string[] }).__lu)).toEqual(['Réponse synthétique de l’expert.'])
+  await expect(page.getByLabel('Votre consigne')).toHaveValue('')
+  await page.getByRole('button', { name: 'Reprendre dans la consigne' }).click()
+  await expect(page.getByLabel('Votre consigne')).toHaveValue('Ouvrir le menu « Programmes », puis vérifier le texte « Bac+3 ».')
+
+  // À la voix : le micro synthétique, la même transcription que la dictée, puis la question part seule.
+  await page.getByRole('button', { name: 'Parler à l’expert' }).click()
+  await page.getByRole('button', { name: 'Arrêter et envoyer' }).click()
+  await expect.poll(() => calls.expert.length).toBe(2)
+  expect(calls.expert[1]).toMatchObject({ question: 'Vérifie le Bachelor et son diplôme.', historique: [{ role: 'utilisateur', texte: 'Comment formuler ma consigne ?' }, { role: 'expert', texte: 'Réponse synthétique de l’expert.' }] })
+  expect(calls.starts).toHaveLength(0)
+
+  await page.goto('/app/nouveau?volet=pentest')
+  await expect(page.getByRole('heading', { name: 'L’expert Pentest' })).toBeVisible()
 })
 
 test('Le studio reste utilisable à 390 pixels', async ({ page }) => {

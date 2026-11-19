@@ -51,21 +51,29 @@ export async function preparerPlan(targetId, instruction) {
   if (!jeton) throw new Error('Le jeton Hugging Face n’est pas configuré sur ce serveur.');
   const donnees = { consigne: instruction, site: cible.origine, liens_connus: await liensConnus(cible) };
   const debut = performance.now();
-  const reponse = await fetch(ROUTEUR, {
+  const appeler = (modele) => fetch(ROUTEUR, {
     method: 'POST', signal: AbortSignal.timeout(45000),
     headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: regles.modele, temperature: 0, max_tokens: 900, response_format: { type: 'json_object' },
+      model: modele, temperature: 0, max_tokens: 900, response_format: { type: 'json_object' },
       messages: [{ role: 'system', content: regles.consigne_systeme.join('\n') }, { role: 'user', content: JSON.stringify(donnees) }],
     }),
   });
+  // Un fournisseur imposé (« :groq ») peut répondre 429 après des appels rapprochés (vécu le 19/11 avec l'expert du studio) :
+  // on repose alors la demande au même modèle, chez le fournisseur que Hugging Face choisit.
+  let modele = regles.modele;
+  let reponse = await appeler(modele);
+  if ((reponse.status === 429 || reponse.status >= 500) && modele.includes(':')) {
+    modele = modele.split(':')[0];
+    reponse = await appeler(modele);
+  }
   if (!reponse.ok) throw new Error(`Hugging Face a répondu HTTP ${reponse.status}.`);
   const corps = await reponse.json();
   const bloc = (corps.choices?.[0]?.message?.content ?? '').match(/\{[\s\S]*\}/);
   if (!bloc) throw new Error('Le modèle de préparation n’a pas rendu de plan lisible.');
   const plan = JSON.parse(bloc[0]);
   plan.preparation = {
-    modele: regles.modele, fournisseur: reponse.headers.get('x-inference-provider') ?? regles.modele.split(':')[1] ?? '',
+    modele, fournisseur: reponse.headers.get('x-inference-provider') ?? modele.split(':')[1] ?? '',
     latence_s: Math.round((performance.now() - debut) / 10) / 100, tokens: corps.usage?.total_tokens ?? null,
   };
   return validerPlan(plan, cible);

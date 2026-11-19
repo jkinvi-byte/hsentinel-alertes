@@ -6,6 +6,7 @@ import useSWR from 'swr'
 import { ArrowRight, Check, Monitor, PencilLine, Smartphone, Sparkles, X } from 'lucide-react'
 import { ConsoleHeader } from './console-header'
 import { MissionDictation } from './mission-dictation'
+import { MissionExpert } from './mission-expert'
 import { MissionAccount } from './mission-account'
 import { consoleRequest, postJson } from '@/lib/console-client'
 import { encryptQaAccount } from '@/lib/qa-account.mjs'
@@ -109,6 +110,9 @@ export function MissionStudio({ catalog, initialModule, initialTarget }: { catal
             </>}
             {module === 'qa' && mode === 'guide' && <button className="console-button" type="button" disabled={busy || !instruction.trim()} onClick={prepare}><Sparkles className="size-4" aria-hidden="true" />{pending === 'plan' ? 'Préparation du plan…' : plan ? 'Préparer de nouveau' : 'Préparer le plan'}</button>}
           </section>
+          {/* D-51 : l'expert QA ou Pentest ; il ne lance rien, sa consigne ne remplace la vôtre que sur demande. */}
+          <MissionExpert volet={module} cible={module === 'qa' ? target : (selectedScenario?.targetId ?? '')} consigne={instruction} disabled={busy}
+            onApply={(texte: string) => { setInstruction(texte); if (module === 'qa') setMode('guide'); begin() }} />
           {module === 'qa' && mode === 'guide' && plan && <section className="panel space-y-4 p-5" aria-labelledby="plan-title"><p className="label-mono">03 / Relecture</p><h2 id="plan-title" className="text-base font-medium">{plan.titre}</h2>
             {stale && <p role="status" className="text-sm text-warn">La consigne a changé. Préparez de nouveau le plan avant de lancer.</p>}
             <ol className="space-y-2">{plan.criteres.map((c, i) => <li key={c.id} className="flex gap-3 rounded-md border border-border p-3"><span className="font-mono text-xs text-steel">C{i + 1}</span><div className="min-w-0 flex-1"><p className="text-sm">{c.description}</p>{c.valeur && <p className="mt-1 break-words text-xs text-muted-foreground">{c.valeur}</p>}</div><button type="button" aria-label={`Retirer le critère C${i + 1}`} disabled={busy || plan.criteres.length <= 1} className="self-start rounded p-1 text-muted-foreground disabled:opacity-30" onClick={() => setPlan({ ...plan, criteres: plan.criteres.filter((_, index) => index !== i) })}><X className="size-4" /></button></li>)}</ol>
