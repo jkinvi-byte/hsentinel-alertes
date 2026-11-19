@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import type { AuditModule, Deployment, Kpi } from '@/lib/audit-types'
+import { montant } from '@/lib/console-data'
 import { AuditDetail } from './audit-detail'
 import { DeploymentsFeed } from './deployments-feed'
 import { MetricsBar } from './metrics-bar'
@@ -11,7 +12,6 @@ import { ModuleTabs } from './module-tabs'
 import { Topbar } from './topbar'
 
 const SUBSCRIBED: AuditModule[] = ['qa', 'pentest']
-const euros = (n: number) => `${n.toFixed(2).replace('.', ',')} $`
 
 type Props = { deployments: Deployment[]; kpis: Kpi[]; cout7j: number; initialModule: AuditModule }
 
@@ -57,7 +57,7 @@ export function AuditsConsole({ deployments, kpis, cout7j, initialModule }: Prop
         <div className="-mt-1 flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-border">
           <ModuleTabs active={tab} subscribed={SUBSCRIBED} counts={counts} onSelect={setTab} onUnlock={() => router.push('/app/facturation')} />
           <Link href="/app/facturation" className="mb-1.5 font-mono text-[10.5px] text-muted-foreground transition-colors hover:text-foreground">
-            coût mesuré{last ? ` · ${euros(last.audit.costUsd)} le dernier audit` : ''} · 7 jours : {euros(cout7j)}
+            coût mesuré{last ? ` · ${montant(last.audit.costUsd)} le dernier audit` : ''} · 7 jours : {montant(cout7j)}
           </Link>
         </div>
 

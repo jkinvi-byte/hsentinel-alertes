@@ -52,7 +52,11 @@ UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 VERBES_A_RISQUE = {"envoyer", "enregistrer", "sauvegarder", "valider", "soumettre", "confirmer", "publier", "supprimer", "modifier",
                    "noter", "evaluer", "commenter", "voter", "activer", "desactiver", "reinitialiser",
                    "commencer", "demarrer", "reprendre", "repondre", "ajouter", "creer",  # ouvrent ou remplissent un formulaire
-                   "submit", "send", "save", "confirm", "delete", "rate", "publish", "start", "begin", "reply", "add", "create"}
+                   "arreter", "deconnecter",  # arrêtent une mission en cours, ferment la session (notre console, D-52)
+                   "submit", "send", "save", "confirm", "delete", "rate", "publish", "start", "begin", "reply", "add", "create",
+                   "logout"}
+# « Lancer » n'y est pas : sur notre console, « Lancer un audit » n'est qu'un lien vers le studio, et « Lancer la mission »
+# reste grisé tant qu'aucun plan n'est relu, ce qui demande une saisie, interdite à l'agent connecté.
 FINIS = {"completed", "idle", "failed", "timed_out", "interrupted"}
 # H passe la session à « idle » avant d'y attacher la réponse (AgentCompletionEvent jusqu'à 2 s plus tard, 18/11) :
 # lue trop tôt, une réponse bien donnée paraissait absente (1 essai sur 10, session d58b6def).

@@ -460,6 +460,20 @@ class ConnexionTest(unittest.TestCase):
                           public("click_web", element="Commencer")],
                          [True, True, False, False, True, False])
 
+    def test_notre_console_connectee_arreter_et_deconnecter_sont_des_gestes_a_risque(self):
+        # D-52 : notre agent QA teste notre propre console avec le code de l'équipe ; il ne doit arrêter aucune mission.
+        console = qa_moteur.trouver_cible("hsentinel-console-app")
+        self.assertEqual(console["connexion"]["chemin"], "/login")
+        risque = lambda element, chemin="/app/audits": qa_moteur.risque_d_ecriture(
+            console, "click_web", {"element": element}, f"https://hsentinel-console.vercel.app{chemin}")
+        self.assertTrue(risque("Bouton « Arrêter la mission »", "/app/missions/qa/1"))
+        self.assertTrue(risque("Bouton Se déconnecter"))
+        self.assertFalse(risque("Lien « Lancer un audit »", "/app"))  # un lien vers le studio, pas un lancement
+        self.assertFalse(risque("Converser à la voix button", "/app/nouveau"))
+        self.assertFalse(risque("Bouton Se connecter", "/login"))
+        # L'API ne se parcourt jamais dans le navigateur de l'agent.
+        self.assertIn("/api", console["chemins_exclus"])
+
     def test_l_agent_connecte_est_distinct_et_ne_porte_aucun_coffre(self):
         catalogue = SimpleNamespace(agents=CatalogueH())
         self.assertEqual(qa_agent.assurer_agent(catalogue, connecte=True), {"name": "sentinelqa-qa-connecte", "action": "créé"})

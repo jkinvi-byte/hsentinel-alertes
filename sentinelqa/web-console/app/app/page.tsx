@@ -68,11 +68,12 @@ export default async function OverviewPage() {
                     aria-hidden="true"
                   />
                 </span>
-                <span className="flex items-baseline gap-2">
+                {/* Sur téléphone, « +30 aujourd’hui » passe sous le chiffre au lieu d'être rogné (relevé par notre agent QA, D-53). */}
+                <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <span className={`font-heading text-[26px] leading-none font-bold tabular-nums ${kpi.danger ? 'text-danger' : 'text-foreground'}`}>
                     {kpi.value}
                   </span>
-                  <span className={`font-mono text-[10.5px] ${kpi.danger ? 'text-danger' : 'text-safe'}`}>{kpi.delta}</span>
+                  <span className={`font-mono text-[10.5px] whitespace-nowrap ${kpi.danger ? 'text-danger' : 'text-safe'}`}>{kpi.delta}</span>
                 </span>
                 <span className="font-mono text-[10.5px] text-subtle">{kpi.hint}</span>
                 <span className="sr-only">{kpi.action}</span>

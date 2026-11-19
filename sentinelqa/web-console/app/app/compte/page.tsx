@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { logout } from '@/app/actions'
 import { Card, PageHeader, primaryButton, secondaryButton } from '@/components/console/page-header'
+import { montant as dollars } from '@/lib/console-data'
 import { applications, chargerConsole, couts, indicateurs } from '@/lib/console-reel'
 
 export const metadata: Metadata = {
@@ -10,7 +11,6 @@ export const metadata: Metadata = {
   description: 'Votre accès à la console HSentinel, votre équipe et ce que vos audits coûtent.',
 }
 
-const dollars = (n: number) => `${n.toFixed(2).replace('.', ',')} $`
 
 export default async function AccountPage() {
   const d = await chargerConsole()

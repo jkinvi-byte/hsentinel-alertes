@@ -99,6 +99,15 @@ export const formatDateTime = formatter(dateFmt)
 export const formatDay = formatter(dayFmt)
 export const formatTime = formatter(timeFmt)
 
+// Un nombre et son unité ne se séparent jamais en fin de ligne (espace fine insécable) : sur téléphone, « 3,09 » restait
+// sur une ligne et « $ » passait seul à la suivante. Relevé par notre propre agent QA sur la console (D-53, 19/11).
+export const FINE = '\u202f'
+/** Un coût en dollars ; sous le centime, trois décimales (un coût réel de quelques millièmes ne s'affiche pas « 0,00 $ »). */
+export function montant(n: number | null | undefined, chiffres = 2) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—'
+  return `${n.toFixed(n > 0 && n < 0.01 ? 3 : chiffres).replace('.', ',')}${FINE}$`
+}
+
 export function formatAge(fromIso: string, toIso: string = new Date().toISOString()) {
   const minutes = Math.max(0, Math.round((Date.parse(toIso) - Date.parse(fromIso)) / 60000))
   if (minutes < 60) return `${minutes} min`

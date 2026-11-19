@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Card, PageHeader } from '@/components/console/page-header'
 import { CODE_ASSISTED_PRICE, CREDIT_COSTS, formatEuro, OFFER_ORDER, OFFERS } from '@/lib/billing'
-import { formatDay } from '@/lib/console-data'
+import { formatDay, montant } from '@/lib/console-data'
 import { chargerConsole, couts } from '@/lib/console-reel'
 
 export const metadata: Metadata = {
@@ -10,9 +10,8 @@ export const metadata: Metadata = {
   description: 'Le modèle de prix de HSentinel, et ce que coûte réellement chaque audit, mesuré dans l’API H et chez Hugging Face.',
 }
 
-// Un coût réel de quelques millièmes ne s'affiche pas « 0,00 $ » : sous le centime, on montre trois décimales.
-const dollars = (n: number | null, chiffres = 2) =>
-  n === null ? '—' : `${n.toFixed(n > 0 && n < 0.01 ? 3 : chiffres).replace('.', ',')} $`
+// Un coût réel de quelques millièmes ne s'affiche pas « 0,00 $ » : sous le centime, trois décimales (lib/console-data).
+const dollars = montant
 
 export default async function BillingPage() {
   const c = couts(await chargerConsole())
@@ -33,8 +32,8 @@ export default async function BillingPage() {
       <main className="grid items-start gap-5 px-5 py-6 lg:grid-cols-2 lg:px-8">
         <Card title="Coût mesuré">
           <div className="flex flex-col gap-4 px-4 py-4">
-            <p className="flex items-baseline gap-2">
-              <span className="font-mono text-[34px] leading-none font-semibold tabular-nums text-foreground">{dollars(c.semaine)}</span>
+            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="font-mono text-[34px] leading-none font-semibold whitespace-nowrap tabular-nums text-foreground">{dollars(c.semaine)}</span>
               <span className="text-[12.5px] text-muted-foreground">dépensés en 7 jours</span>
             </p>
             <dl className="grid grid-cols-3 gap-3 border-t border-border pt-3">

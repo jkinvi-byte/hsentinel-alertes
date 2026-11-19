@@ -65,6 +65,36 @@
         "lectures_http": 20,
         "octets_par_lecture": 2000000
       }
+    },
+    {
+      "id": "hsentinel-console-app",
+      "nom": "HSentinel (console connectée)",
+      "origine": "https://hsentinel-console.vercel.app",
+      "entree": "https://hsentinel-console.vercel.app/login",
+      "autorisation": "D-52 : notre propre console, testée par notre agent QA avec le code de l'équipe, en consultation seule",
+      "consultation_seule": true,
+      "connexion": {
+        "chemin": "/login"
+      },
+      "chemins_exclus": ["/api", "/signup", "/demo"],
+      "interdits": [
+        "La page de connexion n'a qu'un champ, « Code d’accès de l’équipe » : remplis-le avec le mot de passe du coffre, puis clique sur « Se connecter ».",
+        "Ne clique jamais sur « Lancer la mission », « Arrêter la mission », « Préparer le plan », « Dicter la consigne », « Parler à l’expert », « Se déconnecter » ni « Demander un accès » : ils lancent des agents payants, ouvrent le micro, écrivent dans la base ou ferment la session de l'équipe.",
+        "Ne change aucun réglage de la console : ni le thème (Clair, Sombre), ni la barre latérale, ni « Réponses lues »."
+      ],
+      "limites": {
+        "guide": {
+          "max_steps": 30,
+          "max_time_s": 360
+        },
+        "exploration": {
+          "max_steps": 45,
+          "max_time_s": 480,
+          "max_pages": 6
+        },
+        "lectures_http": 30,
+        "octets_par_lecture": 3000000
+      }
     }
   ],
   "pilotages": {

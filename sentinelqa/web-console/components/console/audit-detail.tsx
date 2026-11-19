@@ -1,6 +1,7 @@
 import { ArrowUpRight, CircleCheck, CircleHelp } from 'lucide-react'
 import Link from 'next/link'
 import type { Criterion, Deployment } from '@/lib/audit-types'
+import { FINE, montant } from '@/lib/console-data'
 import { cn } from '@/lib/utils'
 import { VulnChip } from './deployments-feed'
 import { FindingCard } from './finding-card'
@@ -51,11 +52,11 @@ export function AuditDetail({ deployment, activeStep }: AuditDetailProps) {
         <dl className="flex items-center gap-3 font-mono text-[10.5px] text-muted-foreground">
           <div className="flex gap-1">
             <dt className="text-subtle">durée</dt>
-            <dd className="tabular-nums text-foreground">{audit.durationSeconds} s</dd>
+            <dd className="tabular-nums text-foreground">{audit.durationSeconds}{FINE}s</dd>
           </div>
           <div className="flex gap-1">
             <dt className="text-subtle">coût</dt>
-            <dd className="tabular-nums text-foreground">{audit.costUsd.toFixed(2).replace('.', ',')} $</dd>
+            <dd className="tabular-nums text-foreground">{montant(audit.costUsd)}</dd>
           </div>
           {!auditing ? <VulnChip count={deployment.vulnerabilities} noun={qa ? 'écart' : 'faille'} /> : null}
         </dl>

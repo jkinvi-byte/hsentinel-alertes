@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { Logo, LogoMark } from '@/components/brand/logo'
+import { montant as dollars } from '@/lib/console-data'
 import { SIDEBAR_COOKIE, writePreferenceCookie, type ConsoleTheme } from '@/lib/plan'
 import { cn } from '@/lib/utils'
 import { ThemeToggle, useConsoleTheme } from './theme-toggle'
@@ -116,7 +117,6 @@ type ContentProps = {
   toggleExpanded: boolean
 }
 
-const dollars = (n: number) => `${n.toFixed(2).replace('.', ',')} $`
 
 // À la place du compteur de crédits de v0 : le coût réellement mesuré (API H et Hugging Face). Aucun plafond n'existe, donc pas de jauge.
 function CostMeter({ cost }: { cost: number | null }) {
@@ -195,10 +195,11 @@ function SidebarContent({ expanded, pathname, theme, summary, onThemeChange, onT
                     <span className="sr-only"> faille{count > 1 ? 's' : ''} ouverte{count > 1 ? 's' : ''}</span>
                   </span>
                 ) : (
-                  <span className="absolute top-1 right-1 size-1.5 rounded-full bg-danger">
-                    <span className="sr-only">
-                      {count} faille{count > 1 ? 's' : ''} ouverte{count > 1 ? 's' : ''}
-                    </span>
+                  // Barre repliée : le nombre en toutes lettres, comme dépliée, et non un point rouge (MARQUE.md : aucun rond
+                  // coloré). Notre agent QA lisait le point comme une « icône d'équipe avec un point rouge » (D-53).
+                  <span className="absolute -top-1 -right-1.5 rounded border border-danger/40 bg-card px-0.5 font-mono text-[8.5px] leading-3 text-danger">
+                    {count}
+                    <span className="sr-only"> faille{count > 1 ? 's' : ''} ouverte{count > 1 ? 's' : ''}</span>
                   </span>
                 )
               ) : null}
