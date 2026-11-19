@@ -43,7 +43,7 @@ create table if not exists public.constats (
   audit_id uuid references public.audits (id) on delete set null,
   audit_le timestamptz not null default now(),
   version text,                                          -- le commit ou la version testée, si on la connaît
-  theme text not null check (theme in ('lecture', 'ecriture', 'admin', 'compte', 'qa')),  -- compte : un autre compte lit ; qa : écart fonctionnel
+  theme text not null check (theme in ('lecture', 'ecriture', 'admin', 'compte', 'qa', 'http')),  -- compte : un autre compte lit ; qa : écart ; http : faille démontrée par le scanner
   methode text not null default 'GET' check (methode in ('GET', 'POST', 'PUT', 'PATCH', 'DELETE')),
   chemin text not null check (chemin like '/%' and length(chemin) <= 300),
   gravite text not null check (gravite in ('faible', 'moyenne', 'élevée', 'critique')),
@@ -57,7 +57,7 @@ create table if not exists public.constats (
   critere text check (critere is null or length(critere) <= 200),  -- QA : le critère en écart, tiré du plan (jamais du site)
   preuve text check (preuve is null or length(preuve) <= 600),     -- comment c'est prouvé, quand ce n'est pas un rejeu A/B
   empreinte text generated always as (application_id || '|' || theme || '|' || methode || '|' || chemin || coalesce('|' || critere, '')) stored,
-  alerte_statut text not null default 'a_traiter' check (alerte_statut in ('a_traiter', 'en_cours', 'traitee', 'echec')),
+  alerte_statut text not null default 'a_traiter' check (alerte_statut in ('a_traiter', 'en_cours', 'traitee', 'echec', 'reservee')),
   alerte_tentatives integer not null default 0,
   alerte_prise_le timestamptz,
   github_issue_number integer,
@@ -76,8 +76,14 @@ alter table public.applications add column if not exists observation_empreinte t
 alter table public.applications add column if not exists observation_detail jsonb;
 alter table public.applications add column if not exists observee_le timestamptz;
 alter table public.applications add column if not exists mise_a_jour_le timestamptz;
+-- 19/11 : le dépôt des tickets est public. Un ticket public seulement pour nos propres applications ; pour un site tiers,
+-- le constat reste privé, dans la console (« reservee »), pour ne jamais divulguer une faille avant son propriétaire.
+alter table public.applications add column if not exists tickets_publics boolean not null default false;
+alter table public.constats drop constraint if exists constats_alerte_statut_check;
+alter table public.constats add constraint constats_alerte_statut_check
+  check (alerte_statut in ('a_traiter', 'en_cours', 'traitee', 'echec', 'reservee'));
 alter table public.constats drop constraint if exists constats_theme_check;
-alter table public.constats add constraint constats_theme_check check (theme in ('lecture', 'ecriture', 'admin', 'compte', 'qa'));
+alter table public.constats add constraint constats_theme_check check (theme in ('lecture', 'ecriture', 'admin', 'compte', 'qa', 'http'));
 alter table public.constats add column if not exists critere text check (critere is null or length(critere) <= 200);
 alter table public.constats add column if not exists preuve text check (preuve is null or length(preuve) <= 600);
 do $$ begin
@@ -95,15 +101,16 @@ end $$;
 alter table public.applications enable row level security;
 alter table public.constats enable row level security;
 
-insert into public.applications (id, nom, origine, autorisee, autorisation, cible_qa, cible_pentest, entree_pentest, scenario_pentest)
+insert into public.applications (id, nom, origine, autorisee, autorisation, cible_qa, cible_pentest, entree_pentest, scenario_pentest, tickets_publics)
 values
-  ('paie-express', 'Paie Express', 'http://localhost:3000', true, 'Banc construit par l''équipe (sentinelqa/cobaye)', null, null, null, null),
+  ('paie-express', 'Paie Express', 'http://localhost:3000', true, 'Banc construit par l''équipe (sentinelqa/cobaye)', null, null, null, null, true),
+  ('blackbox-local', 'Banc boîte noire', 'http://127.0.0.1:8765', true, 'Banc construit par l''équipe (sentinelqa/cobaye_blackbox)', null, null, null, null, true),
   ('peer-review', 'Peer Review', 'https://peer-review-black.vercel.app', true, 'D-24 : accord écrit déclaré par Aurian, consultation seule',
-   null, 'peer-review', 'https://peer-review-black.vercel.app/etudiant', 'S-PEER-01'),
+   null, 'peer-review', 'https://peer-review-black.vercel.app/etudiant', 'S-PEER-01', false),
   ('eugenia-public', 'Eugenia School', 'https://www.eugeniaschool.com', true, 'D-24 : accord écrit déclaré par Aurian, consultation seule',
-   'eugenia-public', null, null, null),
+   'eugenia-public', null, null, null, false),
   ('hsentinel-console', 'HSentinel (console)', 'https://hsentinel-console.vercel.app', true, 'D-43 : notre propre application',
-   'hsentinel-console', null, null, null)
+   'hsentinel-console', null, null, null, true)
 on conflict (id) do nothing;
 
 -- ── Petites aides de rédaction ────────────────────────────────────────────────────────────────────────
@@ -121,6 +128,7 @@ create or replace function public.alerte_phrase(theme text) returns text languag
                     when 'ecriture' then 'Une autre entreprise peut modifier'
                     when 'compte' then 'Un autre compte peut lire'
                     when 'qa' then 'Écart fonctionnel sur'
+                    when 'http' then 'Faille HTTP démontrée sur'
                     else 'Un salarié peut accéder à' end
 $$;
 
@@ -129,6 +137,7 @@ create or replace function public.alerte_type(theme text) returns text language 
                     when 'ecriture' then 'Modification par une autre entreprise'
                     when 'compte' then 'Lecture par un autre compte'
                     when 'qa' then 'Écart fonctionnel (QA)'
+                    when 'http' then 'Contrôle HTTP du scanner'
                     else 'Accès d''un salarié à une partie réservée' end
 $$;
 
@@ -177,6 +186,13 @@ begin
   end if;
 
   select * into app from public.applications where id = c.application_id;
+  -- Un site tiers : jamais de ticket public (le dépôt l'est). Le constat reste dans la console, réservé à l'équipe.
+  if not coalesce(app.tickets_publics, false) then
+    update public.constats set alerte_statut = 'reservee', alerte_traitee_le = now(),
+           alerte_erreur = 'Site tiers : pas de ticket public. Constat réservé à la console ; prévenir son propriétaire directement.'
+     where id = c.id;
+    return jsonb_build_object('constat_id', c.id, 'action', 'aucune', 'raison', 'site tiers : pas de ticket public');
+  end if;
   select o.github_issue_number into ticket from public.constats o
    where o.empreinte = c.empreinte and o.github_issue_number is not null order by o.cree_le limit 1;
   action := case when ticket is null then 'creer_ticket' else 'commenter_ticket' end;
@@ -208,7 +224,7 @@ begin
            '| **Gravité** | ' || g || ' |' || E'\n' ||
            '| **Accès** | `' || acces || '` |' || E'\n' ||
            '| **Type** | ' || public.alerte_type(c.theme) || ' |' || E'\n' ||
-           case when c.theme = 'qa' then '| **Critère** | ' || coalesce(c.critere, '—') || ' |'
+           case when c.critere is not null then '| **Critère** | ' || c.critere || ' |'
                 else '| **Données exposées** | ' || donnees_txt || ' |' end || E'\n' ||
            '| **Audit** | ' || quand || ' · ' || version_txt || ' |' || E'\n\n' ||
            '### Pourquoi « ' || c.gravite || ' »' || E'\n' || raisons_txt || E'\n\n' ||
@@ -225,7 +241,7 @@ begin
     'github_issue_number', ticket,
     'titre', case when c.theme = 'qa'
                   then '[HSentinel · QA · ' || g || '] ' || public.alerte_phrase(c.theme) || ' ' || acces || coalesce(' : ' || c.critere, '')
-                  else '[HSentinel · ' || g || '] ' || public.alerte_phrase(c.theme) || ' ' || acces end,
+                  else '[HSentinel · ' || g || '] ' || public.alerte_phrase(c.theme) || ' ' || acces || coalesce(' : ' || c.critere, '') end,
     'corps_ticket', corps,
     'etiquettes', case when c.theme = 'qa' then jsonb_build_array('qa', 'hsentinel', 'regression')
                        else jsonb_build_array('securite', 'hsentinel', 'gravite:' || translate(c.gravite, 'é', 'e')) end,

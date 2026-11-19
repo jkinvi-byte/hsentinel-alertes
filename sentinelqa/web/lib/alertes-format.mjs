@@ -6,8 +6,11 @@ export const COLONNES_ALERTES = 'id,cree_le,application_id,audit_id,audit_le,ver
   + 'critere,similarite,confirme_ecran,alerte_statut,alerte_tentatives,github_issue_number,email_envoye,alerte_erreur';
 
 const THEMES = { lecture: 'Lecture par une autre entreprise', ecriture: 'Modification par une autre entreprise',
-  admin: 'Accès d’un salarié à une partie réservée', compte: 'Lecture par un autre compte', qa: 'Écart fonctionnel (QA)' };
-const ETATS = { a_traiter: 'Alerte en attente', en_cours: 'Alerte en cours', traitee: 'Alerte envoyée', echec: 'Alerte en échec · reprise toutes les 15 min' };
+  admin: 'Accès d’un salarié à une partie réservée', compte: 'Lecture par un autre compte', qa: 'Écart fonctionnel (QA)',
+  http: 'Contrôle HTTP du scanner' };
+const ETATS = { a_traiter: 'Alerte en attente', en_cours: 'Alerte en cours', traitee: 'Alerte envoyée', echec: 'Alerte en échec · reprise toutes les 15 min',
+  // Un site tiers : le dépôt des tickets est public, le constat reste ici, réservé à l'équipe.
+  reservee: 'Réservé à la console · site tiers, pas de ticket public' };
 const ORDRE_GRAVITE = { critique: 0, 'élevée': 1, moyenne: 2, faible: 3 };
 
 export function ligneAlerte(c) {

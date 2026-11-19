@@ -126,5 +126,36 @@ class EcartsEtMissionsTest(unittest.TestCase):
         self.assertEqual(constats.publier_lignes(base, constats.lignes_qa(RAPPORT_QA)), ["c1", "c2", "c3"])
 
 
+RAPPORT_SCAN = {
+    "request": {"target_id": "blackbox-local", "scenario_id": "S-GEN-ACTIVE-01"}, "started_at": "2026-11-19T05:50:00+00:00",
+    "results": [
+        {"id": "xss-op1-q", "status": "failed", "classification": "demonstrated_vulnerability", "reason_code": "reflected",
+         "url": "http://127.0.0.1:8765/search?q=x", "observed": "La valeur témoin revient non échappée.", "evidence_references": ["browser-1"]},
+        {"id": "sqli-op2-q", "status": "failed", "classification": "demonstrated_vulnerability", "reason_code": "differential",
+         "url": "http://127.0.0.1:8765/rest/products/search?q=x", "observed": "Réponse différentielle."},
+        {"id": "private-1", "status": "failed", "classification": "demonstrated_vulnerability",
+         "reason_code": "protected_content_received", "url": "http://127.0.0.1:8765/private/known"},
+        {"id": "zap-1", "status": "failed", "classification": "tool_candidate", "reason_code": "zap_alert"},
+        {"id": "headers", "status": "failed", "classification": "configuration_weakness", "reason_code": "missing_security_headers"},
+        {"id": "private-2", "status": "passed", "classification": "demonstrated_vulnerability", "reason_code": "anonymous_denied"},
+    ],
+}
+
+
+class ScannerTest(unittest.TestCase):
+    def test_seules_les_failles_demontrees_deviennent_des_constats(self):
+        lignes = constats.lignes_scan(RAPPORT_SCAN)
+        self.assertEqual([(l["chemin"], l["gravite"], l["critere"]) for l in lignes],
+                         [("/search", "élevée", "XSS réfléchi (paramètre q)"),
+                          ("/rest/products/search", "critique", "Injection SQL (paramètre q)"),
+                          ("/private/known", "élevée", "Ressource privée lisible sans session")])
+        self.assertTrue(all(l["theme"] == "http" and l["application_id"] == "blackbox-local" for l in lignes))
+        self.assertEqual([l["confirme_ecran"] for l in lignes], [True, False, False])
+        self.assertNotIn("?q=", json.dumps(lignes))  # le chemin seul : ni paramètre, ni charge injectée
+
+    def test_une_cible_inconnue_ne_donne_rien(self):
+        self.assertEqual(constats.lignes_scan({**RAPPORT_SCAN, "request": {"target_id": "juice-shop-local"}}), [])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -38,3 +38,11 @@ test('Un écart QA se lit avec son critère, et le nouveau type de faille a son 
   assert.deepEqual(ligneAlerte({ theme: 'lecture', methode: 'GET', chemin: '/x', raisons: ['r'] }).raisons, ['r']);  // une faille du banc, inchangée
 });
 
+test('Un constat de site tiers se lit comme réservé, et une faille du scanner a son nom', () => {
+  const tiers = ligneAlerte({ id: 't1', theme: 'qa', methode: 'GET', chemin: '/contact', critere: 'Page en erreur', raisons: [],
+    alerte_statut: 'reservee', alerte_erreur: 'Site tiers : pas de ticket public.' });
+  assert.equal(tiers.alerte.libelle, 'Réservé à la console · site tiers, pas de ticket public');
+  assert.equal(tiers.ticket, null);
+  assert.equal(ligneAlerte({ theme: 'http', methode: 'GET', chemin: '/search', raisons: [] }).type, 'Contrôle HTTP du scanner');
+});
+

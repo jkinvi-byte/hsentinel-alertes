@@ -1,7 +1,7 @@
 """Les failles prouvées et les écarts QA, écrits dans la table `constats` : n8n (W3) en fait un ticket GitHub et un e-mail.
 
-Trois sources (D-42) : les failles prouvées du banc, les écarts QA prouvés par le code (`lignes_qa`) et les failles
-prouvées d'une mission pentest (`lignes_mission`).
+Quatre sources : les failles prouvées du banc, les écarts QA prouvés par le code (`lignes_qa`), les failles
+prouvées d'une mission pentest (`lignes_mission`, D-42) et les failles démontrées par le scanner HTTP (`lignes_scan`, D-44).
 
 Une ligne ne porte jamais de donnée de l'application testée : un chemin, une méthode, des catégories de données
 et les raisons de la règle de gravité. Ni ce que l'agent a vu, ni le marqueur écrit, ni le lien du replay.
@@ -38,7 +38,8 @@ METHODES = {"lecture": "GET", "admin": "GET", "ecriture": "POST"}
 PARIS = ZoneInfo("Europe/Paris")
 
 # Les applications de la table `applications`, par l'identifiant de cible d'une mission (contrats/).
-CIBLES = {"eugenia-public": "eugenia-public", "peer-review": "peer-review", "hsentinel-console": "hsentinel-console"}
+CIBLES = {"eugenia-public": "eugenia-public", "peer-review": "peer-review", "hsentinel-console": "hsentinel-console",
+          "blackbox-local": "blackbox-local"}
 CATALOGUE_QA = json.loads((Path(__file__).resolve().parents[1] / "contrats" / "qa.json").read_text())
 # K1 et K2 décrivent la mise en place du test (le compte, le nom attendu), pas une régression du site.
 TYPES_QA_EXCLUS = {"connexion", "identite"}
@@ -171,6 +172,48 @@ def lignes_mission(rapport, audit_id=None):
     return lignes
 
 
+# Les failles que le scanner HTTP (runner/pentest) démontre, avec une gravité écrite : critère, raison et piste par contrôle.
+CONTROLES_SCAN = {
+    "sqli": ("Injection SQL", "critique", "une entrée injectée dans un paramètre modifie la requête en base",
+             "Passer par des requêtes paramétrées : ne jamais concaténer une entrée dans le SQL."),
+    "xss": ("XSS réfléchi", "élevée", "une valeur injectée dans la requête revient non échappée dans la page",
+            "Échapper la valeur selon son contexte d'affichage (HTML, attribut, script) et ajouter une politique CSP."),
+    "protected_content_received": ("Ressource privée lisible sans session", "élevée", "un visiteur sans session lit une ressource privée",
+                                   "Exiger une session valide côté serveur avant de servir la ressource."),
+    "cors_private_content_received": ("CORS : une origine tierce lit le contenu privé", "élevée",
+                                      "une origine tierce autorisée par CORS reçoit le contenu privé",
+                                      "Restreindre Access-Control-Allow-Origin aux origines connues, sans jamais refléter l'origine reçue."),
+    "private_source_content_received": ("Source map privée exposée", "moyenne", "le code source privé est lisible publiquement",
+                                        "Ne pas publier les source maps en production, ou les servir derrière une authentification."),
+}
+
+
+def lignes_scan(rapport, audit_id=None):
+    """Un constat par faille démontrée du scanner (failed et demonstrated_vulnerability) ; jamais un candidat ZAP
+    ni une faiblesse de configuration. Le critère et la gravité suivent CONTROLES_SCAN, une règle écrite."""
+    application = CIBLES.get((rapport.get("request") or {}).get("target_id"))
+    lignes = []
+    for r in rapport.get("results") or []:
+        if not application or r.get("status") != "failed" or r.get("classification") != "demonstrated_vulnerability":
+            continue
+        cle = next((k for k in ("sqli", "xss") if str(r.get("id", "")).startswith(k + "-")), r.get("reason_code"))
+        nom, gravite, raison, piste = CONTROLES_SCAN.get(cle, (str(r.get("title") or "Faille démontrée")[:80], "moyenne",
+                                                         "le scanner démontre la faille sur la surface observée", None))
+        parametre = str(r.get("id", "")).rsplit("-", 1)[-1] if cle in ("sqli", "xss") else None
+        chemin = urlsplit(str(r.get("url") or "/")).path or "/"
+        ligne = {"application_id": application, "audit_id": audit_id, "theme": "http",
+                 "methode": r.get("method") if r.get("method") in ("GET", "POST", "PUT", "PATCH", "DELETE") else "GET",
+                 "chemin": chemin[:300], "gravite": gravite, "raisons": [raison], "donnees": [],
+                 "critere": (f"{nom} (paramètre {parametre})" if parametre else nom)[:200],
+                 "confirme_ecran": any(str(x).startswith("browser") for x in r.get("evidence_references") or []),
+                 "preuve": ("1. **Contrôle HTTP du scanner :** " + str(r.get("observed") or "faille démontrée sur la réponse.").strip())[:600],
+                 "piste": piste}
+        if rapport.get("started_at"):
+            ligne["audit_le"] = rapport["started_at"]
+        lignes.append(ligne)
+    return lignes
+
+
 def publier_lignes(base, lignes):
     """Écrire des constats déjà préparés ; chaque insertion appelle W3, si le coffre de la base est réglé."""
     return [base.ajouter("constats", ligne)["id"] for ligne in lignes]
@@ -183,22 +226,24 @@ def publier(base, donnees, audit_id=None, version=None, limite=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Publier les failles prouvées d'un audit du banc dans la table constats.")
-    parser.add_argument("rapport", help="Le rapport JSON d'un audit du banc")
+    parser = argparse.ArgumentParser(description="Publier les failles prouvées d'un audit dans la table constats.")
+    parser.add_argument("rapport", help="Le rapport JSON d'un audit du banc, ou du scanner avec --scan")
+    parser.add_argument("--scan", action="store_true", help="Le rapport vient du scanner HTTP (runner/pentest)")
     parser.add_argument("--audit-id", help="L'identifiant de l'audit dans Supabase, pour le lien du relevé")
     parser.add_argument("--version", help="Le commit ou la version testée")
     parser.add_argument("--limite", type=int, help="Ne publier que les N premières failles")
     parser.add_argument("--essai", action="store_true", help="Afficher les lignes sans rien écrire")
     args = parser.parse_args()
     donnees = json.loads(Path(args.rapport).read_text())
+    lignes = (lignes_scan(donnees, args.audit_id) if args.scan else lignes_constats(donnees, args.audit_id, args.version))[:args.limite]
     if args.essai:
-        for ligne in lignes_constats(donnees, args.audit_id, args.version)[:args.limite]:
+        for ligne in lignes:
             print(json.dumps(ligne, ensure_ascii=False))
         return
     from base import Base
     base = Base()
     try:
-        ids = publier(base, donnees, args.audit_id, args.version, args.limite)
+        ids = publier_lignes(base, lignes)
     finally:
         base.fermer()
     print(f"{len(ids)} constat(s) publié(s)" + ("" if ids else " : aucune faille prouvée, ou application inconnue"), file=sys.stderr)
