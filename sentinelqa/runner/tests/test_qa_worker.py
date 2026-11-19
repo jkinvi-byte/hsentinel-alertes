@@ -124,5 +124,25 @@ class WorkerConnecteTest(unittest.TestCase):
         self.assertEqual(base.modifications[-1][1]["statut"], "termine")
 
 
+    def test_un_ecart_prouve_devient_un_constat_sans_jamais_faire_echouer_la_mission(self):
+        ecart = {"schema_version": 3, "request": {"target_id": "eugenia-public"},
+                 "results": [{"id": "C1", "type": "texte", "status": "failed", "attendu": "Bac+5", "chemin": "/programme"}]}
+        base, client, fil = FausseBase(), FauxClient(), []
+        with mock.patch.object(qa_worker, "executer_qa", lambda *a, **k: ecart), mock.patch.object(qa_worker, "ecrire_rapport", return_value="r.json"):
+            qa_worker.traiter(base, client, {"id": "m5", "demande": demande("eugenia-public", avec_compte=False)})
+        self.assertEqual([t for t, _ in base.ajouts if t == "constats"], ["constats"])
+        self.assertEqual(base.modifications[-1][1]["statut"], "termine")
+
+        class BaseSansAlertes(FausseBase):
+            def ajouter(self, table, ligne):
+                if table == "constats":
+                    raise RuntimeError("table absente")
+                return super().ajouter(table, ligne)
+        base = BaseSansAlertes()
+        with mock.patch.object(qa_worker, "executer_qa", lambda *a, **k: ecart), mock.patch.object(qa_worker, "ecrire_rapport", return_value="r.json"):
+            qa_worker.traiter(base, client, {"id": "m6", "demande": demande("eugenia-public", avec_compte=False)})
+        self.assertEqual(base.modifications[-1][1]["statut"], "termine")  # l'alerte échoue, la mission reste terminée
+
+
 if __name__ == "__main__":
     unittest.main()

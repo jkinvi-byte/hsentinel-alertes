@@ -576,6 +576,16 @@ def publier_constats(base, donnees, audit_id):
         journal(f"Alertes non transmises : {erreur.__class__.__name__}", "erreur")
 
 
+def publier_constats_mission(base, donnees, audit_id):
+    """Les failles prouvées d'une mission pentest vont dans `constats` (D-42), comme celles du banc. Jamais bloquant."""
+    try:
+        ids = constats.publier_lignes(base, constats.lignes_mission(donnees, audit_id))
+        if ids:
+            journal(f"{len(ids)} faille(s) prouvée(s) transmise(s) aux alertes (W3)", "info")
+    except Exception as erreur:
+        journal(f"Alertes non transmises : {erreur.__class__.__name__}", "erreur")
+
+
 def traiter_demande(base, cle, demande):
     """Une demande venue du formulaire de cadrage : déchiffrer, auditer, rendre compte, puis effacer le texte chiffré."""
     audit_id = demande["id"]
@@ -596,6 +606,7 @@ def traiter_demande(base, cle, demande):
             donnees = executer_mission(mission, NavigateurH(lambda: Client(api_key=cle_api(), timeout=15, max_retries=0)), journal, arret)
             rapport = ecrire_rapport_local(donnees)
             base.modifier("audits", {"statut": "termine", "fin": maintenant(), "rapport": donnees}, id=f"eq.{audit_id}")
+            publier_constats_mission(base, donnees, audit_id)
             print(f"Rapport : {rapport}", flush=True)
             return
         mots_de_passe = dechiffrer(cle, demande["secrets_chiffres"])

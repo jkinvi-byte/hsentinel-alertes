@@ -3,10 +3,10 @@
 
 export const DEPOT_ALERTES = 'jkinvi-byte/hsentinel-alertes';
 export const COLONNES_ALERTES = 'id,cree_le,application_id,audit_id,audit_le,version,theme,methode,chemin,gravite,donnees,raisons,'
-  + 'similarite,confirme_ecran,alerte_statut,alerte_tentatives,github_issue_number,email_envoye,alerte_erreur';
+  + 'critere,similarite,confirme_ecran,alerte_statut,alerte_tentatives,github_issue_number,email_envoye,alerte_erreur';
 
 const THEMES = { lecture: 'Lecture par une autre entreprise', ecriture: 'Modification par une autre entreprise',
-  admin: 'Accès d’un salarié à une partie réservée' };
+  admin: 'Accès d’un salarié à une partie réservée', compte: 'Lecture par un autre compte', qa: 'Écart fonctionnel (QA)' };
 const ETATS = { a_traiter: 'Alerte en attente', en_cours: 'Alerte en cours', traitee: 'Alerte envoyée', echec: 'Alerte en échec · reprise toutes les 15 min' };
 const ORDRE_GRAVITE = { critique: 0, 'élevée': 1, moyenne: 2, faible: 3 };
 
@@ -21,7 +21,9 @@ export function ligneAlerte(c) {
     acces: `${c.methode} ${c.chemin}`,
     type: THEMES[c.theme] ?? c.theme,
     donnees: c.donnees ?? [],
-    raisons: c.raisons ?? [],
+    // Le critère d'un écart QA se lit en tête des raisons : la console l'affiche sans changer son composant.
+    critere: c.critere ?? null,
+    raisons: [...(c.critere ? [c.critere] : []), ...(c.raisons ?? [])],
     preuve: { similarite: c.similarite ?? null, confirme_ecran: Boolean(c.confirme_ecran) },
     alerte: {
       etat: c.alerte_statut,

@@ -16,6 +16,7 @@ from pathlib import Path
 import httpx
 from hai_agents import Client
 
+import constats
 from base import Base, env_postgres, lire_cles
 from cle_runner import cle_privee, dechiffrer, publier
 from qa_moteur import ecrire_rapport, executer_qa, maintenant, preparer_coffre, supprimer_coffre, trouver_cible
@@ -48,6 +49,17 @@ class JournalQA:
                                                     "donnees": donnees or None})
             except httpx.HTTPError as erreur:
                 print(f"   (fil Supabase indisponible : {erreur.__class__.__name__})", flush=True)
+
+
+def publier_ecarts(base, rapport, journal):
+    """Chaque écart prouvé par le code devient un constat, donc un ticket (W3, D-42).
+    Une alerte qui échoue ne fait jamais échouer la mission : elle est journalisée."""
+    try:
+        ids = constats.publier_lignes(base, constats.lignes_qa(rapport))
+        if ids:
+            journal(f"{len(ids)} écart(s) prouvé(s) transmis aux alertes (W3).", "info")
+    except Exception as erreur:
+        journal(f"Alertes non transmises : {erreur.__class__.__name__}", "erreur")
 
 
 def preparer_compte(base, client, mission_id, demande, journal):
@@ -88,6 +100,7 @@ def traiter(base, client, ligne):
         rapport = executer_qa(demande, client, journal, arret)
         print(f"Rapport local : {ecrire_rapport(rapport)}", flush=True)
         base.modifier("qa_missions", {"statut": "termine", "fin": maintenant(), "rapport": rapport}, id=f"eq.{mission_id}")
+        publier_ecarts(base, rapport, journal)
     except BaseException as erreur:
         message = f"{erreur.__class__.__name__} : {erreur}"[:500]
         journal(f"Mission interrompue : {message}", "erreur")

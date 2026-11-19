@@ -43,7 +43,7 @@ create table if not exists public.constats (
   audit_id uuid references public.audits (id) on delete set null,
   audit_le timestamptz not null default now(),
   version text,                                          -- le commit ou la version testée, si on la connaît
-  theme text not null check (theme in ('lecture', 'ecriture', 'admin')),
+  theme text not null check (theme in ('lecture', 'ecriture', 'admin', 'compte', 'qa')),  -- compte : un autre compte lit ; qa : écart fonctionnel
   methode text not null default 'GET' check (methode in ('GET', 'POST', 'PUT', 'PATCH', 'DELETE')),
   chemin text not null check (chemin like '/%' and length(chemin) <= 300),
   gravite text not null check (gravite in ('faible', 'moyenne', 'élevée', 'critique')),
@@ -54,7 +54,9 @@ create table if not exists public.constats (
   confirme_ecran boolean not null default false,
   session_h text,                                        -- la session H de la preuve : jamais dans le ticket
   piste text,                                            -- une piste de correction, par modèle de règle
-  empreinte text generated always as (application_id || '|' || theme || '|' || methode || '|' || chemin) stored,
+  critere text check (critere is null or length(critere) <= 200),  -- QA : le critère en écart, tiré du plan (jamais du site)
+  preuve text check (preuve is null or length(preuve) <= 600),     -- comment c'est prouvé, quand ce n'est pas un rejeu A/B
+  empreinte text generated always as (application_id || '|' || theme || '|' || methode || '|' || chemin || coalesce('|' || critere, '')) stored,
   alerte_statut text not null default 'a_traiter' check (alerte_statut in ('a_traiter', 'en_cours', 'traitee', 'echec')),
   alerte_tentatives integer not null default 0,
   alerte_prise_le timestamptz,
@@ -65,6 +67,23 @@ create table if not exists public.constats (
 );
 create index if not exists constats_empreinte_idx on public.constats (empreinte, cree_le);
 create index if not exists constats_alerte_idx on public.constats (alerte_statut, cree_le);
+
+-- Migration du 19/11 (D-42), pour une base créée avant : les écarts QA et les failles d'une mission pentest.
+-- L'empreinte d'une faille sans critère ne change pas : ses tickets existants restent reconnus.
+alter table public.constats drop constraint if exists constats_theme_check;
+alter table public.constats add constraint constats_theme_check check (theme in ('lecture', 'ecriture', 'admin', 'compte', 'qa'));
+alter table public.constats add column if not exists critere text check (critere is null or length(critere) <= 200);
+alter table public.constats add column if not exists preuve text check (preuve is null or length(preuve) <= 600);
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'constats'
+                  and column_name = 'empreinte' and generation_expression like '%critere%') then
+    drop index if exists public.constats_empreinte_idx;
+    alter table public.constats drop column empreinte;
+    alter table public.constats add column empreinte text generated always as
+      (application_id || '|' || theme || '|' || methode || '|' || chemin || coalesce('|' || critere, '')) stored;
+    create index constats_empreinte_idx on public.constats (empreinte, cree_le);
+  end if;
+end $$;
 
 -- Comme les autres tables : RLS sans politique. Seule la clé secrète (serveur, runner, n8n) lit et écrit.
 alter table public.applications enable row level security;
@@ -92,7 +111,17 @@ $$;
 create or replace function public.alerte_phrase(theme text) returns text language sql immutable as $$
   select case theme when 'lecture' then 'Une autre entreprise peut lire'
                     when 'ecriture' then 'Une autre entreprise peut modifier'
+                    when 'compte' then 'Un autre compte peut lire'
+                    when 'qa' then 'Écart fonctionnel sur'
                     else 'Un salarié peut accéder à' end
+$$;
+
+create or replace function public.alerte_type(theme text) returns text language sql immutable as $$
+  select case theme when 'lecture' then 'Lecture par une autre entreprise'
+                    when 'ecriture' then 'Modification par une autre entreprise'
+                    when 'compte' then 'Lecture par un autre compte'
+                    when 'qa' then 'Écart fonctionnel (QA)'
+                    else 'Accès d''un salarié à une partie réservée' end
 $$;
 
 create or replace function public.alerte_majuscule(t text) returns text language sql immutable as $$
@@ -154,26 +183,25 @@ begin
                           'Aucune donnée personnelle détectée');
   raisons_txt := coalesce(nullif(array_to_string(array(select '- ' || public.alerte_majuscule(r) || '.' from unnest(c.raisons) r), E'\n'), ''),
                           '- Règle de gravité appliquée sans raison détaillée.');
-  preuve_txt := '1. **Rejeu HTTP :** ' ||
+  preuve_txt := coalesce(c.preuve, '1. **Rejeu HTTP :** ' ||
                 case when c.similarite is null then 'non mesuré.'
                      else 'le compte de test redemande la page et reçoit la même réponse (similarité '
                           || replace(to_char(c.similarite, 'FM0.00'), '.', ',') || ' ; seuil '
                           || replace(to_char(c.seuil, 'FM0.00'), '.', ',') || ').' end || E'\n' ||
                 '2. **Confirmation à l''écran :** ' ||
                 case when c.confirme_ecran then 'notre agent, connecté avec le compte de test concerné, a ouvert la page et l''a vue.'
-                     else 'non confirmée par l''agent.' end;
+                     else 'non confirmée par l''agent.' end);
   lien := case when nullif(p_url_releve_base, '') is not null and c.audit_id is not null
                then rtrim(p_url_releve_base, '/') || '/' || c.audit_id end;
 
-  corps := '## Faille prouvée par HSentinel' || E'\n\n' ||
+  corps := '## ' || case when c.theme = 'qa' then 'Écart fonctionnel constaté' else 'Faille prouvée' end || ' par HSentinel' || E'\n\n' ||
            '| | |' || E'\n' || '|---|---|' || E'\n' ||
            '| **Application** | ' || app.nom || ' |' || E'\n' ||
            '| **Gravité** | ' || g || ' |' || E'\n' ||
            '| **Accès** | `' || acces || '` |' || E'\n' ||
-           '| **Type** | ' || case c.theme when 'lecture' then 'Lecture par une autre entreprise'
-                                             when 'ecriture' then 'Modification par une autre entreprise'
-                                             else 'Accès d''un salarié à une partie réservée' end || ' |' || E'\n' ||
-           '| **Données exposées** | ' || donnees_txt || ' |' || E'\n' ||
+           '| **Type** | ' || public.alerte_type(c.theme) || ' |' || E'\n' ||
+           case when c.theme = 'qa' then '| **Critère** | ' || coalesce(c.critere, '—') || ' |'
+                else '| **Données exposées** | ' || donnees_txt || ' |' end || E'\n' ||
            '| **Audit** | ' || quand || ' · ' || version_txt || ' |' || E'\n\n' ||
            '### Pourquoi « ' || c.gravite || ' »' || E'\n' || raisons_txt || E'\n\n' ||
            '### Comment c''est prouvé' || E'\n' || preuve_txt || E'\n\n' ||
@@ -187,27 +215,35 @@ begin
     'constat_id', c.id,
     'action', action,
     'github_issue_number', ticket,
-    'titre', '[HSentinel · ' || g || '] ' || public.alerte_phrase(c.theme) || ' ' || acces,
+    'titre', case when c.theme = 'qa'
+                  then '[HSentinel · QA · ' || g || '] ' || public.alerte_phrase(c.theme) || ' ' || acces || coalesce(' : ' || c.critere, '')
+                  else '[HSentinel · ' || g || '] ' || public.alerte_phrase(c.theme) || ' ' || acces end,
     'corps_ticket', corps,
-    'etiquettes', jsonb_build_array('securite', 'hsentinel', 'gravite:' || translate(c.gravite, 'é', 'e')),
+    'etiquettes', case when c.theme = 'qa' then jsonb_build_array('qa', 'hsentinel', 'regression')
+                       else jsonb_build_array('securite', 'hsentinel', 'gravite:' || translate(c.gravite, 'é', 'e')) end,
     'gravite', g,
     'gravite_permet_email', c.gravite <> 'faible',
     'email_alertes', nullif(app.email_alertes, ''),
     'email_sujet', '[HSentinel · ' || g || '] ' ||
-                   case when action = 'creer_ticket' then 'Faille prouvée' else 'Faille réapparue' end ||
+                   case when c.theme = 'qa' then case when action = 'creer_ticket' then 'Écart fonctionnel constaté' else 'Écart fonctionnel réapparu' end
+                        when action = 'creer_ticket' then 'Faille prouvée' else 'Faille réapparue' end ||
                    ' sur ' || app.nom || ' : ' || acces,
     'email_html',
       '<p>HSentinel a ' || case when action = 'creer_ticket' then 'prouvé' else 'de nouveau prouvé' end ||
-      ' une faille de gravité <strong>' || g || '</strong> sur <strong>' || public.alerte_html(app.nom) || '</strong>.</p>' ||
+      ' ' || case when c.theme = 'qa' then 'un écart fonctionnel' else 'une faille' end ||
+      ' de gravité <strong>' || g || '</strong> sur <strong>' || public.alerte_html(app.nom) || '</strong>.</p>' ||
       '<ul><li>Accès : <code>' || public.alerte_html(acces) || '</code></li>' ||
-      '<li>Données exposées : ' || public.alerte_html(donnees_txt) || '</li>' ||
+      case when c.theme = 'qa' then '<li>Critère : ' || public.alerte_html(coalesce(c.critere, '—')) || '</li>'
+           else '<li>Données exposées : ' || public.alerte_html(donnees_txt) || '</li>' end ||
       '<li>Audit : ' || public.alerte_html(quand) || '</li></ul>' ||
       '<p>Le détail et la preuve sont dans le ticket : <a href="%%LIEN_TICKET%%">ouvrir le ticket</a>.</p>' ||
       '<p style="color:#5b6472">E-mail envoyé automatiquement par HSentinel. Il ne contient aucune donnée de l''application testée.</p>',
     'commentaire_toujours',
-      '**Toujours présente** lors de l''audit du ' || quand || ' (' || version_txt || '). Gravité : ' || g || '.',
+      case when c.theme = 'qa' then '**Toujours présent**' else '**Toujours présente**' end ||
+      ' lors de l''audit du ' || quand || ' (' || version_txt || '). Gravité : ' || g || '.',
     'commentaire_reapparue',
-      '**La faille est réapparue** lors de l''audit du ' || quand || ' (' || version_txt ||
+      case when c.theme = 'qa' then '**L''écart est réapparu**' else '**La faille est réapparue**' end ||
+      ' lors de l''audit du ' || quand || ' (' || version_txt ||
       '), alors que ce ticket était fermé : il est rouvert. Gravité : ' || g || '.'
   );
 end $$;

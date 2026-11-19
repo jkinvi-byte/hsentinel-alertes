@@ -27,3 +27,14 @@ test('Le bilan compte les gravités, les alertes envoyées et les tickets distin
     .map(ligneAlerte);
   assert.deepEqual(bilanAlertes(alertes), { total: 3, par_gravite: { critique: 2, 'élevée': 0, moyenne: 0, faible: 1 }, envoyees: 2, en_echec: 1, tickets: 1 });
 });
+
+test('Un écart QA se lit avec son critère, et le nouveau type de faille a son nom', () => {
+  const qa = ligneAlerte({ id: 'q1', cree_le: '2026-11-19T03:30:00Z', application_id: 'eugenia-public', theme: 'qa', methode: 'GET',
+    chemin: '/programme/bachelor-ia-business', gravite: 'moyenne', critere: 'Texte attendu « Bac+5 » absent',
+    raisons: ['le texte attendu n’est plus sur la page servie'], alerte_statut: 'a_traiter' });
+  assert.equal(qa.type, 'Écart fonctionnel (QA)');
+  assert.deepEqual(qa.raisons, ['Texte attendu « Bac+5 » absent', 'le texte attendu n’est plus sur la page servie']);
+  assert.equal(ligneAlerte({ theme: 'compte', methode: 'GET', chemin: '/x', raisons: [] }).type, 'Lecture par un autre compte');
+  assert.deepEqual(ligneAlerte({ theme: 'lecture', methode: 'GET', chemin: '/x', raisons: ['r'] }).raisons, ['r']);  // une faille du banc, inchangée
+});
+

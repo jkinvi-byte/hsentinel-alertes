@@ -75,5 +75,56 @@ class ConstatsTest(unittest.TestCase):
         sentinelqa.publier_constats(BaseSansTable(), RAPPORT, "a1")  # aucune exception ne remonte
 
 
+RAPPORT_QA = {
+    "request": {"target_id": "eugenia-public"}, "started_at": "2026-11-19T03:30:00+00:00",
+    "sessions": [{"session": "s-qa"}],
+    "results": [
+        {"id": "C1", "type": "texte", "status": "failed", "reason_code": "text_missing", "attendu": "Bac+5",
+         "chemin": "/programme/bachelor-ia-business", "observe": "Le texte attendu n'est pas sur la page servie.", "preuves": ["obs-3", "http-1"]},
+        {"id": "A1", "type": "auto", "status": "failed", "reason_code": "page_http_error", "chemin": "/", "observe": "HTTP 503.",
+         "preuves": ["http-2"]},
+        {"id": "L1", "type": "lien", "status": "failed", "reason_code": "broken_link", "chemin": "/ancienne-page", "observe": "HTTP 404."},
+        {"id": "C2", "type": "page", "status": "passed", "chemin": "/programme"},
+        {"id": "C3", "type": "constat", "status": "inconclusive", "reason_code": "agent_reported_gap"},
+        {"id": "K2", "type": "identite", "status": "failed", "reason_code": "identity_missing"},
+    ],
+}
+
+
+class EcartsEtMissionsTest(unittest.TestCase):
+    def test_un_constat_par_ecart_prouve_par_le_code(self):
+        lignes = constats.lignes_qa(RAPPORT_QA)
+        self.assertEqual([(l["chemin"], l["gravite"], l["critere"]) for l in lignes],
+                         [("/programme/bachelor-ia-business", "moyenne", "Texte attendu « Bac+5 » absent"),
+                          ("/", "élevée", "Page en erreur"), ("/ancienne-page", "faible", "Lien cassé")])
+        self.assertTrue(all(l["theme"] == "qa" and l["application_id"] == "eugenia-public" and l["donnees"] == [] for l in lignes))
+        self.assertEqual([l["confirme_ecran"] for l in lignes], [True, False, False])  # une capture de l'agent sur la page en écart
+        self.assertIn("**Vérification par le code :**", lignes[0]["preuve"])
+        self.assertEqual(lignes[0]["audit_le"], "2026-11-19T03:30:00+00:00")
+
+    def test_un_site_connecte_ne_recopie_jamais_le_texte_attendu(self):
+        rapport = {**RAPPORT_QA, "request": {"target_id": "peer-review"},
+                   "results": [{"id": "C1", "type": "texte", "status": "failed", "attendu": "Camille Martin", "chemin": "/etudiant"}]}
+        ligne = constats.lignes_qa(rapport)[0]
+        self.assertNotIn("Camille", json.dumps(ligne, ensure_ascii=False))
+        self.assertRegex(ligne["critere"], r"^Texte attendu absent \(réf\. [0-9a-f]{8}\)$")
+        self.assertEqual(ligne["critere"], constats.lignes_qa(rapport)[0]["critere"])  # stable : le même texte, le même ticket
+
+    def test_cible_inconnue_et_mission_pentest(self):
+        self.assertEqual(constats.lignes_qa({**RAPPORT_QA, "request": {"target_id": "cadence"}}), [])
+        passe = {"request": {"target_id": "peer-review"}, "results": [{"scenario_id": "S-PEER-01", "status": "passed"}]}
+        self.assertEqual(constats.lignes_mission(passe), [])
+        # S-PEER-01 ne sait pas prouver une faille : même un « failed » inattendu ne devient pas un ticket.
+        self.assertEqual(constats.lignes_mission({**passe, "results": [{"scenario_id": "S-PEER-01", "status": "failed"}]}), [])
+        faille = {"request": {"target_id": "peer-review"}, "scope_snapshot": {"entry_url": "https://peer-review-black.vercel.app/etudiant"},
+                  "results": [{"scenario_id": "S-PEER-02", "status": "failed", "reason_code": "protected_content_received"}]}
+        ligne = constats.lignes_mission(faille, audit_id="a1")[0]
+        self.assertEqual((ligne["theme"], ligne["gravite"], ligne["chemin"], ligne["audit_id"]), ("compte", "élevée", "/etudiant", "a1"))
+
+    def test_publier_lignes(self):
+        base = FakeBase()
+        self.assertEqual(constats.publier_lignes(base, constats.lignes_qa(RAPPORT_QA)), ["c1", "c2", "c3"])
+
+
 if __name__ == "__main__":
     unittest.main()
