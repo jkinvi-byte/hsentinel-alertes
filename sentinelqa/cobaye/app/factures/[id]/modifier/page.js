@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation';
 import { exigerAdmin } from '../../../../lib/session';
-import { ENTREPRISES, FACTURES } from '../../../../lib/donnees';
+import { ENTREPRISES, lireFactures } from '../../../../lib/donnees';
 
 export default async function ModifierFacture({ params }) {
+  const FACTURES = await lireFactures();
   const utilisateur = await exigerAdmin();
   const { id } = await params;
   const facture = FACTURES.find((f) => f.id === id && f.entreprise === utilisateur.entreprise);

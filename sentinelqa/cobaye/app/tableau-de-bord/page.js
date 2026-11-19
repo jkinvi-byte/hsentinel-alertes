@@ -1,7 +1,9 @@
 import { exigerConnexion } from '../../lib/session';
-import { ENTREPRISES, FICHES_DE_PAIE, FACTURES, SALARIES } from '../../lib/donnees';
+import { ENTREPRISES, lireFiches, lireFactures, SALARIES } from '../../lib/donnees';
 
 export default async function TableauDeBord() {
+  const FICHES_DE_PAIE = await lireFiches();
+  const FACTURES = await lireFactures();
   const utilisateur = await exigerConnexion();
   const e = utilisateur.entreprise;
   const prenom = utilisateur.nom.split(' ')[0];

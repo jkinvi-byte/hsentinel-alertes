@@ -1,7 +1,8 @@
 import { exigerConnexion } from '../../lib/session';
-import { FICHES_DE_PAIE, salarie, euros } from '../../lib/donnees';
+import { lireFiches, salarie, euros } from '../../lib/donnees';
 
 export default async function FichesDePaie() {
+  const FICHES_DE_PAIE = await lireFiches();
   const utilisateur = await exigerConnexion();
   const admin = utilisateur.acces === 'admin';
   // Un administrateur voit les fiches de son entreprise ; un salarié, seulement les siennes.

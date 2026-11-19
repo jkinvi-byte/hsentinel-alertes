@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation';
 import { exigerAdmin } from '../../../lib/session';
-import { ENTREPRISES, FACTURES, euros } from '../../../lib/donnees';
+import { ENTREPRISES, lireFactures, euros } from '../../../lib/donnees';
 
 // CONTRÔLE SAIN C1 (voir VERITE_TERRAIN.json) : la facture n'est montrée qu'à son entreprise.
 // Sert à vérifier que SentinelQA ne signale pas de faux positif.
 export default async function Facture({ params }) {
+  const FACTURES = await lireFactures();
   const utilisateur = await exigerAdmin();
   const { id } = await params;
   const facture = FACTURES.find((f) => f.id === id && f.entreprise === utilisateur.entreprise);

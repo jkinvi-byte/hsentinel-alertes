@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation';
 import { exigerAdmin } from '../../../../lib/session';
-import { ENTREPRISES, FICHES_DE_PAIE, salarie } from '../../../../lib/donnees';
+import { ENTREPRISES, lireFiches, salarie } from '../../../../lib/donnees';
 
 // Le formulaire, lui, est protégé : seul un administrateur de l'entreprise propriétaire l'ouvre.
 // C'est sa route d'enregistrement qui ne vérifie rien (faille F4).
 export default async function ModifierFiche({ params }) {
+  const FICHES_DE_PAIE = await lireFiches();
   const utilisateur = await exigerAdmin();
   const { id } = await params;
   const fiche = FICHES_DE_PAIE.find((f) => f.id === id && f.entreprise === utilisateur.entreprise);

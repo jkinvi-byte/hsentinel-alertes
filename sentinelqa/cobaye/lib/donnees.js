@@ -33,16 +33,49 @@ const DEPART = {
   ],
 };
 
-// Les fiches et les factures se modifient : elles vivent sur globalThis, pour que les pages
-// et les routes d'API, compilées séparément par Next, partagent les mêmes tableaux.
-globalThis.__paieExpress ??= structuredClone(DEPART);
-export const FICHES_DE_PAIE = globalThis.__paieExpress.fiches;
-export const FACTURES = globalThis.__paieExpress.factures;
+// Seuls le commentaire d'une fiche et la note d'une facture se modifient. En ligne (D-45), chaque instance
+// Vercel a sa propre mémoire : ces deux champs vivent donc dans la table cobaye_ecritures de Supabase
+// (supabase/banc.sql), lue avec la clé publishable, jamais avec la clé secrète. En local, sans SUPABASE_URL,
+// ils restent dans la mémoire du processus, partagée par les pages et les routes.
+const BASE = process.env.SUPABASE_URL;
+globalThis.__paieExpressEcritures ??= new Map();
 
-// Remet les données de démonstration dans leur état de départ, en gardant les mêmes tableaux.
-export function reinitialiser() {
-  FICHES_DE_PAIE.splice(0, FICHES_DE_PAIE.length, ...structuredClone(DEPART.fiches));
-  FACTURES.splice(0, FACTURES.length, ...structuredClone(DEPART.factures));
+async function banc(requete = '', options = {}) {
+  const reponse = await fetch(`${BASE}/rest/v1/cobaye_ecritures${requete}`, {
+    ...options,
+    cache: 'no-store',
+    headers: { apikey: process.env.SUPABASE_PUBLISHABLE_KEY, 'Content-Type': 'application/json', ...options.headers },
+  });
+  if (!reponse.ok) throw new Error(`Banc Supabase : HTTP ${reponse.status}`);
+  return reponse;
+}
+
+async function ecritures() {
+  if (!BASE) return globalThis.__paieExpressEcritures;
+  const lignes = await (await banc('?select=objet,valeur')).json();
+  return new Map(lignes.map((l) => [l.objet, l.valeur]));
+}
+
+export async function lireFiches() {
+  const e = await ecritures();
+  return DEPART.fiches.map((f) => ({ ...f, commentaire: e.get(`fiche:${f.id}`) ?? f.commentaire }));
+}
+
+export async function lireFactures() {
+  const e = await ecritures();
+  return DEPART.factures.map((f) => ({ ...f, note: e.get(`facture:${f.id}`) ?? f.note }));
+}
+
+// objet : « fiche:<id> » ou « facture:<id> ».
+export async function ecrire(objet, valeur) {
+  if (!BASE) return void globalThis.__paieExpressEcritures.set(objet, valeur);
+  await banc('', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ objet, valeur }) });
+}
+
+// Remet les données de démonstration dans leur état de départ.
+export async function reinitialiser() {
+  if (!BASE) return void globalThis.__paieExpressEcritures.clear();
+  await banc('?objet=not.is.null', { method: 'DELETE' });
 }
 
 export function salarie(id) {

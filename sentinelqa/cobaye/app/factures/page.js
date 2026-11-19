@@ -1,7 +1,8 @@
 import { exigerAdmin } from '../../lib/session';
-import { FACTURES, euros } from '../../lib/donnees';
+import { lireFactures, euros } from '../../lib/donnees';
 
 export default async function Factures() {
+  const FACTURES = await lireFactures();
   const utilisateur = await exigerAdmin();
   const factures = FACTURES.filter((f) => f.entreprise === utilisateur.entreprise);
   return (

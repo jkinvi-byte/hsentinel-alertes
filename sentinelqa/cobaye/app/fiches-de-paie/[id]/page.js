@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation';
 import { exigerConnexion } from '../../../lib/session';
-import { ENTREPRISES, FICHES_DE_PAIE, salarie, euros } from '../../../lib/donnees';
+import { ENTREPRISES, lireFiches, salarie, euros } from '../../../lib/donnees';
 
 // FAILLE INJECTÉE F1 (voir VERITE_TERRAIN.json) : la fiche est affichée sans vérifier
 // qu'elle appartient à l'entreprise de l'utilisateur connecté, ni qu'un salarié en est le titulaire (F6).
 export default async function FicheDePaie({ params }) {
+  const FICHES_DE_PAIE = await lireFiches();
   const utilisateur = await exigerConnexion();
   const { id } = await params;
   const fiche = FICHES_DE_PAIE.find((f) => f.id === id);

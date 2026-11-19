@@ -30,6 +30,7 @@ Les tests IDOR, c'est-à-dire un compte qui lit ou modifie l'objet d'un autre en
 | Test | Résultat | Durée et coût |
 |---|---|---|
 | Tests IDOR sur le banc Paie Express : 6 failles injectées, 4 contrôles sains, vérité terrain écrite avant l'audit | **59 failles prouvées sur 60, en 10 audits, 0 faux positif** | 0,13 à 0,21 $ par audit |
+| Le même banc, en ligne sur Vercel (19/11) : audit complet par les agents H | **6 sur 6, 0 faux positif** ; la vérité terrain du banc passe 21 contrôles sur 21, trois fois de suite | 283 s, 0,215 $ |
 | QA guidé sur eugeniaschool.com (« Bac+3 » sur la page du Bachelor), 10 répétitions | 10 sur 10 | 29 s et 0,007 $ en moyenne |
 | QA en exploration bornée, 10 répétitions | 10 sur 10 | 103 s et 0,051 $ en moyenne |
 | QA connecté sur Peer Review, 10 répétitions | Connexion et identité prouvées 10 sur 10, aucune écriture | 40 s et 0,015 $ en moyenne |
@@ -55,7 +56,7 @@ Le principe : **l'agent montre, le code décide.** Hugging Face prépare le plan
 
 ## Tester
 
-- **En ligne** : https://hsentinel-console.vercel.app, avec le code de l'équipe. Lancez un QA (consigne tapée ou dictée, puis « Préparer le plan » et « Lancer la mission »), le pentest « Vérifier la barrière d'accès sans connexion », puis ouvrez la page Alertes. Les missions sont exécutées par les workers de l'équipe : s'ils sont arrêtés, une mission reste en attente.
+- **En ligne** : https://hsentinel-console.vercel.app, avec le code de l'équipe. Lancez un QA (consigne tapée ou dictée, puis « Préparer le plan » et « Lancer la mission »), le pentest « Vérifier la barrière d'accès sans connexion », puis ouvrez la page Alertes. Les missions sont exécutées par les workers de l'équipe : s'ils sont arrêtés, une mission reste en attente. Le banc IDOR est en ligne lui aussi : https://hsentinel-banc.vercel.app, avec des comptes et des données fictifs (`sentinelqa/runner/comptes-demo.json`).
 - **En local** : il faut Python 3.12, Node 20 ou plus, une clé H (`pbpaste | holo login --key --force`), et les clés Supabase et `HF_TOKEN` dans `~/.config/sentinelqa/.env`, sur le modèle de [`sentinelqa/.env.example`](sentinelqa/.env.example). Les clés ne vont jamais dans le dépôt.
 
 ```sh
@@ -70,7 +71,8 @@ Sans console :
 ```sh
 .venv/bin/python sentinelqa/runner/qa_moteur.py --consigne "Ouvre Programmes puis le Bachelor et vérifie qu'il affiche « Bac+3 »"
 .venv/bin/python sentinelqa/runner/qa_moteur.py --exploration --mobile
-sentinelqa/demo.sh            # le banc IDOR : Paie Express, un tunnel public, puis l'audit
+.venv/bin/python sentinelqa/runner/sentinelqa.py https://hsentinel-banc.vercel.app --autoriser-ecriture   # le banc IDOR, en ligne
+sentinelqa/demo.sh            # le même banc en local, derrière un tunnel public
 ```
 
 Tests : `.venv/bin/python -m unittest discover -s sentinelqa/runner/tests`, puis `npm test` dans `sentinelqa/web` et dans `sentinelqa/web-console`. `npm run test:browser` lance les tests navigateur de la console.
@@ -98,7 +100,7 @@ Tests : `.venv/bin/python -m unittest discover -s sentinelqa/runner/tests`, puis
 | `sentinelqa/contrats/` | Les cibles autorisées et leurs limites, lues par le runner et par la console |
 | `sentinelqa/supabase/` | Les schémas SQL, dont `alertes.sql` : applications, constats, fonctions de n8n |
 | `sentinelqa/n8n/` | Les workflows W1, W3 et W4 et leur mise en service |
-| `sentinelqa/cobaye/` | Paie Express, le banc IDOR à failles injectées (comptes et données fictifs) |
+| `sentinelqa/cobaye/` | Paie Express, le banc IDOR à failles injectées (comptes et données fictifs), en ligne sur https://hsentinel-banc.vercel.app |
 | `contributions/` | Les modules pentest en cours d'intégration (S-PEER-02, Hugging Face vers contrôles) |
 
 Pièges qui ont déjà mordu :
@@ -107,6 +109,9 @@ Pièges qui ont déjà mordu :
 - **Clé H** : `holo login` l'écrit entre guillemets. Il faut les retirer à la lecture, sinon H répond 403.
 - **Page de départ d'un agent** : H refuse `start_url: "about:blank"` à la création d'un agent. Chaque session impose sa page de départ.
 - **Titres à styles mêlés** : dans un titre comme « Bonne *soirée* », le texte relevé par H ne garde que la partie en italique. Le rapport le signale (`h_text_partial`) et renvoie à la capture.
+- **État en mémoire sur Vercel** : chaque instance a sa propre mémoire. Ce qu'une requête doit voir d'une autre (une donnée modifiée, le secret de session) vit hors du processus : dans Supabase et dans une variable d'environnement.
+- **Nouvelle table Supabase** : l'API ne la voit qu'après `notify pgrst, 'reload schema'`. Sinon, elle répond `PGRST205`, et un test de refus semble réussir sans avoir rien testé.
+- **Projet créé par `vercel project add`** : il n'a pas de framework, et le build cherche un dossier `public`. Le framework se déclare dans `vercel.json`.
 - **Événements H** : ils arrivent par lots, et H a souvent déjà exécuté un geste quand notre garde le voit. Sur un site réel, la consigne et les zones interdites protègent d'abord ; la garde borne la suite.
 
 L'état détaillé, daté, et la liste de ce qui reste à faire sont dans [SUIVI.md](SUIVI.md). Les décisions et leurs raisons sont dans [ARCHITECTURE.md](ARCHITECTURE.md).

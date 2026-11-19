@@ -1,6 +1,6 @@
 # Suivi du projet
 
-> Mis à jour le 19/11/2026 à 5 h 50. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
+> Mis à jour le 19/11/2026 à 6 h 15. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
 >
 > Priorité **P0** : indispensable à la démo de vendredi. **P1** : utile, mais elle peut s'en passer.
 
@@ -71,6 +71,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 32 | Chaque poste qui lance le runner : créer sa clé dans l'espace H de Jahdiel | Plateforme | P1 | Tous | Jeu 19 |
 | 36 | Valider les règles écrites des tickets (D-42) : pour un écart QA, page en erreur 5xx « élevée », lien cassé « faible », le reste « moyenne » ; pour une lecture par un autre compte (S-PEER-02), « élevée » | QA, Pentest | P1 | Aurian | Jeu 19 |
 | 37 | Monter W1, W3 et W4 dans l'instance n8n d'Aurian (`aurianvsolution.app.n8n.cloud`) : l'outil `sentinelqa/n8n/monter.py` est prêt et le jeton GitHub est rangé. Restent la clé d'API n8n, la connexion Google de l'identifiant Gmail, le passage du coffre Supabase sur le nouveau webhook, puis la désactivation des workflows de Jahdiel | Plateforme | P0 | Aurian, Claude | Jeu 19 |
+| 39 | Décider si le banc en ligne se lance aussi depuis la console : un scénario de plus dans le catalogue, que le runner route vers l'audit du banc (risque d'empilement à peser) | Pentest | P1 | Aurian | Jeu 19 |
 | 38 | Scanner HTTP (`runner/pentest`, en cours par un autre agent) : appeler `constats.publier_lignes(base, constats.lignes_scan(rapport))` à la fin d'un scan, ou lancer `constats.py <rapport> --scan`. Ses failles démontrées sur le banc boîte noire deviennent alors des tickets | Pentest | P1 | auteur du scanner | Jeu 19 |
 | 34 | Console : QA connecté et page Alertes raccordés. **Recette faite par Claude le 19/11** : 12 tests navigateur sur 12 en production, puis en réel une dictée, une mission publique et une mission connectée (K1/K2). Page Alertes vérifiée avec de vrais constats et le ticket n° 7. Reste : l'arrêt d'une mission réelle. [Contrat et état](ARCHITECTURE.md#11-la-web) | Plateforme | P0 | Codex, Aurian | Jeu 19 |
 | 35 | Pentest (`runner/missions.py`) : le même piège que le QA, à vérifier. H passe une session à « idle » avant d'y attacher la réponse, et `wait_for_completion` peut alors rendre `answer = None`, compté « agent_incomplete ». Le QA s'en protège avec `qa_moteur.lire_fin`, qui relit la session 10 s au plus | Pentest | P1 | Kimi | Jeu 19 |
@@ -110,6 +111,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 19/11 | Écarts QA → tickets (D-42) : la table, ses textes et les deux workers ; console mise à jour en ligne | SQL testé en local (base existante : ticket du banc identique au caractère près ; base neuve), puis appliqué en production ; 71 tests Python, 40 web, 28 console ; mission réelle « Bac+8 » depuis la console en ligne → « Écart constaté » → constat publié → ticket n° 8 par le rattrapage (3 h 33), affiché dans la console en ligne ; ticket de recette fermé et constat retiré |
 | 19/11 | Veille des mises à jour (D-43) : empreinte HTTP de chaque site, mission QA automatique quand il change ; la console devient une cible QA (pages publiques) | 7 tests ; console redéployée à 5 h 16 min 08 s → mise à jour détectée à 5 h 17 min 04 s → exploration faite à 5 h 17 min 34 s (2 conformes), visible dans la console en ligne |
 | 19/11 | Aucune faille publique sur un site tiers (D-44) : tickets publics réservés à nos applications, état « réservé » dans la console pour les autres ; scanner HTTP branché sur les constats | SQL testé en local (base existante : ticket du banc identique ; site tiers → réservé, jamais repris par le rattrapage ; base neuve), appliqué en production ; 80 tests Python, 41 web ; console redéployée |
+| 19/11 | Banc Paie Express en ligne (D-45) : https://hsentinel-banc.vercel.app ; état modifiable dans Supabase (clé publishable, RLS), secret de session fixé | Deux instances locales : avant, l'écriture de B est invisible sur l'autre instance et la session y est refusée ; après, vue et reconnue. Vérité terrain 21/21 en local, puis 3 fois en ligne. Audit H réel en ligne : 6 failles prouvées sur 6, 0 faux positif, 283 s, 0,215 $ ; Hugging Face a expiré pendant cet audit (hypothèses absentes, verdict intact) |
 
 ## Risques connus
 

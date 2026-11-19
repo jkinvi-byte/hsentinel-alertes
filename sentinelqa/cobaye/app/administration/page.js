@@ -1,9 +1,10 @@
 import { exigerConnexion } from '../../lib/session';
-import { ENTREPRISES, FICHES_DE_PAIE, UTILISATEURS, euros } from '../../lib/donnees';
+import { ENTREPRISES, lireFiches, UTILISATEURS, euros } from '../../lib/donnees';
 
 // FAILLE INJECTÉE F5 (voir VERITE_TERRAIN.json) : la page vérifie la connexion, mais pas le rôle.
 // Son lien n'apparaît qu'aux administrateurs ; un salarié qui connaît l'adresse y entre quand même.
 export default async function Administration() {
+  const FICHES_DE_PAIE = await lireFiches();
   const utilisateur = await exigerConnexion();
   const e = utilisateur.entreprise;
   const comptes = UTILISATEURS.filter((u) => u.entreprise === e);
