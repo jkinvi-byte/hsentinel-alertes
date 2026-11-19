@@ -1,14 +1,16 @@
-"""Contrat et exécution des premiers scénarios réels (D-26).
+"""Contrat de mission, scénarios historiques et routage du scanner borné.
 
 Les lectures HTTP sont bornées par le catalogue partagé avec la web app.
 Le navigateur H natif suit des consignes : ce n'est pas un pare-feu d'écriture.
-Ce lot n'ouvre que deux parcours anonymes, sans coffre ni connexion.
+S-PEER-02 reçoit ses secrets uniquement par l'environnement privé du runner.
 """
 
 import copy
 import hashlib
 import html
 import json
+import os
+import sys
 import time
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -21,6 +23,7 @@ from pydantic import BaseModel, Field
 CATALOGUE = json.loads((Path(__file__).resolve().parents[1] / "contrats/catalogue.json").read_text())
 VERSION = 2
 STATUTS = ("passed", "failed", "inconclusive", "skipped")
+SCENARIOS_GENERIQUES = {"S-GEN-DISCOVERY-01", "S-GEN-ACTIVE-01"}
 
 
 def maintenant():
@@ -32,14 +35,19 @@ def valider_demande(d):
     if not isinstance(d, dict) or set(d) - {"target_id", "scenario_id", "mode", "instruction"}:
         raise ValueError("Champs de mission non pris en charge.")
     scenario = next((s for s in CATALOGUE["scenarios"] if s["id"] == d.get("scenario_id")), None)
-    if not scenario or scenario["target_id"] != d.get("target_id") or scenario["mode"] != d.get("mode"):
+    if not scenario:
+        raise ValueError("La cible, le scénario et le volet ne correspondent pas au catalogue.")
+    target_ids = scenario.get("target_ids") or [scenario.get("target_id")]
+    if d.get("target_id") not in target_ids or scenario["mode"] != d.get("mode"):
         raise ValueError("La cible, le scénario et le volet ne correspondent pas au catalogue.")
     instruction = d.get("instruction", "")
     if not isinstance(instruction, str) or len(instruction) > 2000:
         raise ValueError("La consigne doit être un texte de 2 000 caractères au maximum.")
-    target = next(t for t in CATALOGUE["targets"] if t["id"] == scenario["target_id"])
+    target = next(t for t in CATALOGUE["targets"] if t["id"] == d["target_id"])
+    scenario = copy.deepcopy(scenario)
+    scenario["target_id"] = target["id"]
     return {"target_id": target["id"], "scenario_id": scenario["id"], "mode": scenario["mode"],
-            "instruction": instruction.strip()}, copy.deepcopy(target), copy.deepcopy(scenario)
+            "instruction": instruction.strip()}, copy.deepcopy(target), scenario
 
 
 class Interruption(Exception):
@@ -189,10 +197,18 @@ class NavigateurH:
                     raise Interruption("agent_blocked")
                 time.sleep(min(1, controle.restant()))
             result = handle.wait_for_completion(timeout_seconds=min(15, controle.restant()), wait_for_seconds=0)
-            mesure["statut"] = result.status
-            if result.status not in ("idle", "completed") or result.answer is None:
+            answer = result.answer
+            if result.status == "idle" and answer is None:
+                from qa_moteur import lire_fin
+                final = lire_fin(self.client, handle.id)
+                etat = getattr(final.status, "status", final.status)
+                mesure["statut"] = str(getattr(etat, "value", etat))
+                answer = final.latest_answer
+            else:
+                mesure["statut"] = result.status
+            if mesure["statut"] not in ("idle", "completed") or answer is None:
                 raise Interruption("agent_incomplete")
-            observation = Observation.model_validate(result.answer).model_dump()
+            observation = Observation.model_validate(answer).model_dump()
             # Le texte final du modèle n'est pas la preuve qu'une page a été visitée.
             urls = []
             for page in range(1, 11):
@@ -258,8 +274,74 @@ nom de menu ou une coquille HTML. Il n'est pas conservé dans le rapport.
     return "inconclusive", "denial_unverified"
 
 
-def executer_mission(demande, navigateur, journal=lambda *a, **k: None, arret=lambda: False, transport=None):
+def _rapport_scenario_saute(demande, target, scenario):
+    ligne = {"scenario_id": scenario["id"], "status": "skipped", "reason_code": "missing_preconditions",
+             "expected": scenario["expected"], "observed": " ; ".join(scenario.get("missing_preconditions", [])),
+             "limitations": scenario["limitations"], "evidence_references": []}
+    return {"schema_version": VERSION, "phase": "completed", "request": demande,
+            "scenario_version": scenario["version"], "scenario_title": scenario["title"],
+            "scope_snapshot": target, "started_at": maintenant(), "finished_at": maintenant(),
+            "duration_s": 0, "results": [ligne], "evidence": [], "sessions": [],
+            "summary": {s: int(s == "skipped") for s in STATUTS},
+            "cost_h": 0, "cost_hf": 0, "human_minutes": None}
+
+
+def _executer_generique(demande, target, scenario, navigateur, journal, arret):
+    if not scenario["available"]:
+        return _rapport_scenario_saute(demande, target, scenario)
+    from pentest.execution import charger_profil, executer_scan
+    from pentest.h_decouverte import ObservationH
+    from pentest.politique import origine_canonique
+
+    reference = target.get("pentest_profile")
+    if not isinstance(reference, str):
+        raise ValueError("pentest_profile_missing")
+    profil = charger_profil(Path(__file__).resolve().parents[1] / reference)
+    if profil.target_id != target["id"] or profil.origin != origine_canonique(target["origin"]):
+        raise ValueError("pentest_profile_target_mismatch")
+    profil = profil.model_copy(update={"limits": profil.limits.model_copy(update={
+        "max_time_s": min(target["limits"]["max_time_s"], profil.limits.max_time_s),
+        "max_requests": min(target["limits"]["max_reads"], profil.limits.max_requests),
+        "max_response_bytes": min(target["limits"]["max_response_bytes"], profil.limits.max_response_bytes),
+    })})
+    controle = Controle(profil.limits.max_time_s, arret)
+    observation = ObservationH(navigateur, demande, target, scenario, controle, journal) if navigateur else None
+    return executer_scan(profil, actif=scenario["id"] == "S-GEN-ACTIVE-01", zap=True,
+                         hf=profil.use_hf, h=profil.h_enabled, navigateur=observation,
+                         journal=journal, arret=arret)
+
+
+def _executer_acces(demande, entrees, navigateur_acces, journal, arret, transport):
+    dossier = Path(__file__).resolve().parents[2] / "contributions" / "kimi-pentest"
+    if str(dossier) not in sys.path:
+        sys.path.insert(0, str(dossier))
+    from agent_acces import NavigateurHAcces
+    from controle_acces import executer_controle_acces, preconditions_manquantes
+
+    if entrees is None:
+        brut = os.environ.get("HSENTINEL_PEER_ENTREES", "{}")
+        if len(brut) > 65536:
+            raise ValueError("invalid_private_inputs")
+        try:
+            entrees = json.loads(brut)
+        except json.JSONDecodeError as erreur:
+            raise ValueError("invalid_private_inputs") from erreur
+    if navigateur_acces is None and not preconditions_manquantes(entrees):
+        from hai_agents import Client
+        from sentinelqa import cle_api
+        navigateur_acces = NavigateurHAcces(
+            lambda: Client(api_key=cle_api(), timeout=15, max_retries=0), entrees["comptes"])
+    return executer_controle_acces(demande, entrees, navigateur=navigateur_acces,
+                                   journal=journal, arret=arret, transport=transport)
+
+
+def executer_mission(demande, navigateur, journal=lambda *a, **k: None, arret=lambda: False, transport=None,
+                     *, entrees=None, navigateur_acces=None):
     demande, target, scenario = valider_demande(demande)
+    if scenario["id"] in SCENARIOS_GENERIQUES:
+        return _executer_generique(demande, target, scenario, navigateur, journal, arret)
+    if scenario["id"] == "S-PEER-02":
+        return _executer_acces(demande, entrees, navigateur_acces, journal, arret, transport)
     debut = time.monotonic()
     controle = Controle(target["limits"]["max_time_s"], arret)
     preuves, sessions = [], []

@@ -6,8 +6,12 @@ export function catalog() {
     qa: CATALOGUE_QA.cibles.map(c => ({ id: c.id, name: c.nom, url: c.entree, available: true, connexion: Boolean(c.connexion),
       modes: Object.keys(CATALOGUE_QA.pilotages).filter(m => c.limites[m]), limits: c.limites })),
     pentest: CATALOGUE.scenarios.filter(s => s.mode === 'security').map(s => {
-      const t = CATALOGUE.targets.find(t => t.id === s.target_id)
-      return { id: s.id, targetId: s.target_id, name: s.title, target: t.name, url: t.entry_url, available: s.available === true, writes: t.business_writes === true,
+      const targetIds = s.target_ids ?? [s.target_id]
+      const targets = targetIds.map(id => CATALOGUE.targets.find(t => t.id === id)).filter(Boolean).map(t => ({
+        id: t.id, name: t.name, url: t.entry_url, maxSteps: t.limits.max_steps, maxTime: t.limits.max_time_s,
+      }))
+      const t = CATALOGUE.targets.find(t => t.id === targetIds[0])
+      return { id: s.id, targetId: t.id, targetIds, targets, name: s.title, target: t.name, url: t.entry_url, available: s.available === true, writes: t.business_writes === true,
         expected: s.expected, limitations: s.limitations, maxSteps: t.limits.max_steps, maxTime: t.limits.max_time_s }
     }),
   }

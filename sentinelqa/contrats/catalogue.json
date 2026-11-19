@@ -10,6 +10,7 @@
       "business_writes": false,
       "role_changes": false,
       "public_replay": false,
+      "pentest_profile": "contrats/pentest/eugenia-public.json",
       "navigation_paths": ["/", "/programme/bachelor-ia-business"],
       "read_paths": ["/", "/programme/bachelor-ia-business"],
       "limits": {"max_steps": 30, "max_time_s": 300, "max_reads": 5, "max_response_bytes": 2000000}
@@ -24,6 +25,7 @@
       "business_writes": false,
       "role_changes": false,
       "public_replay": false,
+      "pentest_profile": "contrats/pentest/peer-review.json",
       "navigation_paths": ["/etudiant", "/connexion"],
       "read_paths": ["/etudiant", "/connexion"],
       "limits": {"max_steps": 15, "max_time_s": 180, "max_reads": 5, "max_response_bytes": 1000000}
@@ -70,13 +72,33 @@
       "limitations": "Contrôle de la barrière d’entrée uniquement. Un HTML 200 sans preuve du contenu privé reste non concluant ; ce test ne prouve pas l’isolation entre étudiants ni la sécurité des API."
     },
     {
-      "id": "S-PEER-02", "version": 1, "target_id": "peer-review", "mode": "security", "available": false,
+      "id": "S-PEER-02", "version": 1, "target_id": "peer-review", "mode": "security", "available": true,
       "title": "Vérifier l’accès à une ressource d’un autre étudiant",
       "instruction": "Comparer la lecture légitime de A à la tentative de B sur une ressource connue et explicitement interdite à B.",
       "expected": "A reçoit la ressource attendue ; B, correctement authentifié, n’en reçoit pas le contenu protégé.",
       "actors": ["A", "B"], "assertion_type": "cross_actor_read",
+      "private_inputs_env": "HSENTINEL_PEER_ENTREES",
       "missing_preconditions": ["Deux identités vérifiées et sessions isolées", "Ressource de test et règle de visibilité", "Lecture HTTP ou capture réseau attribuable à chaque identité"],
       "limitations": "Un code 200, une similarité de pages ou un avis d’agent ne prouvent pas une fuite."
+    },
+    {
+      "id": "S-GEN-DISCOVERY-01", "version": 1, "mode": "security", "available": true,
+      "title": "Cartographier et contrôler passivement un site autorisé",
+      "instruction": "Observe uniquement les URL autorisées fournies dans cette mission, sans identifiant, sans formulaire et sans écriture. Relève les pages réellement atteintes et arrête-toi si une action sort du périmètre.",
+      "expected": "Les ressources autorisées sont inventoriées et chaque observation de configuration est rattachée à une réponse minimisée.",
+      "target_ids": ["peer-review", "eugenia-public"],
+      "actors": [], "assertion_type": "generic_passive_inventory",
+      "limitations": "Lecture anonyme et chemins déclarés uniquement ; aucun test actif général, aucune couverture exhaustive et aucune alerte d’outil assimilée à une faille."
+    },
+    {
+      "id": "S-GEN-ACTIVE-01", "version": 1, "mode": "security", "available": false,
+      "title": "Exécuter les contrôles actifs explicitement autorisés",
+      "instruction": "Exécuter uniquement les opérations GET de lecture confirmée et les contrôles déclarés dans le profil, sans écriture métier.",
+      "expected": "Chaque contrôle actif produit une preuve déterministe ou un résultat non concluant ; une simple réflexion ou alerte ne suffit pas.",
+      "target_ids": ["peer-review", "eugenia-public"],
+      "actors": [], "assertion_type": "generic_authorized_active_controls",
+      "missing_preconditions": ["Opérations GET confirmées en lecture seule et règles autorisées dans le profil de cette cible", "Marqueurs privés fictifs ou explicitement autorisés pour confirmer l’impact"],
+      "limitations": "Aucun contrôle actif n’est actuellement autorisé sur les sites réels ; les laboratoires se configurent par le CLI avec leur propre profil."
     },
     {
       "id": "S-BANC-01", "version": 1, "target_id": "paie-express", "mode": "security", "available": true,

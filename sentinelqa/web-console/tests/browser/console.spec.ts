@@ -97,7 +97,7 @@ test('Les routes réelles refusent une session absente ou la session simulée hi
   expect((await request.post('/api/console/expert/voix', { data: { texte: 'test' } })).status()).toBe(401)
   expect((await request.get('/api/console/alertes')).status()).toBe(401)
   expect((await request.get('/api/console/alertes?limite=0', { headers: { cookie: signed } })).status()).toBe(400)
-  const blocked = await request.post('/api/console/missions', { headers: { cookie: signed, origin: 'http://127.0.0.1:3102' }, data: { schema_version: 2, mode: 'security', target_id: 'peer-review', scenario_id: 'S-PEER-02' } })
+  const blocked = await request.post('/api/console/missions', { headers: { cookie: signed, origin: 'http://127.0.0.1:3102' }, data: { schema_version: 2, mode: 'security', target_id: 'peer-review', scenario_id: 'S-GEN-ACTIVE-01' } })
   expect(blocked.status()).toBe(400)
   expect((await request.post('/api/console/missions', { headers: { cookie: signed, origin: 'https://elsewhere.example' }, data: {} })).status()).toBe(403)
 })
@@ -321,10 +321,12 @@ test('Parcours QA : plan périmé bloqué, lancement unique et résultats non co
   await page.screenshot({ path: 'test-results/apercus/rapport-ordinateur.png', fullPage: true })
 })
 
-test('Pentest : scénario disponible, contrôles authentifiés désactivés', async ({ page }) => {
+test('Pentest : scénarios disponibles, contrôles actifs réservés au laboratoire désactivés', async ({ page }) => {
   await loginCookie(page); const calls = await fixtures(page)
   await page.goto('/app/nouveau?volet=pentest')
-  await expect(page.getByRole('option', { name: /ressource d’un autre étudiant/ })).toBeDisabled()
+  // S-PEER-02 se lance depuis la console depuis que Kimi l'a intégré ; le scan actif reste réservé au laboratoire.
+  await expect(page.getByRole('option', { name: /ressource d’un autre étudiant/ })).toBeEnabled()
+  await expect(page.getByRole('option', { name: /contrôles actifs explicitement autorisés/ })).toBeDisabled()
   await page.getByRole('button', { name: 'Lancer la mission' }).click()
   await expect(page).toHaveURL(new RegExp(`/app/missions/pentest/${id}`))
   expect(calls.starts[0].mode).toBe('security')
@@ -545,4 +547,28 @@ test('Changer de cible efface le compte et ne le joint jamais à un QA public', 
   await page.getByRole('button', { name: 'Lancer la mission' }).click()
   await expect(page).toHaveURL(new RegExp(`/app/missions/qa/${id}`))
   expect(calls.starts[0].compte).toBeUndefined()
+})
+
+
+test('Matrice IDOR : le rapport générique est visible dans une mission Pentest', async ({ page }) => {
+  await loginCookie(page)
+  const acces = { enabled: true, owner: 'A', other: 'B', identities_verified: ['A', 'B'],
+    resources: [{ path: '/access/leak500', source: 'inventory', status: 'completed' }] }
+  const resultat = (role: string, status: string) => ({ id: `access-${role}`, title: `Contrôle ${role}`, url: '/access/leak500',
+    actor_reference: role, control_id: 'idor_access', status, reason_code: status === 'failed' ? 'protected_content_received' : 'access_denied',
+    classification: status === 'failed' ? 'demonstrated_vulnerability' : 'observation', expected: 'Isolation entre comptes.', observed: 'Observation synthétique.' })
+  const rapport = { schema_version: 2, phase: 'completed', scenario_title: 'Recette IDOR générique (synthétique)', duration_s: 12,
+    access_matrix: acces, coverage: { access_resources: 1, access_resources_discovered: 1, access_identities_verified: 2,
+      forms_submitted: 2, business_forms_submitted: 0, mutations: 0, methods_sent: ['GET', 'POST'], measurement_source: 'target_observer' },
+    security_findings: { demonstrated_unique: 1, configuration_weakness_assertions: 0, tool_candidates: 0 },
+    results: [resultat('A', 'passed'), resultat('anonymous', 'passed'), resultat('B', 'failed')], evidence: [], sessions: [] }
+  await page.route(`**/api/console/missions/pentest/${id}`, route => route.fulfill({ status: 200, contentType: 'application/json',
+    body: JSON.stringify({ mission: normaliseMission({ id, statut: 'termine', cible: 'Banc fictif', rapport }, 'pentest'), events: [] }) }))
+  await page.goto(`/app/missions/pentest/${id}`)
+  await expect(page.getByRole('region', { name: 'Matrice IDOR' })).toBeVisible()
+  await expect(page.getByRole('rowheader', { name: '/access/leak500 route découverte', exact: true })).toBeVisible()
+  await expect(page.getByText('FAILLE', { exact: true })).toBeVisible()
+  await expect(page.getByText('route découverte', { exact: true })).toBeVisible()
+  await expect(page.getByText(/Méthodes HTTP observées : GET, POST/)).toBeVisible()
+  await expect(page.getByText(/0 formulaire\(s\) métier soumis par le runner/)).toBeVisible()
 })

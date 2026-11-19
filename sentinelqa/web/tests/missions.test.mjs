@@ -6,8 +6,8 @@ import { autoriseOperateur, memeOrigine } from '../lib/acces-operateur.js';
 const demande = { schema_version: 2, mode: 'qa', target_id: 'eugenia-public', scenario_id: 'Q-PUB-01', instruction: '' };
 
 test('les deux volets entrent dans la même file sans compte ni mot de passe', () => {
-  for (const scenario of CATALOGUE.scenarios.filter((s) => s.available)) {
-    const row = ligneMission({ ...demande, mode: scenario.mode, target_id: scenario.target_id, scenario_id: scenario.id });
+  for (const scenario of CATALOGUE.scenarios.filter((s) => s.available)) for (const targetId of scenario.target_ids ?? [scenario.target_id]) {
+    const row = ligneMission({ ...demande, mode: scenario.mode, target_id: targetId, scenario_id: scenario.id });
     assert.deepEqual(row.comptes, []);
     assert.equal(row.secrets_chiffres, null);
     assert.equal(row.ecriture_autorisee, false);
@@ -22,6 +22,23 @@ test('la cible, le volet et la politique ne peuvent pas être substitués', () =
     assert.throws(() => validerMission(payload));
   }
   assert.equal(cibleReelle('https://peer-review-black.vercel.app.:443/etudiant'), true);
+});
+
+test('un scénario partagé exige une cible réellement autorisée', () => {
+  for (const targetId of ['peer-review', 'eugenia-public']) {
+    const result = validerMission({ schema_version: 2, mode: 'security', target_id: targetId, scenario_id: 'S-GEN-DISCOVERY-01' });
+    assert.equal(result.target.id, targetId);
+    assert.equal(result.request.target_id, targetId);
+    assert.equal(result.scenario.target_id, targetId);
+  }
+  assert.throws(() => validerMission({ schema_version: 2, mode: 'security', target_id: 'paie-express', scenario_id: 'S-GEN-DISCOVERY-01' }));
+});
+
+test('le score du scanner sépare failles uniques, configuration et alertes', () => {
+  const row = { id: 'scan', cree_le: '2026-11-19T00:00:00Z', ...ligneMission({ schema_version: 2, mode: 'security', target_id: 'peer-review', scenario_id: 'S-GEN-DISCOVERY-01' }) };
+  row.rapport = { ...row.rapport, phase: 'completed', summary: { passed: 8, failed: 12, inconclusive: 15, skipped: 0 },
+    security_findings: { demonstrated_unique: 2, configuration_weakness_assertions: 10, tool_candidates: 15 }, results: [] };
+  assert.equal(normaliserMission(row, {}).score.prouvees, 2);
 });
 
 test('une demande en file ne devient pas un faux rapport de sécurité', () => {

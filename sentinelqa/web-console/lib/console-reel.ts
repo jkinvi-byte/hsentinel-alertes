@@ -5,9 +5,10 @@ import { requete as requeteJs } from '../../web/lib/supabase.js'
 import { CATALOGUE as CATALOGUE_JS } from '../../web/lib/missions.js'
 import { CATALOGUE_QA as CATALOGUE_QA_JS } from '../../web/lib/qa-contrat.mjs'
 import { normaliseMission } from './mission-view.mjs'
+import { matriceAcces } from './access-matrix.mjs'
 import verite from '../../cobaye/VERITE_TERRAIN.json'
 import type { ActivityEvent, Application, BrowserAction, BrowserSession, Company, DiagnosticFinding, FindingTimelineStep } from './console-data'
-import type { Deployment, Finding, Kpi, MatrixCell, PipelineStep } from './audit-types'
+import type { Deployment, Finding, Kpi, MatrixCell, PipelineStep, RoleMatrix } from './audit-types'
 
 // D-49 : les pages de la web app v0, nourries par nos vraies données. Aucun chiffre n'est inventé :
 // chaque nombre vient de Supabase (missions, constats, applications) ou d'un rapport d'agent.
@@ -353,7 +354,7 @@ function deploiementPentest(d: DonneesConsole, m: { ligne: Ligne; app: string; v
   const resultats: Ligne[] = Array.isArray(r.results) ? r.results : []
   const enCours = ENCOURS.includes(m.vue.status)
   const contexte = contexteCible(d, m.app)
-  let pipeline: PipelineStep[], prouvees: number, matrice = null as ReturnType<typeof matriceBanc> | null
+  let pipeline: PipelineStep[], prouvees: number, matrice = null as RoleMatrix | null
   if (banc) {
     const sessions: Ligne[] = banc.sessions ?? []
     const carto = sessions.filter((s) => s.cible === 'cartographie'), verif = sessions.filter((s) => s.cible !== 'cartographie')
@@ -381,17 +382,26 @@ function deploiementPentest(d: DonneesConsole, m: { ligne: Ligne; app: string; v
   } else {
     const http = ((r.evidence ?? []) as Ligne[]).filter((e) => e.kind === 'http')
     const sessions: Ligne[] = r.sessions ?? []
-    prouvees = resultats.filter((x) => x.status === 'failed').length
-    const echec = resultats.find((x) => x.status === 'failed'), conforme = resultats.length > 0 && resultats.every((x) => x.status === 'passed')
+    const failles = resultats.filter((x) => x.status === 'failed' && x.classification === 'demonstrated_vulnerability')
+    prouvees = r.security_findings?.demonstrated_unique ?? new Set(failles.map((x) => x.finding_id ?? x.id)).size
+    const echec = failles[0], conforme = resultats.length > 0 && resultats.every((x) => x.status === 'passed')
+    const acces: Ligne[] = resultats.filter((x) => x.control_id === 'idor_access')
     pipeline = [
       ...(http.length ? [{ id: 'http', title: 'Lecture HTTP', actor: 'code' as const, actorLabel: 'notre code', status: 'done' as const,
-        description: `${pluriel(http.length, 'requête')} sans session : ${[...new Set(http.map((e) => new URL(e.url).pathname))].join(', ')}.`,
+        description: `${pluriel(http.length, 'preuve')} HTTP, avec leur compte d’origine quand une session est utilisée.`,
         meta: [...new Set(http.map((e) => `HTTP ${e.status_code}`))].join(' · ') }] : []),
-      ...sessions.map((s, i) => ({ id: `session-${i}`, title: 'Agent Pentest', actor: 'agent' as const, actorLabel: 'agent H', status: 'done' as const,
-        description: `Session ${String(s.role ?? '').toLowerCase() || 'de l’agent'} : ${pluriel(s.steps ?? 0, 'étape')}.`, meta: `${Math.round(s.duree_s ?? 0)} s` })),
+      ...sessions.map((s, i) => ({ id: `session-${i}`, title: s.engine === 'h_company' ? 'Agent Pentest' : s.engine === 'playwright' ? 'Navigateur local' : 'Session HTTP',
+        actor: (s.engine === 'h_company' ? 'agent' : 'code') as 'agent' | 'code',
+        actorLabel: s.engine === 'h_company' ? 'agent H' : s.engine === 'playwright' ? 'Playwright' : 'notre code', status: 'done' as const,
+        description: `Session ${String(s.role ?? '').toLowerCase() || 'de l’agent'}${typeof s.steps === 'number' ? ` : ${pluriel(s.steps, 'étape')}` : ''}.`, meta: `${Math.round(s.duree_s ?? 0)} s` })),
+      ...(acces.length ? [{ id: 'acces', title: 'Matrice IDOR A / anonyme / B', actor: 'code' as const, actorLabel: 'notre code',
+        status: (acces.some((x) => x.status === 'failed') ? 'proven' : 'done') as 'proven' | 'done',
+        description: `${r.access_matrix?.resources?.length ?? 0} ressource(s), identités vérifiées : ${(r.access_matrix?.identities_verified ?? []).join(', ') || 'aucune'}.`,
+        meta: `${acces.filter((x) => x.status === 'failed').length} fuite(s)` }] : []),
       { id: 'resultat', title: echec ? 'Faille prouvée' : conforme ? 'Conforme' : 'Non concluant', actor: 'result', actorLabel: '',
         status: echec ? 'proven' : conforme ? 'clear' : 'done', description: String((echec ?? resultats[0])?.observed ?? m.vue.error ?? ''), meta: '' },
     ]
+    matrice = matriceAcces(r)
   }
   return {
     // Les rapports d'avant le catalogue (16 et 17/11) n'ont ni scénario ni titre : on dit ce qu'ils sont.

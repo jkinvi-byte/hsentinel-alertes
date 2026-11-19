@@ -1,6 +1,6 @@
 # Architecture de HSentinel
 
-> État au 19/11/2026, 5 h 20, relu contre le code à cette heure. Depuis 19 h 39, l'équipe travaille dans l'espace H de Jahdiel. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md). Kimi corrige `contributions/kimi-pentest` en ce moment : la section 6 décrit l'état lu à 19 h 05.
+> État au 19/11/2026, 16 h 45, relu contre le code et les rapports d'exécution. Depuis le 18/11 à 19 h 39, l'équipe travaille dans l'espace H de Jahdiel. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md). La section 6 décrit le scanner générique livré et le contrôle d'accès intégré.
 
 0. [Ce qui a changé depuis le document du 17/11](#0-ce-qui-a-changé-depuis-le-document-du-1711)
 1. [Vue d'ensemble](#1-vue-densemble)
@@ -8,11 +8,11 @@
 3. [Volet QA : le trajet d'une mission](#3-volet-qa--le-trajet-dune-mission)
 4. [Volet QA : comment un critère est vérifié](#4-volet-qa--comment-un-critère-est-vérifié)
 5. [Volet Pentest : le banc Paie Express](#5-volet-pentest--le-banc-paie-express)
-6. [Volet Pentest : Peer Review, en cours](#6-volet-pentest--peer-review-en-cours)
+6. [Volet Pentest : scanner générique et Peer Review](#6-volet-pentest--scanner-générique-et-peer-review)
 7. [Les agents H](#7-les-agents-h)
 8. [Les données dans Supabase](#8-les-données-dans-supabase)
 9. [Les secrets](#9-les-secrets)
-10. [Hugging Face : quatre usages, aucun verdict](#10-hugging-face--quatre-usages-aucun-verdict)
+10. [Hugging Face : cinq usages, aucun verdict](#10-hugging-face--cinq-usages-aucun-verdict)
 11. [La web](#11-la-web)
 12. [L'état de chaque brique](#12-létat-de-chaque-brique)
 13. [La carte du code](#13-la-carte-du-code)
@@ -53,7 +53,10 @@ flowchart TD
   DB -- "file d'attente" --> RUN["Runner Python"]
   RUN -- "fil, rapport" --> DB
   RUN -- "session" --> H["H Agents API"]
+  RUN -- "inventaire à prioriser" --> HF
+  RUN -- "plan passif ou actif borné" --> ZAP["ZAP 2.17"]
   H -- "navigateur cloud" --> SITE["Site autorisé"]
+  ZAP -- "lectures autorisées ; large seulement en laboratoire" --> SITE
   RUN -- "lectures HTTP de contrôle" --> SITE
 ```
 
@@ -141,7 +144,7 @@ sequenceDiagram
   - exploration : 10 sur 10, avec au moins 3 pages et aucun arrêt, 103 s (79 à 147) et 0,051 $. Un essai relève un « parcours difficile » sur le menu mobile : il reste non concluant ;
   - Peer Review connecté : connexion et identité 10 sur 10, « Mon parcours » 10 sur 10, aucune évaluation ouverte, 40 s (34 à 47) et 0,015 $. Le titre de l'accueil et l'état des évaluations restent non concluants dans 10 et 5 essais : H tronque ces titres à styles mêlés (`h_text_partial`) ;
   - **piège corrigé** : H passe une session à « idle » avant d'y attacher la réponse de l'agent, jusqu'à 2 s plus tard. Lue trop tôt, une réponse donnée paraissait absente (1 essai sur 10). Le runner relit désormais la session tant qu'elle est « idle » sans réponse, 10 s au plus (`lire_fin`).
-- **Site connecté (Peer Review).** Un second agent, `sentinelqa-qa-connecte`, part de la page de connexion et remplit les champs avec `fill_secret_at` : il ne voit jamais les valeurs. Le coffre H est créé pour l'essai, lié à la session, puis supprimé. Le mot de passe arrive par l'entrée standard du terminal et ne va qu'au coffre. Le code prouve la connexion (secrets remplis sur `/connexion`, puis une page de l'espace) et l'identité (un marqueur comparé, jamais recopié). Une saisie, un choix dans une liste ou un clic « envoyer », « noter », « évaluer », « commencer »… arrêtent la session. Le contrat déclare aussi des zones interdites (`chemins_exclus` ; sur Peer Review, la review du soir, `/etudiant/sessions`). Si l'une de ces pages s'affiche, la session s'arrête, quel que soit le libellé cliqué (`forbidden_page`). La mission rappelle ces interdits à l'agent (`interdits_du_site`). H enregistre les événements par lots : il a souvent déjà exécuté le geste quand la garde le voit. L'arrêt borne donc la suite, ce n'est pas un pare-feu (incident du 18/11 à 22 h 48 : une évaluation ouverte, aucune note donnée). Une lecture HTTP anonyme d'une page privée, renvoyée à la connexion, ne sert jamais de preuve. Lancement depuis le terminal, ou par la file web. Dans la file web, la demande porte le compte, et le navigateur chiffre le mot de passe avec la clé publique du runner. Le worker efface le texte chiffré de la base avant de le déchiffrer, crée le coffre, puis le supprime, même en cas d'échec. Mesures : 18 missions réelles avec le compte d'Alec, 0,259 $ au total ; les répétitions sont plus haut. Le second compte (Nathan) est refusé par le site, « Adresse ou mot de passe incorrect. », en deux essais : le mot de passe transmis est à vérifier.
+- **Site connecté (Peer Review).** Un second agent, `sentinelqa-qa-connecte`, part de la page de connexion et remplit les champs avec `fill_secret_at` : il ne voit jamais les valeurs. Le coffre H est créé pour l'essai, lié à la session, puis supprimé. Le mot de passe arrive par l'entrée standard du terminal et ne va qu'au coffre. Le code prouve la connexion (secrets remplis sur `/connexion`, puis une page de l'espace) et l'identité (un marqueur comparé, jamais recopié). Une saisie, un choix dans une liste ou un clic « envoyer », « noter », « évaluer », « commencer »… arrêtent la session. Le contrat déclare aussi des zones interdites (`chemins_exclus` ; sur Peer Review, la review du soir, `/etudiant/sessions`). Si l'une de ces pages s'affiche, la session s'arrête, quel que soit le libellé cliqué (`forbidden_page`). La mission rappelle ces interdits à l'agent (`interdits_du_site`). H enregistre les événements par lots : il a souvent déjà exécuté le geste quand la garde le voit. L'arrêt borne donc la suite, ce n'est pas un pare-feu (incident du 18/11 à 22 h 48 : une évaluation ouverte, aucune note donnée). Une lecture HTTP anonyme d'une page privée, renvoyée à la connexion, ne sert jamais de preuve. Lancement depuis le terminal, ou par la file web. Dans la file web, la demande porte le compte, et le navigateur chiffre le mot de passe avec la clé publique du runner. Le worker efface le texte chiffré de la base avant de le déchiffrer, crée le coffre, puis le supprime, même en cas d'échec. Mesures : 18 missions réelles avec le compte d'Alec, 0,259 $ au total ; les répétitions sont plus haut. Le compte B retenu pour le pentest est Moha : son authentification et son identité sont vérifiées dans S-PEER-02 le 19/11 à 11 h 45 (section 6.2), sans nouveau parcours QA mesuré avec lui. Les deux échecs historiques de Nathan ne sont plus des essais à reprendre.
 - Fichiers :
   - `runner/qa_moteur.py` : mission, session, vérification, rapport, CLI ;
   - `runner/qa_worker.py` : la file ;
@@ -190,26 +193,65 @@ flowchart TD
 - **Lancé depuis la console (D-46, 19/11)** : le scénario `S-BANC-01` du catalogue, sur la cible `paie-express` (`business_writes: true`). Le runner l'aiguille vers `auditer`, avec les comptes fictifs du banc ; la console n'envoie ni compte ni écriture, et lancer ce scénario vaut feu vert pour les écritures de test (le panneau le dit). Le résultat passe dans l'enveloppe v2 que la console affiche : un résultat par faille injectée (F1 à F6) et par contrôle sain (C1 à C4). L'arrêt demandé prend effet au début de l'étape suivante, après remise en état. La garde d'écriture du runner (et `cibleReelle` côté web) ne vise plus que les cibles sans écriture permise : les sites réels de D-24. Un échec pentest s'affiche « Faille prouvée », un échec QA « Écart constaté ». Mission réelle depuis la console : 6 failles prouvées sur 6, 0 faux positif, 298 s, 0,203 $.
 - Fichiers : `runner/sentinelqa.py` (orchestration), `runner/agents_h.py`, `runner/gravite.py`, `runner/hf.py`.
 
-## 6. Volet Pentest : Peer Review, en cours
+## 6. Volet Pentest : scanner générique et Peer Review
 
 ```mermaid
 flowchart TD
-  S1["S-PEER-01 : barrière anonyme"] -- "runner/missions.py" --> R1["/etudiant renvoie-t-il à /connexion ?"]
-  HP["HF vers contrôles"] -- "inventaire" --> S2["S-PEER-02 : module de Kimi"]
-  S2 -- "HTTP : A, anonyme, B" --> R2["A lit la ressource témoin,<br/>l'anonyme et B non ?"]
-  S2 -- "navigateur H" --> R3["Le même constat à l'écran"]
+  P["Profil autorisé : origine, chemins,<br/>comptes, opérations et budgets"] --> M["runner/missions.py"]
+  M --> C["Clients HTTP isolés + navigateur<br/>Playwright ou observation H"]
+  C --> I["Inventaire : pages, formulaires non soumis,<br/>scripts, paramètres et requêtes"]
+  I --> HF["HF : priorise des contrôles existants,<br/>IDOR compris"]
+  HF --> A["Assertions Python : A / anonyme / B,<br/>CORS, source maps, XSS et SQLi"]
+  I --> A
+  I --> Z["ZAP 2.17 : passif ou actif<br/>selon le profil autorisé"]
+  A --> R["Rapport v2 : verdict, couverture,<br/>preuves minimisées et limites"]
+  Z --> R
+  R --> W["Les deux interfaces web"]
+  R --> T["constats : failles démontrées seulement"]
+  S2["S-PEER-02 : A / anonyme / B"] --> M
 ```
 
-- **S-PEER-01** (`runner/missions.py`) : un GET anonyme de `/etudiant`, puis un constat à l'écran par l'agent `sentinelqa-pentest`. Sa définition est corrigée (plus de `about:blank`) et l'agent existe depuis le 18/11 à 19 h 40, dans l'espace de Jahdiel. Exécuté en réel le 19/11 à 2 h 52, lancé depuis la console : conforme. Le GET anonyme reçoit un 307 vers `/connexion`, et l'agent voit la page de connexion. 24 s, 0,004 $ (worker `sentinelqa.py --surveiller`).
-- **S-PEER-02** (`contributions/kimi-pentest`, point d'entrée `executer_controle_acces`) : trois contrôles, `legitimate_read` (A lit la ressource), `anonymous_read` (l'anonyme ne la lit pas) et `cross_actor_read` (B ne la lit pas). Chaque contrôle complet prévoit deux preuves : HTTP (l'empreinte de la réponse, jamais les cookies ni le corps) et navigateur H. **État après le nouveau triplet réel** :
-  - les connexions HTTP de A et du nouveau B sont validées : formulaire multipart, redirection 303 vers `/`, puis `/etudiant` en 200 avec le marqueur exact du compte correspondant ;
-  - la ressource témoin est la page de la session du soir de A. Le témoin retenu est un texte d'identité privé de A, absent de l'URL. A la lit ; l'anonyme est renvoyé à `/connexion`, sans le marqueur. La règle est confirmée : contenu de A interdit à l'anonyme et à B ;
-  - le triplet HTTP a exécuté 9 requêtes. B reçoit HTTP 200 avec **sa propre identité et sa propre vue d'évaluation**, sans le témoin de A. Aucune fuite de A n'est démontrée ; B reste `inconclusive/denial_unverified`, car ce 200 personnalisé n'est pas un refus explicite ;
-  - le volet navigateur reste bloqué. La définition locale de `sentinelqa-pentest-acces` ne contient plus `about:blank` ni aucun `start_url` ; l'agent existe dans l'espace de Jahdiel, et sa propre fonction le confirme conforme (« à jour », 18/11 à 20 h 38, avec une clé valide). Aucune session navigateur S-PEER-02 n'a encore tourné.
+### 6.1 Scanner black-box sur profil, livré
 
-  Bilan : non concluant, aucune faille revendiquée. Le module n'est raccordé ni au runner ni à la web.
-- **HF vers contrôles** (`contributions/hf-pentest`) : à partir d'un inventaire (chemins, règles, observations nettoyées), Qwen3-32B choisit les contrôles à jouer, et chacun devient un contrôle S-PEER-02. Un appel réel a été fait sur un inventaire synthétique (23,7 s, 1 492 tokens) : son plan a retrouvé la fuite et le contrôle sain du banc synthétique. Jamais exécuté sur Peer Review.
-- **Règle des sites réels** : consultation seule, aucune écriture métier, aucun changement de droits. Le seul POST admis est celui de la connexion.
+Le moteur se trouve dans `sentinelqa/runner/pentest/`, son interface en `python -m pentest.cli`. **Une URL seule ne suffit pas** : il faut un profil relu qui enregistre l'autorisation, l'origine, les chemins, les lectures confirmées, les comptes éventuels, les exclusions et les budgets. Le même code sert au banc fictif, à Juice Shop auto-hébergé et aux sites réels ; seules les données du profil changent.
+
+- **Découverte** : `inventaire.py` lit les liens, formulaires, scripts et source maps déclarés. `navigateur.py` observe le rendu et les requêtes ; `h_decouverte.py` adapte les observations de H. Aucun formulaire métier n'est soumis ; seule la connexion explicitement configurée peut l'être.
+- **Authentification générique** : `modeles.py` définit des adaptateurs `form` et `bearer`, sans nom de site ni secret en dur. `authentification.py` crée un client et un cookie jar par compte, vérifie un marqueur d'identité, et tente au plus un renouvellement après expiration. Un jeton Bearer n'est envoyé qu'à l'origine de la cible, jamais à un asset tiers. Les secrets sont référencés par noms de variables d'environnement.
+- **Matrice IDOR générique** : `acces.py` exécute A, anonyme et B sur des ressources déclarées ou des opérations `access_control: owner_only` réellement observées dans l'inventaire. A doit recevoir le témoin privé dans une réponse valide ; la réception de ce témoin par B est une fuite même sous HTTP 500. Une coquille 200, une ressource absente, une redirection externe ou une session expirée ne prouvent pas un refus. Chaque preuve porte le rôle et la session Python. La console affiche cette matrice à part, sans la confondre avec `S-BANC-01` ou `S-PEER-02`.
+- **Frontière réseau** : `politique.py` refuse les identifiants dans l'URL, les requêtes sensibles, les chemins interdits après décodage, les redirections externes et les réseaux privés hors laboratoire. Les lectures sont en GET ; le seul POST du client générique est le chemin de connexion déclaré. L'IP validée est celle du socket ouvert ; Chromium reçoit la correspondance DNS validée. Durée, requêtes, profondeur, délai et taille sont bornés.
+- **Contrôles** : `controles.py` couvre en-têtes et cookies, ressource privée connue, CORS, source maps, XSS réfléchie et SQLi booléenne. Un identifiant présent dans l'URL n'est jamais un témoin privé. Une simple réflexion ou une différence booléenne sans impact ne suffit pas ; la XSS exige l'exécution d'un marqueur JavaScript local, sans exfiltration.
+- **ZAP** : `zap.py` utilise l'Automation Framework 2.17.0. Le profil courant du banc allowliste `40012`/`40018`, toutes les autres à `OFF`, et ne cible que la query. Le profil `local-blackbox-complet.json` permet `active_rule_ids: ["*"]` sur notre laboratoire. Ce mode large reste réservé au laboratoire : la campagne réelle a montré que des règles peuvent émettre des POST malgré `postData: false`. L'API locale jetable de ZAP lit `ascan/view/scans` et enregistre `reqCount`, la progression et l'état ; les rapports bruts restent hors du dépôt et de Supabase.
+- **HF** : `hf.py` accepte `xss_reflected`, `sqli_read` et `idor_access`, uniquement sur un `endpoint_id` et un contrôle déjà autorisés, avec preuve liée. Le modèle ne fournit ni cible, ni commande, ni charge utile, ni verdict. Les propositions IDOR déclenchent réellement la matrice, y compris sans scan actif ; les autres ressources restent couvertes par le chemin déterministe. Erreur, jeton absent ou JSON invalide produisent `deterministic_fallback`. Latence, tokens et `usage.cost` sont conservés quand HF les retourne.
+- **Verdicts** : `demonstrated_vulnerability`, `configuration_weakness`, `observation` et `tool_candidate` restent distincts. Une alerte ZAP reste non concluante jusqu'à une assertion déterministe. Les preuves ne conservent ni corps, cookies, identifiants, valeurs de query, charges utiles ou secrets.
+- **Intégration et mesures** : `S-GEN-DISCOVERY-01` reste disponible pour `peer-review` et `eugenia-public` ; `S-GEN-ACTIVE-01` reste indisponible sur ces cibles. Le rapport porte couverture IDOR, sources, méthodes et compteurs ZAP. Les mutations sont mesurées par un observateur du banc, pas devinées ; en actif sans observateur, elles restent non mesurées. La mission `f2d78555-d0f7-4ffb-befd-c265193192c9` a validé le trajet Chromium → Supabase → worker → console.
+- **Alertes** : seules les violations `failed + demonstrated_vulnerability` deviennent des constats `http`. Le test du worker vérifie le rejet des candidats et de la configuration ; aucune nouvelle publication W3 réelle n'a été déclenchée pendant cette validation.
+
+**Campagnes réellement exécutées** (quatre compteurs : `passed / failed / inconclusive / skipped` ; un `failed` de configuration n'est pas une vulnérabilité) :
+
+| Cible et rapport local | Résultats | Preuves et couverture |
+|---|---|---|
+| Banc complet, IDOR + DAST large — `sentinelqa/rapports/rapport-20261119-163636-562026.json` | **35 / 10 / 24 / 0** ; **6 vulnérabilités fictives uniques**, 3 assertions de configuration et 17 candidats | Campagne `daa3bb11-5bf4-422b-be87-25be32aa1cd9` ; 7 ressources IDOR dont une découverte, deux identités vérifiées, 4/4 opérations actives. HF réel : 2 419 tokens, 42,842 s, 0,00049728 $ ; ZAP : 1 028 requêtes actives, terminé à 100 % ; 1 116 requêtes au total, 215,51 s et 0 mutation mesurée par le banc |
+| Peer Review, passif, nouveau parcours — `sentinelqa/rapports/rapport-20261119-163834-769931.json` | **5 / 0 / 7 / 0** ; **0 vulnérabilité démontrée**, 7 candidats | Campagne `16c90a28-d7d6-4515-a7c4-3d91375f4ae4` ; session H `901fd157-cb65-47b2-8ff5-fb366845da11`. 2 ressources, 5 requêtes Python, 2 passives ZAP, 0 actif et 0 mutation ; 82,9 s, 0,00645764 $ H |
+| Banc fictif, actif — `sentinelqa/rapports/pentest-blackbox-local.json` | **16 / 12 / 15 / 0** ; **5 vulnérabilités fictives uniques**, 5 assertions de configuration et 15 candidats | Campagne `8c5da44c-4889-46de-9b69-9772105805e0` ; XSS, SQLi, fuite privée sous 500, CORS privé et source map privée ; les 4 contrôles sains passent. 14 ressources, 4 opérations actives sur 4, 2 formulaires vus sans soumission, 60 requêtes Python/navigateur et 4 `requestor` ZAP. Aucune mutation |
+| Peer Review, passif — `sentinelqa/rapports/pentest-peer-review.json` | **5 / 0 / 7 / 0** ; **0 vulnérabilité démontrée**, 0 écart de configuration, 7 candidats non confirmés | Campagne `47d2c9b2-add7-4ab8-b345-6992e237002a` ; session H réelle `f8857811-3a2c-41ba-b84e-17835498b338`. 2 ressources, 2 formulaires vus sans soumission, 5 requêtes Python et 2 passives ZAP. ZAP `completed`, `active: false`. Le petit budget a limité les assets |
+| Juice Shop auto-hébergé, actif — `sentinelqa/rapports/pentest-juice-shop.local.json` | **3 / 1 / 3 / 0** ; **0 vulnérabilité démontrée**, 1 assertion de configuration, 2 candidats | Campagne `2a04dfdd-59c5-4ac5-867f-f45237e29edc`, 27,52 s. 4 ressources, 1 opération active sur 1, 11 requêtes Python et 1 `requestor` ZAP. SQLi `inconclusive / sql_injection_impact_unverified` ; alertes ZAP `40018` et `10098` non promues en failles. Instance locale arrêtée après le contrôle |
+| Peer Review, passif, console et file réelles — `sentinelqa/rapports/rapport-20261119-110201-825934.json` | **5 / 0 / 7 / 0** ; **0 vulnérabilité démontrée**, 0 écart de configuration, 7 candidats | Mission `f2d78555-d0f7-4ffb-befd-c265193192c9`, campagne `e0bdaa16-6365-4f6b-bf6d-2e859a135689`, session H `8e3a2083-b5ac-4b3a-a068-88c0136d7c8b`. 11 ressources, 14 requêtes Python/navigateur, 2 `requestor` ZAP, 2 formulaires vus sans soumission, 0 mutation. 66,71 s, 0,00703552 $ H. L'API et l'écran de la console restituent les 12 résultats et leurs limites |
+
+Sur le banc, les 117 GET vus par le serveur n'ont touché ni `/mutate`, ni `/logout`, ni `/reviews`. Les 12 lignes `failed` ne signifient donc pas 12 vulnérabilités : les 5 failles uniques, la configuration et les candidats sont comptés séparément. **Aucune absence de vulnérabilité démontrée sur Juice Shop ou Peer Review ne signifie que le site est sûr.**
+
+Les rapports locaux sont ignorés par Git. Dans les quatre campagnes initiales, HF était absent ou désactivé et le compteur actif de ZAP n'était pas collecté. Depuis la campagne `daa3bb11-5bf4-422b-be87-25be32aa1cd9`, l'appel HF, ses tokens, son coût et les 1 028 requêtes actives ZAP sont mesurés. Le nouveau Peer Review passif n'appelle pas HF, faute de contrôle éligible configuré. Le secours déterministe et les erreurs de fournisseur restent couverts par les tests.
+
+### 6.2 Contrôle d'accès A / anonyme / B
+
+- **S-PEER-01** (`runner/missions.py`) : un GET anonyme de `/etudiant`, puis un constat à l'écran par `sentinelqa-pentest`. Exécuté en réel le 19/11 à 2 h 52 depuis la console : 307 vers `/connexion`, page de connexion vue par H, 24 s et 0,004 $.
+- **S-PEER-02 est intégré** : `runner/missions.py` appelle `contributions/kimi-pentest/controle_acces.py` ; les deux interfaces le proposent. Le scénario exécute `legitimate_read`, `anonymous_read` puis `cross_actor_read`, avec clients HTTP isolés, contrôle positif et preuves attribuables. Une observation H anonyme inutilisable n'interrompt plus B ; une fuite sous HTTP 500 prime sur le statut ; une règle incomplète donne `skipped` au lieu de planter. Un identifiant présent dans l'URL ne peut pas servir de témoin privé : cette entrée est rejetée avant toute requête. Les 25 tests du module passent, revue de Codex incluse.
+- **Entrées privées** : uniquement `HSENTINEL_PEER_ENTREES`, dans l'environnement du runner ; aucun compte ou mot de passe dans le catalogue, la mission ou le rapport. Sans ces entrées, le rapport local `pentest-peer-acces-sans-prerequis.json` contient exactement 3 lignes `skipped / missing_preconditions`, sans requête HTTP ni session H.
+- **Exécution complète via `missions.executer_mission` (19/11, 11 h 45), avec Alec (A) et Moha (B)** : 9 requêtes HTTP Python et trois observations H vérifiées. A reçoit le témoin privé attendu (`passed`), l'anonyme est redirigé vers `/connexion` (`passed`), et Moha, correctement authentifié et identifié, reçoit HTTP 200 sans le témoin privé de A (`inconclusive / denial_unverified`). Ce 200 n'est pas un refus explicite : **aucune fuite n'est démontrée**, et le contrôle ne porte que sur cette ressource. Bilan 2/0/1/0 (`passed/failed/inconclusive/skipped`), 106,27 s, 0,0346595 $ H, aucune écriture métier. Sessions H : A `b492c9bb-2288-4cfd-8bd0-61e5af16cd2a`, anonyme `f4499e68-6b45-445f-a00d-ac3cb474eae7`, B `f6c42e1d-ff72-487e-87e2-458f9e7e965c`. Rapport local expurgé : `sentinelqa/rapports/rapport-20261119-114623-971079.json`.
+- **Témoin et historique** : le marqueur de la ressource est le texte d'identité privée de A, absent de l'URL ; l'identifiant de session dans l'URL ne sert pas de témoin. Le triplet HTTP du 18/11, sans nouvelles navigations H, reste dans `contributions/kimi-pentest/preuves/rapport-acces-http-reel-2026-11-18.json`. Nathan n'est plus le compte B à tester.
+- **Session H** : la course `idle` sans réponse est corrigée dans le runner et dans `agent_acces.py`. La définition de `sentinelqa-pentest-acces` ne contient plus `about:blank` ; sa relecture tolère notamment le `start_url` ajouté par H. L'agent a été confirmé dans l'espace de Jahdiel le 18/11 à 20 h 38.
+- **Ancienne contribution HF** : `contributions/hf-pentest/` reste un banc distinct de compilation d'hypothèses vers S-PEER-02. Son appel réel synthétique (23,7 s, 1 492 tokens) ne doit pas être confondu avec le secours HF du nouveau scanner générique.
+
+**Règle inchangée sur les sites réels** : découverte passive uniquement dans le scanner générique, aucune écriture métier ni changement de droits. Le seul POST du contrôle d'accès spécialisé est celui de la connexion autorisée.
 
 ## 7. Les agents H
 
@@ -220,7 +262,7 @@ flowchart TD
 | `sentinelqa-explorateur` | Banc Paie Express : cartographie | `runner/agents_h.py` | Créé et confirmé à 19 h 40 |
 | `sentinelqa-verificateur` | Banc Paie Express : preuve à l'écran | `runner/agents_h.py` | Créé et confirmé à 19 h 40 |
 | `sentinelqa-pentest` | S-PEER-01 | `runner/agents_missions.py` | Créé et confirmé à 19 h 40, définition corrigée (sans `about:blank`) ; exécuté en réel le 19/11, conforme |
-| `sentinelqa-pentest-acces` | S-PEER-02 | `contributions/kimi-pentest/agent_acces.py` | Définition locale sans `start_url` ; relecture compatible avec la valeur Bing ajoutée par H, test complet sans PATCH ; 77 tests réussis. Présent dans l'espace de Jahdiel, confirmé conforme à 20 h 38 |
+| `sentinelqa-pentest-acces` | S-PEER-02 | `contributions/kimi-pentest/agent_acces.py` | Définition locale sans `start_url` ; relecture compatible avec la valeur Bing ajoutée par H, test complet sans PATCH ; 25 tests du module réussis le 19/11. Présent dans l'espace de Jahdiel, confirmé conforme à 20 h 38 |
 | `hsentinel-explorateur`, `-verificateur`, `-preparateur` | Le bac à sable de Mohamed : cartographie, preuve, T1 | branche `agents-ia-qa-pentest` | Dans l'ancien espace seulement ; hors de `main` (section 14) |
 
 - Tous utilisent `holo4-35b-a3b`, en mode visuel. Le texte affiché (`markdown: true`), que H joint à chaque capture, n'est demandé que par les agents QA et par `sentinelqa-pentest-acces` : c'est là que le code retrouve les citations. Les agents du banc et `sentinelqa-pentest` ne le demandent pas. En QA, `holo4-27b` peut être choisi par session.
@@ -250,20 +292,20 @@ flowchart LR
 | `qa_missions` | Une mission QA : la demande validée (consigne, plan, écran), `arret_demande`, le rapport |
 | `qa_evenements` | Le fil d'une mission QA : étapes, gestes, pages, critères |
 | `applications` | Ce qu'on a le droit de tester, et comment : autorisation (D-24), profils QA et pentest, destinataire des alertes (`supabase/alertes.sql`, appliqué le 18/11) |
-| `constats` | Une ligne par faille prouvée ou par écart QA prouvé par le code, avec le suivi de son alerte n8n (ticket GitHub, e-mail). Thèmes `lecture`, `ecriture`, `admin`, `compte`, `qa` ; un écart QA porte son `critere`, qui entre dans l'empreinte. Jamais de donnée du site testé |
+| `constats` | Une ligne par faille prouvée ou par écart QA prouvé par le code, avec le suivi de son alerte n8n (ticket GitHub, e-mail). Thèmes `lecture`, `ecriture`, `admin`, `compte`, `qa`, `http` ; un écart QA porte son `critere`, qui entre dans l'empreinte. Jamais de donnée du site testé |
 
 - **Une file par volet, côté interface.** La web envoie le QA dans `qa_missions`, que seul le worker QA lit, et le pentest dans `audits`, que lit le runner du pentest. L'ancien parcours QA du premier lot (Q-PUB-01, D-27) existe encore dans le code : `/api/audits` l'accepte et le runner du pentest le traiterait, mais l'interface ne le propose plus.
 - **Cycle d'une mission** : `en_attente`, puis `en_cours`, puis `termine` ou `echec`. La réservation est atomique : elle met le statut à jour seulement s'il vaut encore `en_attente`.
 - **Sécurité** : le RLS est activé, sans aucune politique. Seule la clé secrète, utilisée par le serveur web et par le runner, lit et écrit ; la clé publique ne voit rien (vérifié dans les deux sens). Une exception depuis le 19/11 (D-45) : la table du banc en ligne, `cobaye_ecritures`, est ouverte à la clé publishable ; les autres tables lui restent fermées (vérifié).
 - Schémas : `supabase/schema.sql` pour le pentest, `supabase/qa.sql` pour le QA.
 - **Les alertes vivent dans notre base** (choix d'Aurian, 18/11 à 21 h, D-38). `supabase/alertes.sql` y est appliqué : tables `applications` et `constats`, fonctions appelées par n8n, déclencheur `constat_ajoute`. Les deux secrets du webhook W3 sont dans le coffre Supabase depuis 21 h 51, et le runner publie chaque faille prouvée du banc (`runner/constats.py`). **Recette réelle (19/11, 1 h 36 à 1 h 49)** : un constat de test du banc (Paie Express, `GET /fiches-de-paie/1041`, critique) est écrit par `constats.py`. Le déclencheur appelle bien W3, mais n8n refuse l'appel : le webhook instantané de W3 est refusé par n8n (403 « Authorization data is wrong! ») : son identifiant « Secret webhook Supabase W3 » ne porte pas l'en-tête `x-hsentinel-secret` avec la valeur de notre coffre (Jahdiel). Le rattrapage de W3, toutes les 15 min, a repris le constat. Il a créé le ticket GitHub n° 7 : étiquettes, raisons, preuve, piste de correction, aucune donnée du site testé. Il a ensuite noté l'état « traitée » dans la base, sans e-mail faute de destinataire. La page Alertes de la console l'affiche avec son lien. Republié une seconde fois, le même constat ajoute au ticket n° 7 le commentaire « Toujours présente », sans nouveau ticket (2 h 04).
-- **Aucune faille publique sur un site tiers (D-44, 19/11)**. Le dépôt des tickets est public. `applications.tickets_publics` vaut vrai pour nos seules applications : le banc Paie Express, le banc boîte noire et notre console. Pour un site tiers (Eugenia, Peer Review), `preparer_alerte` ne crée aucun ticket. Le constat passe à l'état `reservee` et reste visible dans la console ; l'équipe prévient le propriétaire directement. Le scanner HTTP (`runner/pentest`, en cours) est branché sur les tickets par `constats.lignes_scan` : seules ses failles démontrées (`demonstrated_vulnerability`) comptent, jamais un candidat ZAP ni une faiblesse de configuration, avec une gravité écrite par contrôle (injection SQL « critique », XSS, CORS et ressource privée « élevée », source map « moyenne »).
+- **Aucune faille publique sur un site tiers (D-44, 19/11)**. Le dépôt des tickets est public. `applications.tickets_publics` vaut vrai pour nos seules applications : le banc Paie Express, le banc boîte noire et notre console. Pour un site tiers (Eugenia, Peer Review), `preparer_alerte` ne crée aucun ticket. Le constat passe à l'état `reservee` et reste visible dans la console ; l'équipe prévient le propriétaire directement. Le scanner HTTP (`runner/pentest`) est branché sur les tickets par `constats.lignes_scan` : seules ses failles démontrées (`failed + demonstrated_vulnerability`) comptent, jamais un candidat ZAP ni une faiblesse de configuration, avec une gravité écrite par contrôle (injection SQL « critique », XSS, CORS et ressource privée « élevée », source map « moyenne »). Le worker appelle cette conversion pour `S-GEN-*` ; le test local couvre le filtrage, sans déclencher W3.
 - **Trois sources de constats (D-42, 19/11)** :
   - les failles prouvées du banc (`constats.publier`) ;
   - les écarts QA prouvés par le code, publiés par le worker QA à la fin de chaque mission (`constats.lignes_qa`) ;
   - les failles prouvées d'une mission pentest, publiées par le worker pentest (`constats.lignes_mission`).
 
-  Pour un écart QA, la règle de gravité est écrite : une page en erreur 5xx est « élevée », un lien cassé « faible », le reste « moyenne ». K1 et K2, qui décrivent la mise en place du test, n'ouvrent jamais de ticket. Sur un site connecté, le texte attendu n'est pas recopié : une référence courte le remplace. Le ticket QA porte les étiquettes `qa` et `regression`, et une ligne « Critère ». S-PEER-01 ne peut pas prouver de faille (il rend conforme ou non concluant) ; S-PEER-02 le pourra, une fois raccordé, sous le thème `compte`. Recette réelle du 19/11 : une mission lancée depuis la console en ligne, avec un critère volontairement faux (« Bac+8 »), est rapportée en écart et publiée comme constat. Le rattrapage de W3 en fait le ticket n° 8 (3 h 33) : étiquettes `qa` et `regression`, ligne « Critère », preuve par le code et par le parcours. La console en ligne l'affiche. Ce ticket de recette est ensuite fermé avec une explication, et le constat de recette est retiré. Restent : aligner le secret du webhook, poser `github_webhook_secret` pour W1 et choisir un destinataire d'e-mail.
+  Pour un écart QA, la règle de gravité est écrite : une page en erreur 5xx est « élevée », un lien cassé « faible », le reste « moyenne ». K1 et K2, qui décrivent la mise en place du test, n'ouvrent jamais de ticket. Sur un site connecté, le texte attendu n'est pas recopié : une référence courte le remplace. Le ticket QA porte les étiquettes `qa` et `regression`, et une ligne « Critère ». S-PEER-01 ne peut pas prouver de faille (il rend conforme ou non concluant) ; S-PEER-02, désormais raccordé, le peut sous le thème `compte`. Recette réelle du 19/11 : une mission lancée depuis la console en ligne, avec un critère volontairement faux (« Bac+8 »), est rapportée en écart et publiée comme constat. Le rattrapage de W3 en fait le ticket n° 8 (3 h 33) : étiquettes `qa` et `regression`, ligne « Critère », preuve par le code et par le parcours. La console en ligne l'affiche. Ce ticket de recette est ensuite fermé avec une explication, et le constat de recette est retiré. Restent : aligner le secret du webhook, poser `github_webhook_secret` pour W1 et choisir un destinataire d'e-mail.
 
 ## 9. Les secrets
 
@@ -284,19 +326,20 @@ flowchart LR
   - **Banc Paie Express, depuis la web** : chiffrés dans le navigateur avec la clé publique du runner (RSA-OAEP, 3072 bits). Supabase ne garde que le texte chiffré ; le runner le déchiffre en mémoire, remplit les coffres, puis l'efface.
   - **QA connecté, depuis le terminal** : le mot de passe arrive sur l'entrée standard du runner et va dans un coffre créé pour l'essai, supprimé à la fin. Il n'est écrit nulle part.
   - **QA connecté, par la file web** : chiffré dans le navigateur (RSA-OAEP, SHA-256, clé publique de `cles_runner`, que le worker publie au démarrage). Le worker retire le compte de `qa_missions` avant de le déchiffrer en mémoire, le verse dans un coffre propre à la mission, puis supprime ce coffre. Les lectures de la web retirent le texte chiffré (`sansSecret`).
-  - **S-PEER-02 (Kimi, non raccordé)** : un JSON privé hors du dépôt (droits 600) fournit les comptes A et B. Un coffre par acteur, `sentinelqa-peer-review-a` et `-b`, est rempli à chaque exécution ; le modèle ne reçoit jamais ce fichier.
+  - **S-PEER-02 (intégré au runner)** : `HSENTINEL_PEER_ENTREES` fournit les comptes A et B uniquement à l'environnement privé du processus. Un coffre par acteur, `sentinelqa-peer-review-a` et `-b`, est rempli à chaque exécution ; HF ne reçoit jamais ces entrées. Sans elles, aucun coffre ni requête n'est créé.
 - Piège connu : `holo login` écrit la clé entre guillemets. Il faut les retirer à la lecture, sinon H répond 403.
 
-## 10. Hugging Face : quatre usages, aucun verdict
+## 10. Hugging Face : cinq usages, aucun verdict
 
 | Usage | Modèle | Où | Mesure |
 |---|---|---|---|
 | Plan QA : consigne vers étapes et critères | Llama 3.3 70B, par le routeur HF | `web/lib/qa.js`, `runner/qa_moteur.py` | Environ 1 s |
 | Dictée : audio vers texte modifiable | Whisper large v3 turbo (licence MIT) | `web/lib/qa.js` | 1,1 à 1,6 s |
 | Banc Paie Express : attaques à tenter, avant les rejeux | Qwen2.5-72B | `runner/hf.py` | De 13 à 99,5 s selon les essais |
-| Peer Review : contrôles d'accès à jouer, à partir d'un inventaire | Qwen3-32B | `contributions/hf-pentest`, non raccordé | 23,7 s pour un appel réel, sur un inventaire synthétique |
+| Peer Review : contrôles d'accès à jouer, à partir d'un inventaire | Qwen3-32B | `contributions/hf-pentest`, banc distinct | 23,7 s pour un appel réel, sur un inventaire synthétique |
+| Scanner générique : priorisation XSS, SQLi et IDOR | Qwen3-32B par défaut, configurable par profil | `runner/pentest/hf.py` | **Appel réel mesuré** dans `daa3bb11-5bf4-422b-be87-25be32aa1cd9` : 2 419 tokens, 42,842 s, 0,00049728 $ ; route IDOR découverte exécutée. Schémas valides, invalides et erreurs aussi testés |
 
-- Ce que propose Hugging Face est toujours relu : par l'utilisateur pour le plan, par le code pour le verdict.
+- Ce que propose Hugging Face est toujours relu : par l'utilisateur pour le plan, par le code pour le verdict. Dans le scanner, le modèle ne crée aucune permission et ne choisit que des identifiants existants.
 - Le routeur Hugging Face annonce OpenRouter comme fournisseur réel de Llama 3.3 70B (mesuré le 18/11).
 
 ## 11. La web
@@ -312,7 +355,8 @@ flowchart LR
 - **Routes QA** (`app/api/qa/`) : `plan`, `transcription`, `missions`, `missions/[id]`, `missions/[id]/arret`, `captures`.
 - **Accès** : `proxy.js` réserve tout à l'opérateur. En développement, seule la boucle locale est admise ; en production, il faut le jeton `HSENTINEL_OPERATOR_TOKEN`. Chaque écriture vérifie l'origine de la requête contre l'hôte réellement appelé (`Host`, ou `X-Forwarded-Host` derrière un proxy). Elle ne compare jamais à `request.url`, que Next réécrit en « localhost » en développement : le 19/11, toutes les écritures de la console étaient ainsi refusées sur 127.0.0.1, dictée comprise. Une seule garde, `web/lib/acces-operateur.js`, sert les deux webs.
 - **Captures** : celles de l'agent restent chez H. Le serveur web les relaie (`/api/qa/captures`), et seules les adresses de la trajectoire de la session passent.
-- Next.js 16 et React 19, sans autre dépendance.
+- Next.js 16 et React 19, sans autre dépendance. Le build de cette web utilise `next build --webpack` : Turbopack échouait au téléchargement des trois polices Google alors que le réseau et le téléchargeur de Next fonctionnaient isolément. Webpack, déjà utilisé par la console, préserve les mêmes polices et le même rendu ; les deux builds de production passent le 19/11.
+- **Rapport du scanner dans les deux interfaces** : choix explicite de la cible, couverture, règles sautées, classifications, détail HF et compteurs. `web-console/lib/access-matrix.mjs` construit la matrice IDOR générique, rendue dans les audits et dans `mission-detail.tsx` ; les identités et les méthodes réellement envoyées sont affichées. Les failles, la configuration et les candidats ZAP ne sont pas fusionnés ; les URL de preuves perdent query et fragment. La console a **43 tests unitaires**, une recette Chromium dédiée à la matrice, TypeScript et build de production réussis. La recette réelle `f2d78555-d0f7-4ffb-befd-c265193192c9` conserve le trajet Chromium → Supabase → worker → console ; le laboratoire est affiché avec une mission fictive isolée, sans écrire dans Supabase.
 
 **La console de l'équipe, `sentinelqa/web-console`** : l'interface d'un camarade, exportée de v0 (TypeScript, Tailwind, shadcn), que Codex raccorde depuis le 18/11 au soir. **En ligne : https://hsentinel-console.vercel.app**, sur Vercel, depuis le 19/11 à 3 h.
 
@@ -353,18 +397,19 @@ flowchart LR
 
 ## 12. L'état de chaque brique
 
-| Brique | État au 18/11, 23 h 15 |
+| Brique | État vérifié au 19/11, 11 h 46, sauf mesure historique indiquée |
 |---|---|
 | QA : parcours guidé, exploration, mobile | Exécuté en réel : 33 missions sur eugeniaschool.com le 18/11, 0,904 $ au total, dont 10 répétitions par scénario (guidé 10/10, exploration 10/10) |
-| QA connecté : Peer Review | Compte d'Alec : 18 missions réelles (0,259 $), depuis le terminal et la file web. Répétitions : connexion et identité 10/10, aucune évaluation ouverte depuis le renforcement de la garde. Compte de Nathan refusé par le site (2 essais). Formulaire du compte et chiffrement raccordés à la console ; recette réelle de cette interface restante |
+| QA connecté : Peer Review | Compte d'Alec : 18 missions réelles (0,259 $), depuis le terminal et la file web. Répétitions : connexion et identité 10/10, aucune évaluation ouverte depuis le renforcement de la garde. Ancien compte de Nathan refusé par le site (2 essais historiques) ; **Moha est retenu pour le pentest S-PEER-02**, sans nouveau parcours QA mesuré avec lui. Formulaire du compte et chiffrement raccordés à la console ; recette réelle de cette interface faite (section 11) |
 | QA : dictée | Exécutée de bout en bout dans un navigateur, avec une voix de synthèse ; à essayer avec une vraie voix |
 | QA : vérification par le code | 66 tests Python ; faux écarts trouvés en réel puis corrigés et revérifiés |
 | Web QA | 39 tests JavaScript réussis ; compilation réussie à 14 h 37, puis bloquée à 15 h par le téléchargement des polices Google |
 | Pentest : banc Paie Express | Exécuté en réel : 59/60 en 10 audits, 0 faux positif ; en ligne le 19/11 : 6 failles prouvées sur 6, 0 faux positif, 283 s, 0,215 $ ; lancé depuis la console : 6/6, 298 s, 0,203 $ |
 | Pentest : S-PEER-01 | Exécuté en réel le 19/11 à 2 h 52, lancé depuis la console : conforme. Le GET anonyme reçoit un 307 vers `/connexion`, et l'agent voit la page de connexion. 24 s, 0,004 $ |
-| Pentest : S-PEER-02 | Non raccordé. Triplet HTTP réel de 9 requêtes : A et l'anonyme passent ; B reçoit sa propre vue sans le témoin de A et reste non concluant faute de refus explicite. Aucune fuite démontrée ; H reste à confirmer avec une clé autorisée (403 actuel) |
-| Pentest : HF vers contrôles | Un appel réel sur un inventaire synthétique ; 50 tests sur 50. Jamais exécuté sur Peer Review |
-| Modules de Kimi | 23 tests sur 23 ; confirmation H testée avec le `start_url` ajouté par défaut, sans PATCH inutile |
+| Pentest : scanner générique | Livré dans `runner/pentest`, avec authentification générique, matrice IDOR, HF et ZAP. Campagne complète `daa3bb11` : 6 failles fictives uniques, 1 028 requêtes actives ZAP, HF réel, 0 mutation mesurée ; Peer passif `16c90a28` : 0 faille, session H réelle. 31 tests scanner, recette Chromium de la matrice et build console réussis |
+| Pentest : S-PEER-02 | Exécuté en entier via `missions.executer_mission` le 19/11 à 11 h 45, avec Alec et **Moha (B)**. A et l'anonyme passent en HTTP et H ; Moha est authentifié et identifié, reçoit HTTP 200 sans le témoin de A, mais sans refus explicite (`denial_unverified`). Aucune fuite démontrée. Bilan 2/0/1/0, 106,27 s, 0,0346595 $ H, aucune écriture métier ; rapport `sentinelqa/rapports/rapport-20261119-114623-971079.json`. Sans entrées privées : 3 `skipped`, zéro requête |
+| Pentest : HF vers contrôles | Ancienne contribution : appel réel sur inventaire synthétique, 50 tests. Nouveau scanner : appel Qwen3-32B réel dans `daa3bb11`, 2 419 tokens, 42,842 s, 0,00049728 $ ; priorise aussi `idor_access` et exécute la route découverte |
+| Modules de Kimi | 25 tests sur 25, dont les régressions de la revue Codex, la course `idle` et le refus d'un identifiant d'URL comme témoin privé ; confirmation H testée avec le `start_url` ajouté par défaut, sans PATCH inutile |
 | Déploiement de la console | En ligne : https://hsentinel-console.vercel.app (Vercel), recette réelle faite en HTTPS. Les workers tournent sur le Mac d'Aurian |
 | Console de l'équipe (`web-console`) | Raccordée par Codex aux services de la web, avec QA connecté. Recette réelle faite le 19/11 : dictée, mission publique, mission connectée. Depuis D-49, les pages de la web app v0 sur nos données : 30 tests, TypeScript, 14 tests navigateur, dont une fausse base PostgREST (données, base vide, panne). En ligne : https://hsentinel-console.vercel.app |
 | n8n : W1, W3, W4 (Jahdiel) | Branchés sur notre base. W3 vérifié en réel le 19/11 : constat → ticket GitHub n° 7 → état noté, par le rattrapage. Le webhook instantané est refusé (403) tant que son secret n'est pas aligné ; W1 attend son secret |
@@ -381,7 +426,8 @@ sentinelqa/
     base.py             accès à Supabase (REST et psql)
     cle_runner.py       la clé RSA du runner, qui déchiffre les mots de passe du banc
     sentinelqa.py       pentest : orchestration du banc et file des audits
-    missions.py         pentest : scénarios sur sites réels (S-PEER-01)
+    missions.py         pentest : scénarios, routage du scanner et S-PEER-02
+    pentest/            scanner : profils, réseau, authentification.py, acces.py, navigateur, contrôles, HF, ZAP et rapport
     agents_h.py         agents du banc (explorateur, vérificateur)
     agents_missions.py  agents des missions réelles ; le QA reprend qa_agent.py
     gravite.py          règle écrite de gravité
@@ -397,12 +443,14 @@ sentinelqa/
   web-console/          la console de l'équipe (interface d'un camarade, raccordée par Codex) ; en ligne sur Vercel
   contrats/qa.json      cibles QA, budgets, consignes de préparation
   contrats/catalogue.json  scénarios sur sites réels (pentest)
+  contrats/pentest/     profils autorisés : banc local, Juice Shop local, Peer Review et Eugenia
   supabase/             schémas SQL ; alertes.sql : applications, constats et les fonctions de n8n
   n8n/                  les workflows W1, W3 et W4 exportés, et leur mise en service
   cobaye/               Paie Express, le banc à failles injectées
+  cobaye_blackbox/      banc HTTP fictif : 5 failles, 4 contrôles sains et opérations interdites
 contributions/
-  kimi-pentest/         S-PEER-02 : A, anonyme et B, en HTTP et dans le navigateur H ; non raccordé
-  hf-pentest/           Hugging Face : d'un inventaire aux contrôles S-PEER-02 ; non raccordé
+  kimi-pentest/         S-PEER-02 : A, anonyme et B, en HTTP et dans le navigateur H ; raccordé au runner
+  hf-pentest/           banc distinct : d'un inventaire aux contrôles S-PEER-02
 ```
 
 ## 14. Les travaux de l'équipe hors de `main`

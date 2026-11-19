@@ -120,7 +120,8 @@ class MissionsTest(unittest.TestCase):
         browser = Browser()
         report = self.run_mission(demande("security", "S-PEER-02"), browser=browser)
         self.assertEqual(report["results"][0]["status"], "skipped")
-        self.assertEqual(report["summary"]["skipped"], 1)
+        self.assertEqual([r["status"] for r in report["results"]], ["skipped"] * 3)
+        self.assertEqual(report["summary"]["skipped"], 3)
         self.assertEqual(browser.calls, 0)
         self.assertEqual(self.calls, [])
 
@@ -208,6 +209,56 @@ class HandleTest(unittest.TestCase):
                 self.assertEqual(calls[0]["answer_schema"], Observation)
                 self.assertNotIn("password", calls[0]["messages"])
 
+    def test_idle_sans_reponse_attend_la_reponse_finale(self):
+        handle = SimpleNamespace(id="fake", get=lambda: SimpleNamespace(agent_view_url=None),
+                                 cancel=lambda: None, changes=lambda **k: None,
+                                 status=lambda: SimpleNamespace(status="idle"),
+                                 wait_for_completion=lambda **k: SimpleNamespace(status="idle", answer=None))
+        evenements = SimpleNamespace(model_dump=lambda: {"items": []})
+        client = SimpleNamespace(start_session=lambda **k: handle,
+                                 sessions=SimpleNamespace(list_session_events=lambda *args, **k: evenements))
+        reponse = {"final_url": "https://www.eugeniaschool.com/programme/bachelor-ia-business",
+                   "visible_title": "Bachelor", "actions": [], "blocked": False, "reason": ""}
+        final = SimpleNamespace(status="idle", latest_answer=reponse)
+        req, target, scenario = valider_demande(demande())
+        agent = {"name": "sentinelqa-qa", "reference": "sentinelqa-qa:1", "revision": 1, "action": "à jour"}
+        with patch("agents_missions.assurer_agent_mission", return_value=agent), \
+                patch("qa_moteur.lire_fin", return_value=final) as lire:
+            observation = NavigateurH(client).observer(req, target, scenario, Controle(60), lambda *a, **k: None)
+        lire.assert_called_once_with(client, "fake")
+        self.assertEqual(observation["visible_title"], "Bachelor")
+
+
+class GenericMissionTest(unittest.TestCase):
+    def test_cibles_partagees_et_scenario_inconnu(self):
+        for target_id in ("peer-review", "eugenia-public"):
+            with self.subTest(target_id=target_id):
+                demande, target, scenario = valider_demande({"target_id": target_id, "mode": "security",
+                                                             "scenario_id": "S-GEN-DISCOVERY-01", "instruction": ""})
+                self.assertEqual(target["id"], target_id)
+                self.assertEqual(scenario["target_id"], target_id)
+        with self.assertRaises(ValueError):
+            valider_demande({"target_id": "peer-review", "mode": "security", "scenario_id": "S-INCONNU"})
+
+    def test_route_generique_utilise_le_profil_et_ladaptateur_h(self):
+        recu = {}
+        def scan(profil, **kwargs):
+            recu.update(profil=profil, **kwargs)
+            observations = kwargs["navigateur"].decouvrir()
+            recu["observations"] = observations
+            return {"schema_version": 2, "route": "generic"}
+        req = {"target_id": "peer-review", "mode": "security", "scenario_id": "S-GEN-DISCOVERY-01", "instruction": ""}
+        with patch("pentest.execution.executer_scan", side_effect=scan):
+            rapport = executer_mission(req, Browser())
+        self.assertEqual(rapport["route"], "generic")
+        self.assertEqual(recu["profil"].target_id, "peer-review")
+        self.assertFalse(recu["actif"])
+        self.assertEqual(recu["profil"].limits.max_time_s, 180)
+        self.assertEqual(recu["profil"].limits.max_requests, 5)
+        self.assertEqual(recu["profil"].limits.max_response_bytes, 1000000)
+        self.assertTrue(recu["observations"]["requests"])
+        self.assertNotIn("visible_title", json.dumps(recu["observations"]["evidence"]))
+
 
 class QueueTest(unittest.TestCase):
     def test_demande_sans_secret_traverse_le_worker_et_ecrit_rapport(self):
@@ -231,6 +282,52 @@ class QueueTest(unittest.TestCase):
             self.assertEqual(json.loads(files[0].read_text())["summary"]["passed"], 1)
         self.assertTrue(any(u.get("statut") == "termine" for u in updates))
         self.assertEqual(updates[-1], {"secrets_chiffres": None})
+
+    def test_scan_generique_publie_uniquement_les_failles_demontrees(self):
+        import constats
+        import sentinelqa
+        req = {"target_id": "peer-review", "scenario_id": "S-GEN-DISCOVERY-01",
+               "mode": "security", "instruction": ""}
+        cible = next(t for t in CATALOGUE["targets"] if t["id"] == "peer-review")
+        row = {"id": "local-scan", "application": cible["name"], "cible": cible["entry_url"],
+               "comptes": [], "ecriture_autorisee": False, "secrets_chiffres": None,
+               "rapport": {"schema_version": 2, "phase": "queued", "request": req}}
+        resultat = {"schema_version": 2, "request": req, "scenario_title": "Fixture scanner",
+                    "phase": "completed", "started_at": "2026-11-19T00:00:00+00:00",
+                    "finished_at": "2026-11-19T00:00:01+00:00", "duration_s": 1,
+                    "evidence": [], "sessions": [], "summary": {"failed": 2, "inconclusive": 1},
+                    "cost_h": None, "cost_hf": None, "results": [{
+            "scenario_id": req["scenario_id"], "status": "failed", "expected": "Contrôle synthétique",
+            "observed": "Marqueur fictif détecté", "limitations": "Fixture", "evidence_references": [],
+            "classification": "demonstrated_vulnerability", "reason_code": "synthetic_finding",
+        }, {
+            "scenario_id": req["scenario_id"], "status": "failed", "expected": "Configuration",
+            "observed": "En-tête absent", "limitations": "Fixture", "evidence_references": [],
+            "classification": "configuration_weakness", "reason_code": "missing_security_headers",
+        }, {
+            "scenario_id": req["scenario_id"], "status": "inconclusive", "expected": "Confirmation",
+            "observed": "Candidat d'outil", "limitations": "Fixture", "evidence_references": [],
+            "classification": "tool_candidate", "reason_code": "tool_candidate_requires_deterministic_confirmation",
+        }]}
+        insertions = []
+        def ajouter(table, ligne):
+            if table == "constats":
+                insertions.append(ligne)
+            return {"id": "local-finding"}
+        modifications = []
+        base = SimpleNamespace(lire=lambda *a, **k: [], ajouter=ajouter,
+                               modifier=lambda table, valeur, **k: modifications.append(valeur))
+        with tempfile.TemporaryDirectory() as directory, patch.object(sentinelqa, 'ICI', Path(directory) / 'runner'), \
+                patch.object(sentinelqa, 'executer_mission', return_value=resultat), \
+                patch.object(sentinelqa, 'NavigateurH'):
+            sentinelqa.traiter_demande(base, None, row)
+        self.assertEqual(constats.lignes_mission(resultat, "local-scan"), [])
+        self.assertEqual(len(insertions), 1)
+        self.assertEqual(insertions[0]["application_id"], "peer-review")
+        self.assertEqual(insertions[0]["theme"], "http")
+        self.assertEqual(insertions[0]["audit_id"], "local-scan")
+        self.assertTrue(any(v.get("statut") == "termine" for v in modifications))
+        self.assertFalse(any(v.get("statut") == "echec" for v in modifications))
 
 
 if __name__ == '__main__':

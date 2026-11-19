@@ -44,7 +44,7 @@ CATALOGUE_QA = json.loads((Path(__file__).resolve().parents[1] / "contrats" / "q
 # K1 et K2 décrivent la mise en place du test (le compte, le nom attendu), pas une régression du site.
 TYPES_QA_EXCLUS = {"connexion", "identite"}
 # Une faille prouvée d'une mission pentest, par scénario. S-PEER-01 ne rend jamais « failed » : il ne peut pas prouver
-# l'accès au contenu privé (missions.verdict_gate). S-PEER-02 le peut, une fois raccordé au runner.
+# l'accès au contenu privé (missions.verdict_gate). S-PEER-02 le peut via l'adaptateur A/anonyme/B.
 SCENARIOS_PENTEST = {"S-PEER-02": "compte"}
 
 

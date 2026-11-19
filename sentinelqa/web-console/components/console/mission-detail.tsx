@@ -6,9 +6,17 @@ import useSWR from 'swr'
 import { ArrowLeft, ExternalLink, RefreshCw, Square } from 'lucide-react'
 import { ConsoleHeader } from './console-header'
 import { ResultStatusBadge } from './result-status'
+import { RoleMatrix } from './role-matrix'
 import { consoleRequest } from '@/lib/console-client'
 import { formatMoney, overallLabel, interruptionLabel } from '@/lib/mission-view.mjs'
 import type { Mission, Module, Event, Result } from '@/lib/mission-types'
+
+const classifications: Record<string, string> = {
+  demonstrated_vulnerability: 'Faille démontrée par le code',
+  configuration_weakness: 'Faiblesse de configuration',
+  tool_candidate: 'Candidat d’outil · non confirmé',
+  observation: 'Observation',
+}
 
 export function MissionDetail({ module, id }: { module: Module; id: string }) {
   const { data, error, mutate } = useSWR(`missions/${module}/${id}`, (path: string) => consoleRequest<{ mission: Mission; events: Event[] }>(path), {
@@ -41,6 +49,16 @@ export function MissionDetail({ module, id }: { module: Module; id: string }) {
         {(stopError || m.error) && <p role="alert" className="panel border-danger/30 p-4 text-sm text-danger">{stopError || m.error}</p>}
         {m.status === 'en_attente' && <p role="status" className="panel p-4 text-sm text-muted-foreground">La mission est enregistrée. Elle attend qu’un agent soit disponible ; aucune progression n’est encore annoncée.</p>}
         <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[['Durée', m.duration == null ? 'Non mesurée' : `${m.duration.toLocaleString('fr-FR')} s`], ['Coût H', formatMoney(m.costH)], ['Coût HF', formatMoney(m.costHf)], ['Résultats vérifiés', `${m.summary.passed + m.summary.failed} / ${m.results.length}`]].map(([label, value]) => <div key={label} className="panel p-4"><dt className="label-mono">{label}</dt><dd className="mt-2 font-mono text-sm">{value}</dd></div>)}</dl>
+        {m.securityFindings && <section className="panel space-y-2 p-5" aria-label="Bilan de sécurité"><h2 className="text-base font-medium">Bilan de sécurité</h2><p className="text-sm">{m.securityFindings.demonstrated} faille(s) unique(s) démontrée(s) · {m.securityFindings.configuration} assertion(s) de configuration en écart · {m.securityFindings.candidates} candidat(s) d’outil non confirmé(s).</p>{m.inference && <p className="text-xs text-muted-foreground">Priorisation HF : {m.inference.status} · {m.inference.reason}</p>}</section>}
+        {m.coverage && <section className="panel space-y-3 p-5" aria-label="Couverture d’exécution">
+          <h2 className="text-base font-medium">Couverture réellement exécutée</h2>
+          <p className="text-sm">{m.coverage.endpoints ?? 'Non mesuré'} ressource(s) · {m.coverage.activeExecuted ?? 0}/{m.coverage.activeAuthorized ?? 0} opération(s) active(s) · {m.coverage.accessResources ?? 0} ressource(s) IDOR ({m.coverage.accessDiscovered ?? 0} découverte(s)) · {m.coverage.identities ?? 0} identité(s) vérifiée(s).</p>
+          <p className="text-sm">{m.coverage.formsObserved ?? 0} formulaire(s) observé(s) · {m.coverage.formsSubmitted ?? 0} connexion(s) par formulaire · {m.coverage.businessFormsSubmitted ?? 0} formulaire(s) métier soumis par le runner · {m.coverage.mutations === null ? 'mutations non mesurées' : `${m.coverage.mutations} mutation(s)`}.</p>
+          <p className="text-xs text-muted-foreground">{m.coverage.measurementSource === 'target_observer' ? 'Méthodes HTTP observées' : 'Méthodes du runner'} : {m.coverage.methods.join(', ') || 'aucune'}. {m.coverage.limitations}</p>
+          {m.rulesExecuted.length > 0 && <p className="text-xs">Règles exécutées : {m.rulesExecuted.join(', ')}</p>}
+          {m.rulesSkipped.length > 0 && <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">Règles non exécutées ou interrompues</summary><ul className="mt-2 space-y-1">{m.rulesSkipped.map((r, i) => <li key={`${r.id}-${i}`}>{r.id} · {r.reason}</li>)}</ul></details>}
+        </section>}
+        {m.matrix && <section className="panel space-y-3 p-5" aria-label="Matrice IDOR"><h2 className="text-base font-medium">Matrice IDOR · A / anonyme / B</h2><p className="text-xs text-muted-foreground">Chaque case vient d’une lecture attribuée. Une case vide signale une preuve insuffisante, pas une autorisation.</p><RoleMatrix matrix={m.matrix} /></section>}
         {m.interruption && <p role="status" className="panel border-warn/30 p-4 text-sm text-warn">{interruptionLabel(m.interruption)}. Les résultats déjà recueillis restent consultables.</p>}
         {accessResults.length > 0 && <section className="space-y-3" aria-labelledby="access-results">
           <h2 id="access-results" className="text-base font-medium">Connexion et identité</h2>
@@ -76,6 +94,7 @@ function ResultCard({ result: r, evidence }: { result: Result; evidence: Mission
       <h3 className="text-sm font-medium"><span className="mr-2 font-mono text-xs text-steel">{r.id}</span>{r.title}</h3>
       <ResultStatusBadge status={r.status} reason={r.reason} />
     </div>
+    {r.classification && <p className="text-xs text-muted-foreground">{classifications[r.classification] ?? 'Observation à examiner'}</p>}
     {r.expected && <p className="text-sm text-muted-foreground"><span className="text-foreground">Attendu : </span>{r.expected}</p>}
     <p className="whitespace-pre-wrap text-sm leading-relaxed">{r.observed || 'Aucun constat exploitable pour ce contrôle.'}</p>
     {r.evidence.length > 0 && <div className="flex flex-wrap gap-2">{r.evidence.map(ref => <EvidenceReference key={ref} reference={ref} available={evidence.some(e => e.id === ref)} />)}</div>}

@@ -13,10 +13,12 @@ export function validerMission(d) {
   if (!d || typeof d !== 'object' || Array.isArray(d) || d.schema_version !== 2 || Object.keys(d).some((k) => !champs.has(k))) {
     throw new Error('Le format de la mission est invalide.');
   }
-  const scenario = catalogue.scenarios.find((s) => s.id === d.scenario_id);
-  if (!scenario || scenario.target_id !== d.target_id || scenario.mode !== d.mode) {
+  const definition = catalogue.scenarios.find((s) => s.id === d.scenario_id);
+  const targetIds = definition?.target_ids ?? [definition?.target_id];
+  if (!definition || !targetIds.includes(d.target_id) || definition.mode !== d.mode) {
     throw new Error('La cible, le scénario et le volet ne correspondent pas au catalogue.');
   }
+  const scenario = { ...definition, target_id: d.target_id };
   const instruction = d.instruction ?? '';
   if (typeof instruction !== 'string' || [...instruction].length > 2000) {
     throw new Error('La consigne doit être un texte de 2 000 caractères au maximum.');
@@ -63,7 +65,7 @@ export function normaliserMission(ligne, commun) {
   return {
     ...commun, version: 2, mode: d.request.mode, mission: d,
     quand: d.started_at ?? ligne.cree_le, agents: 'H · scénario en consultation',
-    score: fini ? { prouvees: d.request.mode === 'security' ? (d.summary.failed ?? 0) : 0, total: 0, fauxPositifs: null } : null,
+    score: fini ? { prouvees: d.request.mode === 'security' ? (d.security_findings?.demonstrated_unique ?? d.summary.failed ?? 0) : 0, total: 0, fauxPositifs: null } : null,
     bilan: fini ? d.summary : null, verite: [], constats: [], failles: [], hypotheses: null,
     cout: d.cost_h ?? null, coutHf: d.cost_hf ?? null, duree: d.duration_s ?? null, tokens: null,
     interventions: (d.sessions ?? []).map((s, i) => ({

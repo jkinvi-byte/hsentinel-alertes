@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "environment": "local_lab",
+  "failles": [
+    {"id": "BB-XSS", "path": "/search", "controle": "xss_reflected"},
+    {"id": "BB-SQLI", "path": "/rest/products/search", "controle": "sqli_read"},
+    {"id": "BB-PRIVATE", "path": "/private/known", "controle": "anonymous_private"},
+    {"id": "BB-CORS", "path": "/cors-private", "controle": "cors"},
+    {"id": "BB-SOURCE", "path": "/assets/private.js.map", "controle": "source_map"}
+  ],
+  "controles_sains": [
+    {"path": "/safe-search", "controle": "xss_reflected"},
+    {"path": "/rest/safe-products/search", "controle": "sqli_read"},
+    {"path": "/private/safe", "controle": "anonymous_private"},
+    {"path": "/cors-public", "controle": "cors"}
+  ],
+  "interdits": ["/mutate", "/logout", "/reviews"],
+  "form_method_interdit": "POST"
+}

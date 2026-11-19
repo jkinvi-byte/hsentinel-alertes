@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { catalog, validateStart } from '../lib/console-contract.mjs'
 import { normaliseMission, overallLabel, formatMoney, safeWebUrl, interruptionLabel } from '../lib/mission-view.mjs'
+import { matriceAcces } from '../lib/access-matrix.mjs'
 import { createSession, validSession, acceptsToken } from '../lib/operator-session.mjs'
 import { readBody, sameOrigin } from '../lib/api-policy.mjs'
 
@@ -24,8 +25,8 @@ test('Le QA connecté est proposé, avec un compte exigé par le contrat serveur
   assert.equal(catalog().qa.find(c => c.id === 'eugenia-public').connexion, false)
   assert.throws(() => validateStart({ ...mission, target_id: 'peer-review' }), /compte de test/)
 })
-test('Un scénario pentest en préparation ne peut pas être forcé par une requête', () => {
-  assert.throws(() => validateStart({ schema_version: 2, mode: 'security', target_id: 'peer-review', scenario_id: 'S-PEER-02' }), /disponible/)
+test('Un scénario pentest indisponible ne peut pas être forcé par une requête', () => {
+  assert.throws(() => validateStart({ schema_version: 2, mode: 'security', target_id: 'peer-review', scenario_id: 'S-GEN-ACTIVE-01' }), /disponible/)
   const accepted = validateStart({ schema_version: 2, mode: 'security', target_id: 'peer-review', scenario_id: 'S-PEER-01' })
   assert.equal(accepted.module, 'pentest')
   assert.equal(accepted.data.rapport.phase, 'queued')
@@ -34,6 +35,16 @@ test('Un scénario pentest en préparation ne peut pas être forcé par une requ
 test('Une cible ou un volet incorrect est rejeté', () => {
   assert.throws(() => validateStart({ schema_version: 2, mode: 'security', target_id: 'eugenia-public', scenario_id: 'S-PEER-01' }))
   assert.throws(() => validateStart({ mode: 'anything' }))
+})
+test('Le scan partagé propose et valide explicitement chaque cible autorisée', () => {
+  const scenario = catalog().pentest.find(s => s.id === 'S-GEN-DISCOVERY-01')
+  assert.deepEqual(scenario.targetIds, ['peer-review', 'eugenia-public'])
+  for (const targetId of scenario.targetIds) {
+    const accepted = validateStart({ schema_version: 2, mode: 'security', target_id: targetId, scenario_id: scenario.id })
+    assert.equal(accepted.data.rapport.request.target_id, targetId)
+    assert.equal(accepted.data.ecriture_autorisee, false)
+  }
+  assert.throws(() => validateStart({ schema_version: 2, mode: 'security', target_id: 'paie-express', scenario_id: scenario.id }))
 })
 test('Une mission sans rapport ne devient pas un résultat conforme', () => {
   const m = normaliseMission(fixture(null), 'qa')
@@ -60,14 +71,60 @@ test('Le rapport pentest v2 conserve attendu, observé et références de preuve
   assert.deepEqual(m.results[0].evidence, ['E1'])
   assert.equal(overallLabel(m), 'Faille prouvée')  // le canon : pentest → faille prouvée (D-46)
 })
+test('Les candidats et la configuration ne deviennent pas des failles prouvées', () => {
+  const m = normaliseMission(fixture({ schema_version: 2, phase: 'completed',
+    security_findings: { demonstrated_unique: 0, configuration_weakness_assertions: 1, tool_candidates: 15 },
+    coverage: { endpoints_discovered: 8, active_operations_executed: 0, active_operations_authorized: 4, forms_observed: 1, forms_submitted: 0, mutations: 0, methods_sent: ['GET'], limitations: 'Périmètre déclaré.' },
+    rules_executed: ['headers'], rules_skipped: [{ rule_id: 'zap', reason_code: 'unavailable' }],
+    inference: { status: 'deterministic_fallback', reason_code: 'missing_hf_token', raw: 'ne-pas-afficher' },
+    results: [{ id: 'config', title: 'En-têtes', status: 'failed', classification: 'configuration_weakness' },
+      { id: 'candidate', title: 'Candidat ZAP', status: 'inconclusive', classification: 'tool_candidate' }],
+  }), 'pentest')
+  assert.equal(overallLabel(m), 'Faiblesses de configuration à examiner')
+  assert.equal(m.results[0].title, 'En-têtes')
+  assert.equal(m.coverage.endpoints, 8)
+  assert.equal(m.rulesSkipped[0].reason, 'unavailable')
+  assert.equal(JSON.stringify(m).includes('ne-pas-afficher'), false)
+  const candidats = normaliseMission(fixture({ schema_version: 2, phase: 'completed',
+    security_findings: { demonstrated_unique: 0, configuration_weakness_assertions: 0, tool_candidates: 15 },
+    results: [{ id: 'candidate', status: 'inconclusive', classification: 'tool_candidate' }] }), 'pentest')
+  assert.equal(overallLabel(candidats), 'Candidats d’outil à confirmer')
+})
+test('La matrice IDOR générique distingue propriétaire, anonyme et autre compte', () => {
+  const report = { schema_version: 2, phase: 'completed',
+    access_matrix: { enabled: true, owner: 'A', other: 'B', identities_verified: ['A', 'B'], resources: [
+      { path: '/access/safe', source: 'profile' }, { path: '/access/leak', source: 'inventory' }, { path: '/access/shell', source: 'profile' },
+    ] },
+    coverage: { access_resources: 3, access_resources_discovered: 1, access_identities_verified: 2,
+      forms_submitted: 2, business_forms_submitted: 0, methods_sent: ['GET', 'POST'] },
+    results: [
+      { url: '/access/safe', actor_reference: 'A', control_id: 'idor_access', status: 'passed' },
+      { url: '/access/safe', actor_reference: 'anonymous', control_id: 'idor_access', status: 'passed' },
+      { url: '/access/safe', actor_reference: 'B', control_id: 'idor_access', status: 'passed' },
+      { url: '/access/leak', actor_reference: 'B', control_id: 'idor_access', status: 'failed' },
+      { url: '/access/shell', actor_reference: 'B', control_id: 'idor_access', status: 'inconclusive' },
+    ] }
+  const matrix = matriceAcces(report)
+  assert.deepEqual(matrix.rows[0].cells, ['allowed', 'blocked', 'blocked'])
+  assert.deepEqual(matrix.rows[1].cells, ['na', 'na', 'leak'])
+  assert.deepEqual(matrix.rows[2].cells, ['na', 'na', 'na'])
+  assert.equal(matrix.rows[1].tenant, 'route découverte')
+  const m = normaliseMission(fixture(report), 'pentest')
+  assert.deepEqual(m.matrix, matrix)
+  assert.deepEqual(m.coverage.methods, ['GET', 'POST'])
+  assert.equal(m.coverage.accessDiscovered, 1)
+  assert.equal(m.coverage.businessFormsSubmitted, 0)
+  assert.equal(matriceAcces({ access_matrix: { enabled: false } }), null)
+})
 test('Les preuves HTTP gardent le statut et la redirection, sans corps ni cookies', () => {
   const m = normaliseMission(fixture({ schema_version: 2, phase: 'completed', evidence: [{ id: 'http-1', kind: 'http', method: 'GET', status_code: 307, bytes: 25,
-    url: 'https://example.invalid/private', location: 'https://example.invalid/login', body: 'synthetic-private-body', cookies: 'synthetic-cookie',
+    url: 'https://example.invalid/private?q=synthetic-query', location: 'https://example.invalid/login?next=synthetic-query', body: 'synthetic-private-body', cookies: 'synthetic-cookie',
   }] }), 'pentest')
   assert.equal(m.evidence[0].httpStatus, 307)
   assert.equal(m.evidence[0].redirect, 'https://example.invalid/login')
   assert.equal(JSON.stringify(m).includes('synthetic-private-body'), false)
   assert.equal(JSON.stringify(m).includes('synthetic-cookie'), false)
+  assert.equal(JSON.stringify(m).includes('synthetic-query'), false)
 })
 test('Une version de rapport inconnue ou des entrées absentes ne produisent pas un faux succès', () => {
   const future = normaliseMission(fixture({ schema_version: 99, phase: 'completed', results: [{ status: 'passed' }] }), 'qa')

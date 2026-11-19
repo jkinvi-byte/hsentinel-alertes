@@ -47,7 +47,8 @@ import constats
 from cle_runner import cle_privee, dechiffrer, publier
 from gravite import REGLE as REGLE_GRAVITE, classer, detecter
 from hf import MODELE as MODELE_HF, hypotheses, recouper
-from missions import CATALOGUE, NavigateurH, executer_mission, rapport_html as rapport_mission, valider_demande
+from missions import (CATALOGUE, SCENARIOS_GENERIQUES, NavigateurH, executer_mission,
+                      rapport_html as rapport_mission, valider_demande)
 
 ICI = Path(__file__).resolve().parent
 AGENT = f"{EXPLORATEUR} et {VERIFICATEUR} ({MODELE})"
@@ -671,9 +672,11 @@ def publier_constats(base, donnees, audit_id):
 
 
 def publier_constats_mission(base, donnees, audit_id):
-    """Les failles prouvées d'une mission pentest vont dans `constats` (D-42), comme celles du banc. Jamais bloquant."""
+    """Les failles prouvées d'une mission pentest vont dans `constats` (D-42/D-44). Jamais bloquant."""
     try:
-        ids = constats.publier_lignes(base, constats.lignes_mission(donnees, audit_id))
+        scenario_id = (donnees.get("request") or {}).get("scenario_id")
+        convertir = constats.lignes_scan if scenario_id in SCENARIOS_GENERIQUES else constats.lignes_mission
+        ids = constats.publier_lignes(base, convertir(donnees, audit_id))
         if ids:
             journal(f"{len(ids)} faille(s) prouvée(s) transmise(s) aux alertes (W3)", "info")
     except Exception as erreur:

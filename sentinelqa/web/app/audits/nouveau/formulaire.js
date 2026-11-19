@@ -11,17 +11,21 @@ export default function Formulaire({ cle }) {
   const router = useRouter();
   const [mode, setMode] = useState('qa');
   const [scenarioId, setScenarioId] = useState('Q-PUB-01');
+  const [targetId, setTargetId] = useState('eugenia-public');
   const [instruction, setInstruction] = useState('');
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState(null);
   const scenario = CATALOGUE.scenarios.find((s) => s.id === scenarioId);
-  const cible = CATALOGUE.targets.find((t) => t.id === scenario.target_id);
+  const ciblesScenario = CATALOGUE.targets.filter((t) => (scenario.target_ids ?? [scenario.target_id]).includes(t.id));
+  const cible = ciblesScenario.find((t) => t.id === targetId) ?? ciblesScenario[0];
   const disponibles = CATALOGUE.scenarios.filter((s) => s.mode === mode && s.available);
   const preparation = CATALOGUE.scenarios.filter((s) => s.mode === mode && !s.available);
 
   function changerMode(valeur) {
     setMode(valeur);
-    setScenarioId(CATALOGUE.scenarios.find((s) => s.mode === valeur && s.available).id);
+    const premier = CATALOGUE.scenarios.find((s) => s.mode === valeur && s.available);
+    setScenarioId(premier.id);
+    setTargetId((premier.target_ids ?? [premier.target_id])[0]);
     setInstruction('');
     setErreur(null);
   }
@@ -74,12 +78,25 @@ export default function Formulaire({ cle }) {
           <p className="doux">{mode === 'qa' ? 'Vérifier un parcours et son résultat attendu.' : 'Vérifier un contrôle de sécurité et documenter les preuves.'}</p>
           <label className="champ">
             <span>Scénario sur un site autorisé</span>
-            <select value={scenarioId} disabled={envoi} onChange={(e) => { setScenarioId(e.target.value); setInstruction(''); }}>
-              {disponibles.map((s) => <option key={s.id} value={s.id}>{CATALOGUE.targets.find((t) => t.id === s.target_id).name} · {s.title}</option>)}
+            <select value={scenarioId} disabled={envoi} onChange={(e) => {
+              const suivant = CATALOGUE.scenarios.find((s) => s.id === e.target.value);
+              setScenarioId(e.target.value);
+              setTargetId((suivant.target_ids ?? [suivant.target_id])[0]);
+              setInstruction('');
+            }}>
+              {disponibles.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
             </select>
           </label>
+          {ciblesScenario.length > 1 && <label className="champ">
+            <span>Application autorisée</span>
+            <select value={cible.id} disabled={envoi} onChange={(e) => setTargetId(e.target.value)}>
+              {ciblesScenario.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </label>}
           <p className="mission-cible"><b>{cible.name}</b><br /><span>{cible.entry_url}</span></p>
-          <p className="doux">Consultation uniquement, sans connexion ni modification de données pour ces premiers scénarios.</p>
+          <p className="doux">{scenario.id === 'S-PEER-02'
+            ? 'Les comptes et la règle de visibilité doivent être configurés dans l’environnement privé du runner ; jamais dans ce formulaire. Sans ces prérequis, les trois contrôles sont marqués non exécutés.'
+            : 'Consultation anonyme, sans formulaire soumis ni modification de données. Seuls le profil et les chemins autorisés de cette cible sont examinés.'}</p>
         </div>
 
         <div className="bloc">
