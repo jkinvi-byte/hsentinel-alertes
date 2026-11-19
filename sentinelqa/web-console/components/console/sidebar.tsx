@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { Logo, LogoMark } from '@/components/brand/logo'
-import { SIDEBAR_COOKIE, writePreferenceCookie } from '@/lib/plan'
+import { SIDEBAR_COOKIE, writePreferenceCookie, type ConsoleTheme } from '@/lib/plan'
 import { cn } from '@/lib/utils'
+import { ThemeToggle, useConsoleTheme } from './theme-toggle'
 
 const NAV = [
   { label: 'Missions', icon: ClipboardCheck, href: '/app', count: 0 },
@@ -15,7 +16,7 @@ const NAV = [
   { label: 'Alertes', icon: Bell, href: '/app/alertes', count: 0 },
 ]
 
-const DESKTOP_QUERY = '(min-width: 1024px)'
+const DESKTOP_QUERY = '(min-width: 900px)'
 
 function subscribe(onChange: () => void) {
   const mq = window.matchMedia(DESKTOP_QUERY)
@@ -31,8 +32,9 @@ function useIsDesktop() {
   )
 }
 
-export function Sidebar({ initialCollapsed }: { initialCollapsed: boolean }) {
+export function Sidebar({ initialCollapsed, initialTheme }: { initialCollapsed: boolean; initialTheme: ConsoleTheme }) {
   const isDesktop = useIsDesktop()
+  const [theme, setTheme] = useConsoleTheme(initialTheme)
   const [collapsed, setCollapsed] = useState(initialCollapsed)
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
@@ -61,13 +63,15 @@ export function Sidebar({ initialCollapsed }: { initialCollapsed: boolean }) {
       <aside
         id="app-sidebar"
         className={cn(
-          'sticky top-0 z-30 flex h-dvh shrink-0 flex-col border-r border-border bg-[#0d1119] transition-[width] duration-200',
+          'sticky top-0 z-30 flex h-dvh shrink-0 flex-col border-r border-border bg-canvas transition-[width] duration-200',
           expanded ? 'w-52' : 'w-12',
         )}
       >
         <SidebarContent
           expanded={expanded}
           pathname={pathname}
+          theme={theme}
+          onThemeChange={setTheme}
           onToggle={isDesktop ? toggleDesktop : () => setMobileOpen(true)}
           toggleExpanded={isDesktop ? expanded : mobileOpen}
         />
@@ -78,11 +82,11 @@ export function Sidebar({ initialCollapsed }: { initialCollapsed: boolean }) {
           <button
             type="button"
             aria-label="Fermer la navigation"
-            className="fixed inset-0 z-40 bg-black/60"
+            className="fixed inset-0 z-40 bg-black/30"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r border-border bg-[#0d1119] shadow-2xl shadow-black/60">
-            <SidebarContent expanded pathname={pathname} onToggle={() => setMobileOpen(false)} toggleExpanded />
+          <aside className="fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r border-border bg-canvas shadow-2xl shadow-black/10">
+            <SidebarContent expanded pathname={pathname} theme={theme} onThemeChange={setTheme} onToggle={() => setMobileOpen(false)} toggleExpanded />
           </aside>
         </>
       ) : null}
@@ -93,11 +97,13 @@ export function Sidebar({ initialCollapsed }: { initialCollapsed: boolean }) {
 type ContentProps = {
   expanded: boolean
   pathname: string
+  theme: ConsoleTheme
+  onThemeChange: (theme: ConsoleTheme) => void
   onToggle: () => void
   toggleExpanded: boolean
 }
 
-function SidebarContent({ expanded, pathname, onToggle, toggleExpanded }: ContentProps) {
+function SidebarContent({ expanded, pathname, theme, onThemeChange, onToggle, toggleExpanded }: ContentProps) {
   const ToggleIcon = toggleExpanded ? ChevronLeft : ChevronRight
   const toggle = (
     <button
@@ -107,7 +113,7 @@ function SidebarContent({ expanded, pathname, onToggle, toggleExpanded }: Conten
       aria-controls="app-sidebar"
       aria-label={toggleExpanded ? 'Replier la barre latérale' : 'Déplier la barre latérale'}
       title={toggleExpanded ? 'Replier' : 'Déplier'}
-      className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-white/[0.05] hover:text-foreground focus-visible:ring-2 focus-visible:ring-steel/60 focus-visible:outline-none"
+      className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:ring-2 focus-visible:ring-steel/60 focus-visible:outline-none"
     >
       <ToggleIcon className="size-4" aria-hidden="true" />
     </button>
@@ -122,7 +128,7 @@ function SidebarContent({ expanded, pathname, onToggle, toggleExpanded }: Conten
         </div>
       ) : (
         <div className="flex flex-col items-center gap-2 border-b border-border py-2.5">
-          <span className="hidden lg:flex">
+          <span className="hidden min-[900px]:flex">
             <LogoMark href="/app" />
           </span>
           {toggle}
@@ -144,8 +150,8 @@ function SidebarContent({ expanded, pathname, onToggle, toggleExpanded }: Conten
                 'relative flex items-center rounded-md text-[13px] transition-colors',
                 expanded ? 'gap-2.5 px-2.5 py-1.5' : 'size-8 justify-center',
                 active
-                  ? 'bg-steel/12 font-medium text-white'
-                  : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground',
+                  ? 'bg-steel/12 font-medium text-foreground'
+                  : 'text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground',
               )}
             >
               <item.icon className={cn('size-4 shrink-0', active && 'text-steel')} aria-hidden="true" />
@@ -167,12 +173,15 @@ function SidebarContent({ expanded, pathname, onToggle, toggleExpanded }: Conten
         })}
       </nav>
 
-      {expanded ? (
-        <div className="mt-auto border-t border-border px-4 py-3">
-          <p className="label-mono text-subtle">Espace</p>
-          <p className="mt-1 text-[12.5px] font-medium">Équipe HSentinel</p>
-        </div>
-      ) : null}
+      <div className="mt-auto">
+        <ThemeToggle theme={theme} onChange={onThemeChange} expanded={expanded} />
+        {expanded ? (
+          <div className="border-t border-border px-4 py-3">
+            <p className="label-mono text-subtle">Espace</p>
+            <p className="mt-1 text-[12.5px] font-medium">Équipe HSentinel</p>
+          </div>
+        ) : null}
+      </div>
     </>
   )
 }

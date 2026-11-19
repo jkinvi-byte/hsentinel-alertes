@@ -5,7 +5,7 @@ import { libelleStatut } from '../../../web/lib/qa-contrat.mjs'
 const definitions = {
   passed: { label: 'Conforme', color: 'text-safe border-safe/25 bg-safe/5', Icon: CircleCheck },
   failed: { label: 'Écart constaté', color: 'text-danger border-danger/25 bg-danger/5', Icon: CircleAlert },
-  inconclusive: { label: 'Non concluant', color: 'text-amber-300 border-amber-300/25 bg-amber-300/5', Icon: CircleDashed },
+  inconclusive: { label: 'Non concluant', color: 'text-warn border-warn/25 bg-warn/5', Icon: CircleDashed },
   skipped: { label: 'Non exécuté', color: 'text-muted-foreground border-border bg-muted/30', Icon: MinusCircle },
 }
 export function ResultStatusBadge({ status, reason }: { status: ResultStatus; reason?: string }) {

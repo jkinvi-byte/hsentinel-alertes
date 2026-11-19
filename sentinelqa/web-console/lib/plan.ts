@@ -6,6 +6,9 @@ export const PLAN_COOKIE = 'hs_plan'
 export const SIDEBAR_COOKIE = 'hs_sidebar'
 export const SESSION_COOKIE = 'hs_session'
 export const ONBOARDED_COOKIE = 'hs_onboarded'
+export const THEME_COOKIE = 'hs_theme'
+
+export type ConsoleTheme = 'light' | 'dark'
 
 export const PLANS: { id: Plan; label: string }[] = [
   { id: 'qa', label: 'QA seul' },

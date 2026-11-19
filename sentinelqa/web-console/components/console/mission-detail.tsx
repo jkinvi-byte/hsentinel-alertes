@@ -41,7 +41,7 @@ export function MissionDetail({ module, id }: { module: Module; id: string }) {
         {(stopError || m.error) && <p role="alert" className="panel border-danger/30 p-4 text-sm text-danger">{stopError || m.error}</p>}
         {m.status === 'en_attente' && <p role="status" className="panel p-4 text-sm text-muted-foreground">La mission est enregistrée. Elle attend qu’un agent soit disponible ; aucune progression n’est encore annoncée.</p>}
         <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[['Durée', m.duration == null ? 'Non mesurée' : `${m.duration.toLocaleString('fr-FR')} s`], ['Coût H', formatMoney(m.costH)], ['Coût HF', formatMoney(m.costHf)], ['Résultats vérifiés', `${m.summary.passed + m.summary.failed} / ${m.results.length}`]].map(([label, value]) => <div key={label} className="panel p-4"><dt className="label-mono">{label}</dt><dd className="mt-2 font-mono text-sm">{value}</dd></div>)}</dl>
-        {m.interruption && <p role="status" className="panel border-amber-300/30 p-4 text-sm text-amber-300">{interruptionLabel(m.interruption)}. Les résultats déjà recueillis restent consultables.</p>}
+        {m.interruption && <p role="status" className="panel border-warn/30 p-4 text-sm text-warn">{interruptionLabel(m.interruption)}. Les résultats déjà recueillis restent consultables.</p>}
         {accessResults.length > 0 && <section className="space-y-3" aria-labelledby="access-results">
           <h2 id="access-results" className="text-base font-medium">Connexion et identité</h2>
           {accessResults.map((r, i) => <ResultCard key={`${r.id}-${i}`} result={r} evidence={m.evidence} />)}

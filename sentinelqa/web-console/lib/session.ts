@@ -1,7 +1,7 @@
 import 'server-only'
 import { cookies, headers } from 'next/headers'
 import { validSession } from './operator-session.mjs'
-import { isPlan, PLAN_COOKIE, SIDEBAR_COOKIE, type Plan } from './plan'
+import { isPlan, PLAN_COOKIE, SIDEBAR_COOKIE, THEME_COOKIE, type ConsoleTheme, type Plan } from './plan'
 
 export const OPERATOR_COOKIE = 'hs_operator_session'
 export async function hasSession() {
@@ -15,6 +15,9 @@ export async function hasSession() {
 export async function getPlan(): Promise<Plan> {
   const value = (await cookies()).get(PLAN_COOKIE)?.value
   return isPlan(value) ? value : 'both'
+}
+export async function getConsoleTheme(): Promise<ConsoleTheme> {
+  return (await cookies()).get(THEME_COOKIE)?.value === 'dark' ? 'dark' : 'light'
 }
 export async function getSidebarCollapsed() {
   return (await cookies()).get(SIDEBAR_COOKIE)?.value === '1'

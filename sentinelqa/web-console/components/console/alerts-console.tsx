@@ -10,12 +10,12 @@ import type { Alert, AlertData } from '@/lib/alert-types'
 
 const severities: Record<string, string> = {
   critique: 'border-danger/30 bg-danger/10 text-danger',
-  élevée: 'border-orange-300/30 bg-orange-300/5 text-orange-300',
-  moyenne: 'border-amber-300/30 bg-amber-300/5 text-amber-300',
+  élevée: 'border-high/30 bg-high/5 text-high',
+  moyenne: 'border-warn/30 bg-warn/5 text-warn',
   faible: 'border-border text-muted-foreground',
 }
 const alertColors: Record<string, string> = {
-  traitee: 'text-safe', echec: 'text-danger', en_cours: 'text-steel', a_traiter: 'text-amber-300',
+  traitee: 'text-safe', echec: 'text-danger', en_cours: 'text-steel', a_traiter: 'text-warn',
 }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
