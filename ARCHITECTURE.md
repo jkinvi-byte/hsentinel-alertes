@@ -1,6 +1,6 @@
 # Architecture de HSentinel
 
-> État au 19/11/2026, 3 h, relu contre le code à cette heure. Depuis 19 h 39, l'équipe travaille dans l'espace H de Jahdiel. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md). Kimi corrige `contributions/kimi-pentest` en ce moment : la section 6 décrit l'état lu à 19 h 05.
+> État au 19/11/2026, 3 h 15, relu contre le code à cette heure. Depuis 19 h 39, l'équipe travaille dans l'espace H de Jahdiel. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md). Kimi corrige `contributions/kimi-pentest` en ce moment : la section 6 décrit l'état lu à 19 h 05.
 
 0. [Ce qui a changé depuis le document du 17/11](#0-ce-qui-a-changé-depuis-le-document-du-1711)
 1. [Vue d'ensemble](#1-vue-densemble)
@@ -58,7 +58,7 @@ flowchart TD
 ```
 
 - **Web** (`sentinelqa/web`) : on y lance une mission, on la suit en direct, on l'arrête, et on lit le rapport. Elle tourne en local et n'est pas encore déployée.
-- **La console de l'équipe** (`sentinelqa/web-console`, publiée sur `main` le 18/11, pas encore déployée) : l'interface d'un camarade (v0), que Codex raccorde depuis le 18/11 au soir. Son API `/api/console` réutilise les services de la web : plan, dictée, lancement, suivi, arrêt et rapports (section 11).
+- **La console de l'équipe** (`sentinelqa/web-console`, en ligne sur https://hsentinel-console.vercel.app depuis le 19/11 (Vercel, accès par jeton d'opérateur)) : l'interface d'un camarade (v0), que Codex raccorde depuis le 18/11 au soir. Son API `/api/console` réutilise les services de la web : plan, dictée, lancement, suivi, arrêt et rapports (section 11).
 - **Runner** (`sentinelqa/runner`) : deux processus Python sur un poste de l'équipe, le worker QA (`qa_worker.py`) et le runner du pentest (`sentinelqa.py --surveiller`). Ils prennent les missions dans Supabase, pilotent les agents H et vérifient les résultats.
 - **H Agents API** : des agents qui voient l'écran et cliquent, dans un navigateur cloud que H fournit à chaque session.
 - **Supabase** : les files de missions, le fil en direct et les rapports. Le QA et le pentest ont chacun leurs tables.
@@ -295,7 +295,12 @@ flowchart LR
 - **Captures** : celles de l'agent restent chez H. Le serveur web les relaie (`/api/qa/captures`), et seules les adresses de la trajectoire de la session passent.
 - Next.js 16 et React 19, sans autre dépendance.
 
-**La console de l'équipe, `sentinelqa/web-console`** : l'interface d'un camarade, exportée de v0 (TypeScript, Tailwind, shadcn), que Codex raccorde depuis le 18/11 au soir. Publiée sur `main` le 18/11, pas encore déployée. Sa note de raccordement : `web-console/INTEGRATION.md`.
+**La console de l'équipe, `sentinelqa/web-console`** : l'interface d'un camarade, exportée de v0 (TypeScript, Tailwind, shadcn), que Codex raccorde depuis le 18/11 au soir. **En ligne : https://hsentinel-console.vercel.app**, sur Vercel, depuis le 19/11 à 3 h.
+
+- **Déploiement** : le projet Vercel `hsentinel-console` est réglé sur `rootDirectory = web-console` et Node 24.x. On compile en local, où les modules voisins (`web/lib`, `contrats/`) existent, puis on publie le résultat compilé : `cd sentinelqa && vercel build --prod && vercel deploy --prebuilt --prod`.
+- **Piège du 19/11** : le builder Vercel ignore un `distDir` personnalisé et empaquette `.next/`. Avec `HSENTINEL_BUILD_DIR=.next-production`, il a empaqueté une compilation périmée du 18/11 tout en annonçant un succès. Il faut donc toujours compiler dans `.next`. Avant de publier, vérifier dans `.vercel/output/functions/api/console/[...path].func/.vc-config.json` que la route pointe vers un fichier du jour.
+- **Secrets** : cinq variables de production, sensibles et chiffrées, posées par l'entrée standard (`SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `HF_TOKEN`, `HAI_API_KEY`, `HSENTINEL_OPERATOR_TOKEN`). Le jeton d'opérateur (43 caractères) est aussi rangé dans `~/.config/sentinelqa/.env`. `vercel pull` écrit un jeton OIDC dans `.vercel/` : ce dossier est exclu du dépôt, et ce fichier est supprimé après usage.
+- **Recette en production (19/11, 3 h 06)**, en HTTPS : faux code refusé, connexion par jeton, dictée transcrite, plan (200, 1,2 s), mission publique lancée en ligne et exécutée par le worker du Mac (3 sur 3, 28 s, 0,011 $), captures de l'agent chargées, page Alertes avec le ticket n° 7, aucune réponse en erreur. Sa note de raccordement : `web-console/INTEGRATION.md`.
 
 | Page | Rôle |
 |---|---|
@@ -335,8 +340,8 @@ flowchart LR
 | Pentest : S-PEER-02 | Non raccordé. Triplet HTTP réel de 9 requêtes : A et l'anonyme passent ; B reçoit sa propre vue sans le témoin de A et reste non concluant faute de refus explicite. Aucune fuite démontrée ; H reste à confirmer avec une clé autorisée (403 actuel) |
 | Pentest : HF vers contrôles | Un appel réel sur un inventaire synthétique ; 50 tests sur 50. Jamais exécuté sur Peer Review |
 | Modules de Kimi | 23 tests sur 23 ; confirmation H testée avec le `start_url` ajouté par défaut, sans PATCH inutile |
-| Déploiement de la web | Pas fait : tout tourne en local |
-| Console de l'équipe (`web-console`) | Raccordée par Codex aux services de la web, avec QA connecté et page Alertes : 28 tests, TypeScript et 12 tests navigateur en production réussis. Recette réelle faite le 19/11 : dictée, mission publique, mission connectée. Publiée, pas déployée |
+| Déploiement de la console | En ligne : https://hsentinel-console.vercel.app (Vercel), recette réelle faite en HTTPS. Les workers tournent sur le Mac d'Aurian |
+| Console de l'équipe (`web-console`) | Raccordée par Codex aux services de la web, avec QA connecté et page Alertes : 28 tests, TypeScript et 12 tests navigateur en production réussis. Recette réelle faite le 19/11 : dictée, mission publique, mission connectée. En ligne : https://hsentinel-console.vercel.app |
 | n8n : W1, W3, W4 (Jahdiel) | Branchés sur notre base. W3 vérifié en réel le 19/11 : constat → ticket GitHub n° 7 → état noté, par le rattrapage. Le webhook instantané est refusé (403) tant que son secret n'est pas aligné ; W1 attend son secret |
 | Mesure du temps humain gagné | Pas faite |
 
@@ -364,7 +369,7 @@ sentinelqa/
     app/examen/         index des relevés pentest
     app/api/            routes serveur
     lib/                accès Supabase, contrat QA, dictée, formats
-  web-console/          la console de l'équipe (interface d'un camarade, raccordée par Codex) ; publiée, pas déployée
+  web-console/          la console de l'équipe (interface d'un camarade, raccordée par Codex) ; en ligne sur Vercel
   contrats/qa.json      cibles QA, budgets, consignes de préparation
   contrats/catalogue.json  scénarios sur sites réels (pentest)
   supabase/             schémas SQL ; alertes.sql : applications, constats et les fonctions de n8n
@@ -381,7 +386,7 @@ contributions/
 |---|---|---|---|
 | Les alertes n8n (Jahdiel) | n8n ; les trois exports, leur contrat et leur SQL réécrit pour notre base sont dans [`sentinelqa/n8n/`](sentinelqa/n8n/README.md) et `supabase/alertes.sql` | W1 : un déploiement prêt (`deployment_status` GitHub, signature vérifiée) devient une demande d'audit. W3 : une faille prouvée (table `constats`) devient un ticket GitHub et un e-mail, rouvert si elle revient. W4 : chaque nuit à 2 h, une demande de pentest pour chaque application abonnée | Testés en réel sur `hsentinel-dev` (rapporté par Jahdiel, non vérifié ici). Branchés sur notre base ; W3 vérifié en réel le 19/11 (ticket n° 7, par le rattrapage). Webhook instantané refusé (403) tant que son secret n'est pas aligné |
 | Le bac à sable des agents (Mohamed) | Branche `agents-ia-qa-pentest`, historique séparé (18 fichiers) | Ses propres agents `hsentinel-explorateur`, `-verificateur` et `-preparateur`, des coffres par compte, et deux cibles : Paie Express et une instance Juice Shop à déployer soi-même | Ses agents sont dans l'ancien espace H. Non fusionné. Son README donne en exemple `auditer.py cadence` : Cadence n'est pas une cible autorisée (D-24) |
-| La console de l'équipe | `sentinelqa/web-console`, publiée sur `main` le 18/11, pas encore déployée | L'interface d'un camarade (v0), raccordée par Codex aux services de la web (section 11) | Tests de contrat ; validation réelle à faire (`INTEGRATION.md`) |
+| La console de l'équipe | `sentinelqa/web-console`, en ligne sur https://hsentinel-console.vercel.app depuis le 19/11 (Vercel, accès par jeton d'opérateur) | L'interface d'un camarade (v0), raccordée par Codex aux services de la web (section 11) | Tests de contrat ; validation réelle à faire (`INTEGRATION.md`) |
 
 **La revue de la branche de Mohamed par Codex** (`revues/agents-ia-qa-pentest/REVUE.md`, locale ; *rapporté* : ses huit cas n'ont pas été reproduits ici) :
 - **À reprendre dans le moteur actuel** : le guidage Hugging Face des explorations, avec une comparaison activé et désactivé à budget égal ; le comparatif des modèles ; la distinction entre ressources privées et partagées ; Juice Shop comme banc supplémentaire.

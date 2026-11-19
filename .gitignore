@@ -25,3 +25,6 @@ node_modules/
 .next/
 __pycache__/
 .DS_Store
+
+# Réglages locaux de Vercel (jamais publiés : vercel pull y écrit un jeton)
+.vercel/

@@ -1,6 +1,6 @@
 # Suivi du projet
 
-> Mis à jour le 19/11/2026 à 3 h. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
+> Mis à jour le 19/11/2026 à 3 h 15. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
 >
 > Priorité **P0** : indispensable à la démo de vendredi. **P1** : utile, mais elle peut s'en passer.
 
@@ -46,7 +46,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 6 | ~~Obtenir un compte B actif~~ : le nouveau B est validé avec identité vérifiée ; le triplet HTTP réel A/anonyme/B a tourné. A et l'anonyme passent ; B reçoit sa propre vue sans le témoin de A, donc aucune fuite de A démontrée, mais pas de refus explicite | Pentest | P0 | Kimi | Fait |
 | 7 | Intégrer `contributions/kimi-pentest` au runner et à la web (S-PEER-02) | Pentest | P0 | Aurian | Jeu 19 |
 | 8 | ~~Exécuter S-PEER-01 (la barrière anonyme) en réel~~ : fait le 19/11 à 2 h 52, depuis la console. Conforme : 307 vers `/connexion`, vu aussi à l'écran ; 24 s, 0,004 $ | Pentest | P1 | Claude | Fait |
-| 9 | Déployer la web sur Vercel avec l'accès opérateur (`HSENTINEL_OPERATOR_TOKEN`) | Plateforme | P0 | Aurian | Jeu 19 |
+| 9 | ~~Déployer la console sur Vercel avec l'accès opérateur~~ : en ligne sur https://hsentinel-console.vercel.app le 19/11, recette réelle faite en HTTPS. Les workers QA et pentest restent sur le Mac d'Aurian : ils doivent tourner pendant la démo | Plateforme | P0 | Claude | Fait |
 | 10 | Confirmer le projet Supabase de l'équipe : seul `auaitjryhgwdbczwkdef` est configuré | Plateforme | P0 | Jahdiel | Mer 18 |
 | 11 | Inviter les membres sur ce dépôt (*Settings → Collaborators*) | Plateforme | P0 | Jahdiel | Mer 18 |
 | 12 | Retirer les mots de passe en clair de la page Notion « Apps à tester » | Plateforme | P0 | Chef de projet | Mer 18 |
@@ -103,6 +103,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 19/11 | Recette réelle de la console dans Chrome, sans fenêtre (Playwright) | Dictée transcrite, mission publique 3/3, mission connectée K1/K2 ; 12 tests navigateur sur 12 en production |
 | 19/11 | Chaîne des alertes de bout en bout sur notre base : constat → n8n (rattrapage de W3) → ticket GitHub → état noté → page Alertes de la console | Constat `eef16877` écrit à 1 h 36, ticket n° 7 à 1 h 48, état « traitée » relu dans la base ; capture de la console avec « Ticket #7 ». Le même constat republié commente le ticket n° 7 (« Toujours présente », 2 h 04), sans doublon |
 | 19/11 | Premier pentest réel de HSentinel sur Peer Review (S-PEER-01), lancé depuis la console : file `audits`, worker pentest, lecture HTTP et agent H, rapport dans la console | Conforme : `GET /etudiant` → 307 vers `/connexion`, page de connexion vue par l'agent ; 24 s, 0,004 $ ; aucune réponse en erreur |
+| 19/11 | Console en ligne sur Vercel (https://hsentinel-console.vercel.app) | Accès protégé (faux code refusé, 307 et 401 sans session) ; en HTTPS : dictée, plan, mission publique exécutée par le worker du Mac (3/3), captures, alertes ; aucune réponse en erreur |
 
 ## Risques connus
 
@@ -113,4 +114,5 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 - **Le webhook instantané de W3 est refusé (403).** Tant que l'identifiant n8n et notre coffre n'ont pas le même secret, une faille prouvée attend le rattrapage, jusqu'à 15 min, avant de devenir un ticket (tâche 25).
 - **H a souvent déjà exécuté un geste quand notre garde le voit.** Les événements arrivent par lots, et l'arrêt prend 2 à 3 s (18/11, 22 h 48). Sur un site réel, la consigne, les interdits de la mission et les zones interdites du contrat protègent d'abord ; la garde borne la suite.
 - **Un test navigateur qui simule l'API ne voit pas les gardes du serveur.** Les tests de la console passaient alors que toutes ses écritures étaient refusées (19/11). Avant de déclarer une interface prête, une recette réelle passe par le vrai serveur.
+- **Les workers tournent sur le Mac d'Aurian.** La console en ligne enregistre les missions, mais sans `qa_worker.py` ni `sentinelqa.py --surveiller` actifs, elles restent en attente. Avant la démo : les deux workers lancés, le Mac branché et éveillé.
 - **Plusieurs agents IA modifient les mêmes fichiers.** Faire un `git status` avant chaque commit, et ne pousser que des fichiers nommés.
