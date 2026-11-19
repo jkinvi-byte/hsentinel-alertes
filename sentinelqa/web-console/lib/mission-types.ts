@@ -12,7 +12,7 @@ export type Event = { id: number; quand: string; type: string; message: string }
 export type Plan = { titre: string; etapes: string[]; criteres: { id: string; type: string; description: string; valeur: string }[]; hors_perimetre: string[]; inconnues: string[] }
 export type Catalog = {
   qa: { id: string; name: string; url: string; available: boolean; connexion: boolean; modes: string[]; limits: Record<string, { max_steps: number; max_time_s: number; max_pages?: number }> }[];
-  pentest: { id: string; targetId: string; name: string; target: string; url: string; available: boolean; expected: string; limitations: string; maxSteps: number; maxTime: number }[];
+  pentest: { id: string; targetId: string; name: string; target: string; url: string; available: boolean; writes?: boolean; expected: string; limitations: string; maxSteps: number; maxTime: number }[];
 }
 export type RunnerKey = { id: string | number; jwk: JsonWebKey }
 export type TestAccount = { identifiant: string; motDePasse: string; identite: string[] }

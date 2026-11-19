@@ -41,7 +41,8 @@ export function ligneMission(d) {
 export function cibleReelle(url) {
   try {
     const host = new URL(url).hostname.toLowerCase().replace(/\.$/, '');
-    return catalogue.targets.some((t) => new URL(t.origin).hostname === host);
+    // Les sites réels du catalogue refusent toute écriture (D-24) ; le banc, qui les accepte (business_writes, D-45), n'en est pas un.
+    return catalogue.targets.some((t) => !t.business_writes && new URL(t.origin).hostname === host);
   } catch { return false; }
 }
 

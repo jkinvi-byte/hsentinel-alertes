@@ -65,7 +65,7 @@ export function overallLabel(mission) {
   if (mission.status === 'en_cours') return 'En cours'
   if (mission.interruption) return interruptionLabel(mission.interruption)
   if (!mission.hasReport || !mission.results.length) return 'Aucun verdict disponible'
-  if (mission.summary.failed) return 'Écart constaté'
+  if (mission.summary.failed) return mission.module === 'pentest' ? (mission.summary.failed > 1 ? 'Failles prouvées' : 'Faille prouvée') : 'Écart constaté'
   if (mission.summary.inconclusive) return 'À confirmer'
   if (mission.summary.skipped) return 'Vérification partielle'
   return 'Contrôles exécutés conformes'

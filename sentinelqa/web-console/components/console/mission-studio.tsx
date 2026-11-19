@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { ArrowRight, Check, Monitor, Smartphone, Sparkles, X } from 'lucide-react'
+import { ArrowRight, Check, Monitor, PencilLine, Smartphone, Sparkles, X } from 'lucide-react'
 import { ConsoleHeader } from './console-header'
 import { MissionDictation } from './mission-dictation'
 import { MissionAccount } from './mission-account'
@@ -118,7 +118,9 @@ export function MissionStudio({ catalog, initialModule, initialTarget }: { catal
           </section>}
         </div>
         <aside className="panel space-y-4 p-5 lg:sticky lg:top-5"><p className="label-mono">Votre mission</p><h2 className="font-medium">{module === 'qa' ? 'Un parcours, des critères vérifiables' : 'Un contrôle, des preuves attribuées'}</h2><p className="text-sm leading-relaxed text-muted-foreground">{module === 'qa' ? 'L’agent navigue sur le site. Le rapport distingue ce qui est vérifié de ce qui reste à confirmer.' : selectedScenario?.limitations}</p>
-          <p className="flex items-start gap-2 text-xs text-muted-foreground"><Check className="size-4 shrink-0 text-safe" aria-hidden="true" />Consultation, sans modification des données.</p>
+          {module === 'pentest' && selectedScenario?.writes
+            ? <p className="flex items-start gap-2 text-xs text-amber-300"><PencilLine className="size-4 shrink-0" aria-hidden="true" />Écritures de test sur des données fictives, remises en état à la fin.</p>
+            : <p className="flex items-start gap-2 text-xs text-muted-foreground"><Check className="size-4 shrink-0 text-safe" aria-hidden="true" />Consultation, sans modification des données.</p>}
           {limit?.max_steps && <p className="text-xs text-muted-foreground">{limit.max_steps} actions · budget de {Math.round((limit.max_time_s ?? 0) / 60)} minutes. Arrêt disponible pendant le suivi.</p>}
           {error && <p role="alert" className="text-sm text-danger">{error}</p>}
           <button type="submit" className="console-button primary w-full" disabled={!ready}>{pending === 'launch' ? 'Enregistrement…' : 'Lancer la mission'}<ArrowRight className="size-4" aria-hidden="true" /></button>

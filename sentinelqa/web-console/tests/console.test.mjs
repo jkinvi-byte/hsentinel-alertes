@@ -58,7 +58,7 @@ test('Le rapport pentest v2 conserve attendu, observé et références de preuve
   assert.equal(m.results[0].expected, 'Refus')
   assert.equal(m.results[0].observed, 'Contenu reçu')
   assert.deepEqual(m.results[0].evidence, ['E1'])
-  assert.equal(overallLabel(m), 'Écart constaté')
+  assert.equal(overallLabel(m), 'Faille prouvée')  // le canon : pentest → faille prouvée (D-46)
 })
 test('Les preuves HTTP gardent le statut et la redirection, sans corps ni cookies', () => {
   const m = normaliseMission(fixture({ schema_version: 2, phase: 'completed', evidence: [{ id: 'http-1', kind: 'http', method: 'GET', status_code: 307, bytes: 25,

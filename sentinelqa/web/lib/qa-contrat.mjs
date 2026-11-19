@@ -10,7 +10,10 @@ export const TYPES_CRITERES = { page: 'Page atteinte', texte: 'Texte exact', con
 const LIBELLES_RAISONS = { agent_reported_gap: 'Écart signalé · à confirmer', agent_disagrees: 'Désaccord · à confirmer',
   repeated_attempts: 'Parcours difficile · à revoir', h_text_partial: 'Titre tronqué par H · à voir sur la capture',
   write_risk: 'Mission arrêtée · geste à risque', forbidden_page: 'Mission arrêtée · page interdite' };
-export const libelleStatut = (status, raison) => (status === 'inconclusive' && LIBELLES_RAISONS[raison]) || STATUTS_QA[status] || status;
+// Un contrôle pentest qui échoue est une faille prouvée, pas un écart fonctionnel : le canon distingue les deux (README, Règles).
+const FAILLES_PROUVEES = new Set(['vulnerability_proven', 'protected_content_received']);
+export const libelleStatut = (status, raison) => (status === 'failed' && FAILLES_PROUVEES.has(raison) && 'Faille prouvée')
+  || (status === 'inconclusive' && LIBELLES_RAISONS[raison]) || STATUTS_QA[status] || status;
 export function bilanCriteres(rapport) {
   if (rapport.summary_criteres) return rapport.summary_criteres;
   const criteres = rapport.results.filter((x) => x.type !== 'auto');

@@ -436,10 +436,18 @@ def comptes_sans_secret(comptes):
              "acces": v.get("acces", "admin")} for k, v in comptes.items() if k in ("A", "B", "C")]
 
 
-def auditer(base, comptes, verite, ecriture=None, partager=False, perimetre=(), modele_hf=MODELE_HF):
+def auditer(base, comptes, verite, ecriture=None, partager=False, perimetre=(), modele_hf=MODELE_HF, arret=lambda: False):
     """Un audit complet sur les trois thèmes. Renvoie les données du rapport."""
-    if any((urlsplit(base).hostname or '').rstrip('.').lower() == urlsplit(t['origin']).hostname for t in CATALOGUE['targets']):
+    # Le catalogue nomme les sites réels (D-24) : aucune écriture n'y est permise. Seule une cible qui accepte les
+    # écritures de test (business_writes, le banc de D-45) peut passer par ce runner, qui écrit.
+    if any((urlsplit(base).hostname or '').rstrip('.').lower() == urlsplit(t['origin']).hostname
+           for t in CATALOGUE['targets'] if not t.get('business_writes')):
         raise ValueError("Les sites réels de D-24 doivent passer par une mission bornée, pas par le runner du cobaye.")
+
+    def etape(texte):
+        if arret():  # l'arrêt demandé dans la console prend effet au début d'une étape ; une écriture déjà faite est remise en état
+            raise ArretDemande()
+        journal(texte, "etape")
     cle = cle_api()
     client = Client(api_key=cle)
     journal("0/4 Agents H sur mesure et coffres d'identifiants", "etape")
@@ -449,7 +457,7 @@ def auditer(base, comptes, verite, ecriture=None, partager=False, perimetre=(), 
     journal(f"   {len(coffres)} coffres prêts, un par compte de test")
     debut = time.monotonic()
 
-    journal("1/4 Cartographie en parallèle : compte A (administrateur) et compte C (salarié)", "etape")
+    etape("1/4 Cartographie en parallèle : compte A (administrateur) et compte C (salarié)")
     with ThreadPoolExecutor(max_workers=2) as pool:
         carto_a, carto_c = pool.map(lambda k: cartographier(cle, base, k, comptes[k], coffres[k], perimetre), ("A", "C"))
     (resultat_a, mesure_a), (_, mesure_c) = carto_a, carto_c
@@ -459,7 +467,7 @@ def auditer(base, comptes, verite, ecriture=None, partager=False, perimetre=(), 
     pages_c = [p for p in pages_observees(client, mesure_c["session"], base) if autorise(p, perimetre)]
     journal(f"   Pages affichées par le navigateur : {len(pages_a)} pour A, {len(pages_c)} pour C")
 
-    journal("2/4 Rejeux HTTP : lecture (A puis B), admin (A puis C), écriture (B soumet les formulaires de A)", "etape")
+    etape("2/4 Rejeux HTTP : lecture (A puis B), admin (A puis C), écriture (B soumet les formulaires de A)")
     http = {k: session_http(base, comptes[k]) for k in ("A", "B", "C")}
     ecritures, a_tester, sorties = False, [], []
     pool_hf = ThreadPoolExecutor(max_workers=1)  # Hugging Face travaille en parallèle : l'audit ne l'attend pas
@@ -485,7 +493,7 @@ def auditer(base, comptes, verite, ecriture=None, partager=False, perimetre=(), 
             journal(f"   {libelle} : {pluriel(sum(r['suspicion'] for r in du_theme), 'suspicion')} sur {pluriel(len(du_theme), 'test')}",
                     "rejeu", theme=theme, suspicions=sum(r["suspicion"] for r in du_theme), tests=len(du_theme))
 
-        journal("3/4 Preuves visuelles par l'agent vérificateur, en parallèle", "etape")
+        etape("3/4 Preuves visuelles par l'agent vérificateur, en parallèle")
         prouveur = {"lecture": "B", "admin": "C", "ecriture": "A"}  # l'écriture se constate chez la victime, A
         with ThreadPoolExecutor(max_workers=3) as pool:
             sorties = list(pool.map(lambda s: prouver(cle, base, prouveur[s["theme"]], comptes[prouveur[s["theme"]]],
@@ -553,7 +561,13 @@ def ecrire_rapport_local(donnees):
     dossier.mkdir(exist_ok=True)
     nom = datetime.now().strftime("rapport-%Y%m%d-%H%M%S-%f")
     (dossier / f"{nom}.json").write_text(json.dumps(donnees, ensure_ascii=False, indent=2))
-    (dossier / f"{nom}.html").write_text(rapport_mission(donnees) if donnees.get("schema_version") == 2 else rapport_html(donnees))
+    if donnees.get("banc"):  # le banc lancé depuis la console (D-46) : son rapport détaillé
+        page = rapport_html(donnees["banc"])
+    elif donnees.get("schema_version") == 2:
+        page = rapport_mission(donnees)
+    else:
+        page = rapport_html(donnees)
+    (dossier / f"{nom}.html").write_text(page)
     return dossier / f"{nom}.html"
 
 
@@ -563,6 +577,86 @@ def maintenant():
 
 VERITE_COBAYE = ICI.parent / "cobaye" / "VERITE_TERRAIN.json"
 SANS_VERITE = {"failles": [], "controles_sains": []}
+
+
+class ArretDemande(Exception):
+    """L'opérateur a demandé l'arrêt depuis la console : l'audit s'arrête au début de l'étape suivante."""
+
+
+# S-BANC-01 (D-46) : ce que le banc doit refuser, thème par thème.
+ATTENDUS_BANC = {"lecture": "Le compte B, d'une autre entreprise, est refusé.",
+                 "ecriture": "La modification par le compte B, d'une autre entreprise, est refusée.",
+                 "admin": "Le compte C, simple salarié, est refusé."}
+NIVEAUX = ("faible", "moyenne", "élevée", "critique")
+# Ce que montre chaque preuve, dit sans jargon : un 303 d'écriture est une écriture acceptée, pas un refus.
+CONSTATS_BANC = {"lecture": "B reçoit la page de A (HTTP {http})", "admin": "C reçoit la page réservée (HTTP {http})",
+                 "ecriture": "l'écriture de B est acceptée (HTTP {http}) et visible chez A"}
+
+
+def rapport_banc(mission, cible, scenario, banc, debut, duree):
+    """L'audit du banc dans l'enveloppe v2 que la console affiche : un résultat par faille injectée et par contrôle sain.
+    Une faille prouvée est « failed » ; une faille non prouvée reste « inconclusive », car on n'affirme jamais qu'une faille
+    injectée a disparu. Un faux positif n'est jamais compté comme une faille."""
+    rapport = {"schema_version": 2, "phase": "completed", "request": mission, "scenario_version": scenario["version"],
+               "scenario_title": scenario["title"], "scope_snapshot": cible, "started_at": debut, "finished_at": maintenant(),
+               "duration_s": round(duree, 2), "cost_h": None, "cost_hf": None, "human_minutes": None,
+               "results": [], "evidence": [], "sessions": []}
+    if banc is None:
+        rapport["interruption"] = "cancelled"
+        rapport["results"].append({"scenario_id": scenario["id"], "status": "skipped", "reason_code": "cancelled",
+                                   "expected": scenario["expected"], "limitations": scenario["limitations"], "evidence_references": [],
+                                   "observed": "Arrêt demandé avant la fin de l'audit : aucune faille n'est affirmée."})
+    else:
+        prouvees = [p for p in banc["preuves"] if p.get("prouvee")]
+        for i, p in enumerate(prouvees, 1):
+            rapport["evidence"].append({"id": f"P{i}", "kind": "browser", "session": p.get("session"), "url": cible["origin"] + p["chemin"],
+                                        "titre": f"{THEMES[p['theme']]} · {p['chemin']} : "
+                                                 f"{CONSTATS_BANC[p['theme']].format(http=p.get('http'))}, puis vue à l'écran"})
+
+        def preuves_de(element):
+            return [(f"P{i}", p) for i, p in enumerate(prouvees, 1)
+                    if p["theme"] == element["theme"] and re.search(element["motif"], p["chemin"])]
+
+        for f in banc["score"]["failles"]:
+            refs = preuves_de(f)
+            gravite = max(((p.get("gravite") or {}).get("niveau", "faible") for _, p in refs), key=NIVEAUX.index, default="non classée")
+            observe = (f"Prouvée sur {', '.join(p['chemin'] for _, p in refs)} : le rejeu HTTP l'a montrée, puis l'agent H l'a vue "
+                       f"à l'écran. Gravité {gravite}." if f["detectee"] else
+                       "Non prouvée à cet audit : la faille injectée existe, mais ni le rejeu ni l'agent ne l'ont établie.")
+            rapport["results"].append({"id": f["id"], "type": f["theme"], "description": f["description"],  # la console affiche déjà l'id
+                                       "expected": ATTENDUS_BANC[f["theme"]], "observed": observe,
+                                       "status": "failed" if f["detectee"] else "inconclusive",
+                                       "reason_code": "vulnerability_proven" if f["detectee"] else "not_proven",
+                                       "evidence_references": [r for r, _ in refs]})
+        for c in banc["score"]["controles"]:
+            if c["faux_positif"]:
+                etat = ("inconclusive", "false_positive", "Faux positif : une faille a été affirmée sur ce contrôle sain. L'audit est à revoir.")
+            elif c["teste"]:
+                etat = ("passed", "control_held", "Contrôle sain confirmé : le compte refusé n'a pas reçu la ressource.")
+            else:
+                etat = ("inconclusive", "not_tested", "Non testé à cet audit : aucune page de ce type n'a été cartographiée.")
+            rapport["results"].append({"id": c["id"], "type": c["theme"], "description": c["description"],
+                                       "expected": ATTENDUS_BANC[c["theme"]], "observed": etat[2], "status": etat[0],
+                                       "reason_code": etat[1], "evidence_references": [r for r, _ in preuves_de(c)] if c["faux_positif"] else []})
+        rapport.update(sessions=banc["sessions"], cost_h=banc["cout_dollars"], cost_hf=banc.get("cout_hf_dollars"), banc=banc)
+    rapport["summary"] = {s: sum(r["status"] == s for r in rapport["results"]) for s in ("passed", "failed", "inconclusive", "skipped")}
+    return rapport
+
+
+def auditer_banc(mission, cible, scenario, arret):
+    """S-BANC-01 (D-46) : l'audit du banc, lancé depuis la console. Les comptes sont ceux du banc, fictifs et publics.
+    Les écritures ne sont permises que sur une cible qui les accepte ; lancer ce scénario vaut feu vert au cadrage (D-21)."""
+    if not cible.get("business_writes"):
+        raise ValueError("Ce scénario n'est permis que sur une cible qui accepte les écritures de test.")
+    debut, depart = maintenant(), time.monotonic()
+    try:
+        banc = auditer(cible["entry_url"], json.loads((ICI / "comptes-demo.json").read_text()),
+                       json.loads(VERITE_COBAYE.read_text()), ecriture=True, arret=arret)
+    except ArretDemande:
+        journal("Arrêt demandé : l'audit s'arrête avant l'étape suivante ; les écritures déjà faites sont remises en état.", "info")
+        return rapport_banc(mission, cible, scenario, None, debut, time.monotonic() - depart)
+    banc["application"] = cible["name"]
+    return rapport_banc(mission, cible, scenario, banc, debut, banc["duree_totale_s"])
 
 
 def publier_constats(base, donnees, audit_id):
@@ -593,7 +687,7 @@ def traiter_demande(base, cle, demande):
     journal(f"Demande prise par le runner : {demande['application']} · {demande['cible']}", "info")
     try:
         if (demande.get("rapport") or {}).get("schema_version") == 2:
-            mission, cible, _ = valider_demande(demande["rapport"]["request"])
+            mission, cible, scenario = valider_demande(demande["rapport"]["request"])
             if (demande["cible"] != cible["entry_url"] or demande.get("ecriture_autorisee")
                     or demande.get("comptes") or demande.get("secrets_chiffres")):
                 raise ValueError("La demande ne correspond pas au profil anonyme enregistré.")
@@ -603,10 +697,16 @@ def traiter_demande(base, cle, demande):
                     stop[0] = bool(base.lire("evenements", audit_id=f"eq.{audit_id}", type="eq.arret", limit="1"))
                     derniere_verification[0] = time.monotonic()
                 return stop[0]
-            donnees = executer_mission(mission, NavigateurH(lambda: Client(api_key=cle_api(), timeout=15, max_retries=0)), journal, arret)
+            if scenario.get("assertion_type") == "idor_bench":
+                donnees = auditer_banc(mission, cible, scenario, arret)
+            else:
+                donnees = executer_mission(mission, NavigateurH(lambda: Client(api_key=cle_api(), timeout=15, max_retries=0)), journal, arret)
             rapport = ecrire_rapport_local(donnees)
             base.modifier("audits", {"statut": "termine", "fin": maintenant(), "rapport": donnees}, id=f"eq.{audit_id}")
-            publier_constats_mission(base, donnees, audit_id)
+            if donnees.get("banc"):
+                publier_constats(base, donnees["banc"], audit_id)
+            else:
+                publier_constats_mission(base, donnees, audit_id)
             print(f"Rapport : {rapport}", flush=True)
             return
         mots_de_passe = dechiffrer(cle, demande["secrets_chiffres"])

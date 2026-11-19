@@ -27,6 +27,19 @@
       "navigation_paths": ["/etudiant", "/connexion"],
       "read_paths": ["/etudiant", "/connexion"],
       "limits": {"max_steps": 15, "max_time_s": 180, "max_reads": 5, "max_response_bytes": 1000000}
+    },
+    {
+      "id": "paie-express",
+      "name": "Paie Express",
+      "origin": "https://hsentinel-banc.vercel.app",
+      "entry_url": "https://hsentinel-banc.vercel.app/",
+      "authorization_reference": "D-45 : banc construit par l'équipe, comptes et données fictifs",
+      "business_writes": true,
+      "role_changes": false,
+      "public_replay": false,
+      "navigation_paths": ["/"],
+      "read_paths": ["/"],
+      "limits": {"max_steps": 45, "max_time_s": 900, "max_reads": 300, "max_response_bytes": 1000000}
     }
   ],
   "scenarios": [
@@ -64,6 +77,14 @@
       "actors": ["A", "B"], "assertion_type": "cross_actor_read",
       "missing_preconditions": ["Deux identités vérifiées et sessions isolées", "Ressource de test et règle de visibilité", "Lecture HTTP ou capture réseau attribuable à chaque identité"],
       "limitations": "Un code 200, une similarité de pages ou un avis d’agent ne prouvent pas une fuite."
+    },
+    {
+      "id": "S-BANC-01", "version": 1, "target_id": "paie-express", "mode": "security", "available": true,
+      "title": "Tests IDOR sur le banc : 6 failles injectées",
+      "instruction": "Audit complet du banc : cartographie par A (administrateur) et C (salarié), rejeux de B (autre entreprise) et de C, puis preuves à l'écran. Les écritures portent sur des données fictives et sont remises en état.",
+      "expected": "Les 6 failles injectées sont prouvées et les 4 contrôles sains restent fermés, d'après la vérité terrain écrite avant l'audit.",
+      "actors": ["A", "B", "C"], "assertion_type": "idor_bench",
+      "limitations": "Banc construit par l'équipe, avec des comptes et des données fictifs : il mesure la détection, pas la sécurité d'un site réel. Lancer ce scénario autorise les tests d'écriture sur ces données, remises en état à la fin."
     }
   ]
 }
