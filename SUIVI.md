@@ -1,6 +1,6 @@
 # Suivi du projet
 
-> Mis à jour le 19/11/2026 à 3 h 15. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
+> Mis à jour le 19/11/2026 à 5 h 20. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
 >
 > Priorité **P0** : indispensable à la démo de vendredi. **P1** : utile, mais elle peut s'en passer.
 
@@ -70,6 +70,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 31 | Lever les bloquants relevés par la revue de Codex avant toute reprise de la branche de Mohamed : verdict « fuite » sur deux textes vides, session échouée comptée comme refus, budgets non transmis, noms d'agents divergents | Pentest | P1 | Mohamed | Jeu 19 |
 | 32 | Chaque poste qui lance le runner : créer sa clé dans l'espace H de Jahdiel | Plateforme | P1 | Tous | Jeu 19 |
 | 36 | Valider les règles écrites des tickets (D-42) : pour un écart QA, page en erreur 5xx « élevée », lien cassé « faible », le reste « moyenne » ; pour une lecture par un autre compte (S-PEER-02), « élevée » | QA, Pentest | P1 | Aurian | Jeu 19 |
+| 37 | Monter W1, W3 et W4 dans l'instance n8n d'Aurian (`aurianvsolution.app.n8n.cloud`) : l'outil `sentinelqa/n8n/monter.py` est prêt et le jeton GitHub est rangé. Restent la clé d'API n8n, la connexion Google de l'identifiant Gmail, le passage du coffre Supabase sur le nouveau webhook, puis la désactivation des workflows de Jahdiel | Plateforme | P0 | Aurian, Claude | Jeu 19 |
 | 34 | Console : QA connecté et page Alertes raccordés. **Recette faite par Claude le 19/11** : 12 tests navigateur sur 12 en production, puis en réel une dictée, une mission publique et une mission connectée (K1/K2). Page Alertes vérifiée avec de vrais constats et le ticket n° 7. Reste : l'arrêt d'une mission réelle. [Contrat et état](ARCHITECTURE.md#11-la-web) | Plateforme | P0 | Codex, Aurian | Jeu 19 |
 | 35 | Pentest (`runner/missions.py`) : le même piège que le QA, à vérifier. H passe une session à « idle » avant d'y attacher la réponse, et `wait_for_completion` peut alors rendre `answer = None`, compté « agent_incomplete ». Le QA s'en protège avec `qa_moteur.lire_fin`, qui relit la session 10 s au plus | Pentest | P1 | Kimi | Jeu 19 |
 | 33 | ~~Obtenir de Jahdiel le SQL de `hsentinel-dev`~~ : il n'existe pas en fichier. Réécrit dans notre base (`supabase/alertes.sql`, `runner/constats.py`) et testé sur une base locale qui imite Supabase | Plateforme | P0 | Claude | Fait |
@@ -106,6 +107,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 19/11 | Premier pentest réel de HSentinel sur Peer Review (S-PEER-01), lancé depuis la console : file `audits`, worker pentest, lecture HTTP et agent H, rapport dans la console | Conforme : `GET /etudiant` → 307 vers `/connexion`, page de connexion vue par l'agent ; 24 s, 0,004 $ ; aucune réponse en erreur |
 | 19/11 | Console en ligne sur Vercel (https://hsentinel-console.vercel.app) | Accès protégé (faux code refusé, 307 et 401 sans session) ; en HTTPS : dictée, plan, mission publique exécutée par le worker du Mac (3/3), captures, alertes ; aucune réponse en erreur |
 | 19/11 | Écarts QA → tickets (D-42) : la table, ses textes et les deux workers ; console mise à jour en ligne | SQL testé en local (base existante : ticket du banc identique au caractère près ; base neuve), puis appliqué en production ; 71 tests Python, 40 web, 28 console ; mission réelle « Bac+8 » depuis la console en ligne → « Écart constaté » → constat publié → ticket n° 8 par le rattrapage (3 h 33), affiché dans la console en ligne ; ticket de recette fermé et constat retiré |
+| 19/11 | Veille des mises à jour (D-43) : empreinte HTTP de chaque site, mission QA automatique quand il change ; la console devient une cible QA (pages publiques) | 7 tests ; console redéployée à 5 h 16 min 08 s → mise à jour détectée à 5 h 17 min 04 s → exploration faite à 5 h 17 min 34 s (2 conformes), visible dans la console en ligne |
 
 ## Risques connus
 

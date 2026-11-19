@@ -17,6 +17,7 @@ import httpx
 from hai_agents import Client
 
 import constats
+import veille
 from base import Base, env_postgres, lire_cles
 from cle_runner import cle_privee, dechiffrer, publier
 from qa_moteur import ecrire_rapport, executer_qa, maintenant, preparer_coffre, supprimer_coffre, trouver_cible
@@ -121,9 +122,16 @@ def surveiller():
     # La clé publique du runner, avec laquelle la web chiffre le mot de passe d'un site connecté.
     print(f"Clé publique du runner publiée (cles_runner n° {publier(base, cle_privee())})", flush=True)
     print("Worker QA prêt : en attente des missions de la web (Ctrl-C pour arrêter)…", flush=True)
-    pause = 2
+    print(f"Veille des mises à jour : un tour toutes les {veille.INTERVALLE_S} s (D-43).", flush=True)
+    pause, prochaine_veille = 2, 0.0
     while True:
         try:
+            if time.monotonic() >= prochaine_veille:
+                prochaine_veille = time.monotonic() + veille.INTERVALLE_S
+                try:
+                    veille.observer(base, journal=lambda m: print(f"{time.strftime('%H:%M:%S')} {m}", flush=True))
+                except Exception as erreur:  # un tour de veille raté n'arrête jamais le traitement des missions
+                    print(f"Veille interrompue ({erreur.__class__.__name__}) : nouvel essai au prochain tour.", flush=True)
             attente = base.lire("qa_missions", statut="eq.en_attente", order="cree_le.asc", limit="1")
             if attente:
                 # Réservation atomique : si un autre worker l'a prise, la modification ne touche aucune ligne.

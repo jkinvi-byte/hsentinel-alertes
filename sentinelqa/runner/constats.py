@@ -38,7 +38,7 @@ METHODES = {"lecture": "GET", "admin": "GET", "ecriture": "POST"}
 PARIS = ZoneInfo("Europe/Paris")
 
 # Les applications de la table `applications`, par l'identifiant de cible d'une mission (contrats/).
-CIBLES = {"eugenia-public": "eugenia-public", "peer-review": "peer-review"}
+CIBLES = {"eugenia-public": "eugenia-public", "peer-review": "peer-review", "hsentinel-console": "hsentinel-console"}
 CATALOGUE_QA = json.loads((Path(__file__).resolve().parents[1] / "contrats" / "qa.json").read_text())
 # K1 et K2 décrivent la mise en place du test (le compte, le nom attendu), pas une régression du site.
 TYPES_QA_EXCLUS = {"connexion", "identite"}

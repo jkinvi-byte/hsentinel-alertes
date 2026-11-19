@@ -1,6 +1,6 @@
 # Architecture de HSentinel
 
-> État au 19/11/2026, 3 h 15, relu contre le code à cette heure. Depuis 19 h 39, l'équipe travaille dans l'espace H de Jahdiel. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md). Kimi corrige `contributions/kimi-pentest` en ce moment : la section 6 décrit l'état lu à 19 h 05.
+> État au 19/11/2026, 5 h 20, relu contre le code à cette heure. Depuis 19 h 39, l'équipe travaille dans l'espace H de Jahdiel. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md). Kimi corrige `contributions/kimi-pentest` en ce moment : la section 6 décrit l'état lu à 19 h 05.
 
 0. [Ce qui a changé depuis le document du 17/11](#0-ce-qui-a-changé-depuis-le-document-du-1711)
 1. [Vue d'ensemble](#1-vue-densemble)
@@ -124,6 +124,16 @@ sequenceDiagram
 
 - **Deux pilotages.** Le *parcours guidé* suit la consigne de l'utilisateur. L'*exploration bornée* fonctionne sans consigne : l'agent ouvre le menu principal, 6 pages au plus, et relève les problèmes visibles.
 - **Deux écrans.** Ordinateur en 1280 × 800, mobile en 390 × 844. On change de valeur par session (`overrides`), sans dupliquer l'agent.
+- **La veille des mises à jour (D-43, `runner/veille.py`)**. Elle sait qu'un site a changé sans rien installer chez le client. Le worker QA lit chaque application suivie deux fois de suite, par HTTP et sans agent, toutes les 15 minutes ; `HSENTINEL_VEILLE_S` change ce rythme. L'empreinte ne garde que ce qui est identique dans les deux lectures :
+  - l'identifiant de compilation de Next.js (`"b":"…"` dans les données de rendu de l'App Router, ou `/_next/static/<id>/`) ;
+  - les ressources JS et CSS ;
+  - les titres h1 à h3.
+
+  Ce qui change à chaque requête n'y entre donc jamais. Si l'empreinte change, une mission QA d'exploration est créée et exécutée, et un écart prouvé devient un ticket (D-42). Un site à compte (Peer Review) est seulement signalé. Une erreur de lecture ne vaut ni changement ni mission.
+
+  **Mesuré le 19/11** : la console est redéployée à 5 h 16 min 08 s. La veille détecte la « nouvelle compilation » à 5 h 17 min 04 s, et la mission d'exploration est faite à 5 h 17 min 34 s (2 conformes, 0 écart, 0,010 $). La console en ligne l'affiche.
+
+  Les autres voies de détection, à proposer selon le client : l'intégration (une application GitHub, Vercel, une étape de CI) et le calendrier (W4). La console elle-même est devenue une cible QA, pour ses pages publiques seulement (`/app` et `/api` exclus).
 - **Arrêt.** Le bouton de la web met `arret_demande` à vrai. Le worker annule alors la session H et garde les preuves déjà recueillies.
 - **Mesures réelles du 18/11 sur eugeniaschool.com : 9 missions complètes, 0,300 $ au total, 0,033 $ et 76 s en moyenne.** Parcours guidé : 37 à 81 s, 0,011 à 0,039 $. Exploration : 86 à 160 s, 0,045 à 0,070 $. Plan Hugging Face : environ 1 s. Dictée : 1,1 à 1,6 s.
 - **Répétitions du 18/11 au soir, 10 par scénario, réussite jugée par le code** :

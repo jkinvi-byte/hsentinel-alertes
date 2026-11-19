@@ -70,6 +70,12 @@ create index if not exists constats_alerte_idx on public.constats (alerte_statut
 
 -- Migration du 19/11 (D-42), pour une base créée avant : les écarts QA et les failles d'une mission pentest.
 -- L'empreinte d'une faille sans critère ne change pas : ses tickets existants restent reconnus.
+-- Migration du 19/11 (D-43) : la veille des mises à jour, par une empreinte HTTP de chaque application suivie.
+alter table public.applications add column if not exists observation_active boolean not null default false;
+alter table public.applications add column if not exists observation_empreinte text;
+alter table public.applications add column if not exists observation_detail jsonb;
+alter table public.applications add column if not exists observee_le timestamptz;
+alter table public.applications add column if not exists mise_a_jour_le timestamptz;
 alter table public.constats drop constraint if exists constats_theme_check;
 alter table public.constats add constraint constats_theme_check check (theme in ('lecture', 'ecriture', 'admin', 'compte', 'qa'));
 alter table public.constats add column if not exists critere text check (critere is null or length(critere) <= 200);
@@ -95,7 +101,9 @@ values
   ('peer-review', 'Peer Review', 'https://peer-review-black.vercel.app', true, 'D-24 : accord écrit déclaré par Aurian, consultation seule',
    null, 'peer-review', 'https://peer-review-black.vercel.app/etudiant', 'S-PEER-01'),
   ('eugenia-public', 'Eugenia School', 'https://www.eugeniaschool.com', true, 'D-24 : accord écrit déclaré par Aurian, consultation seule',
-   'eugenia-public', null, null, null)
+   'eugenia-public', null, null, null),
+  ('hsentinel-console', 'HSentinel (console)', 'https://hsentinel-console.vercel.app', true, 'D-43 : notre propre application',
+   'hsentinel-console', null, null, null)
 on conflict (id) do nothing;
 
 -- ── Petites aides de rédaction ────────────────────────────────────────────────────────────────────────

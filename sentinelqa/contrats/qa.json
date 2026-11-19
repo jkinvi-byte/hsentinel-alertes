@@ -43,6 +43,28 @@
         "lectures_http": 8,
         "octets_par_lecture": 1000000
       }
+    },
+    {
+      "id": "hsentinel-console",
+      "nom": "HSentinel (console)",
+      "origine": "https://hsentinel-console.vercel.app",
+      "entree": "https://hsentinel-console.vercel.app/",
+      "autorisation": "D-43 : notre propre application, ses pages publiques seulement",
+      "consultation_seule": true,
+      "chemins_exclus": ["/app", "/api"],
+      "limites": {
+        "guide": {
+          "max_steps": 20,
+          "max_time_s": 240
+        },
+        "exploration": {
+          "max_steps": 25,
+          "max_time_s": 300,
+          "max_pages": 3
+        },
+        "lectures_http": 20,
+        "octets_par_lecture": 2000000
+      }
     }
   ],
   "pilotages": {

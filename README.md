@@ -9,13 +9,13 @@ Des agents IA de H Company testent un site web autorisé comme un humain : ils n
 
 Hors de `main` : la branche `jahdiel/suivi-n8n` (le suivi des alertes n8n, repris dans SUIVI.md) et `agents-ia-qa-pentest` (le bac à sable de Mohamed). Voir [ARCHITECTURE.md, section 14](ARCHITECTURE.md#14-les-travaux-de-léquipe-hors-de-main).
 
-## État au 19/11, 3 h 15
+## État au 19/11, 5 h 20
 
 **La console en ligne : https://hsentinel-console.vercel.app** (accès par le jeton d'opérateur de l'équipe). Les workers QA et pentest tournent sur le Mac d'Aurian : sans eux, une mission reste en attente.
 
 | Volet | Fonctionne, vérifié en réel | Manque |
 |---|---|---|
-| QA | Consigne tapée ou dictée, puis plan Hugging Face, agent H, vérification par le code et rapport web. 33 missions sur eugeniaschool.com le 18/11, sur ordinateur et sur mobile (0,904 $ au total). Répétitions, 10 par scénario : parcours guidé 10/10 (29 s, 0,007 $), exploration 10/10 (103 s, 0,051 $) | Dictée avec une vraie voix, mesure du temps gagné, déploiement |
+| QA | Consigne tapée ou dictée, puis plan Hugging Face, agent H, vérification par le code et rapport web. 33 missions sur eugeniaschool.com le 18/11, sur ordinateur et sur mobile (0,904 $ au total). Répétitions, 10 par scénario : parcours guidé 10/10 (29 s, 0,007 $), exploration 10/10 (103 s, 0,051 $). **Veille des mises à jour** (D-43) : une empreinte HTTP de chaque site, toutes les 15 min ; une mise en ligne de la console a été détectée en 56 s, puis explorée automatiquement | Dictée avec une vraie voix, mesure du temps gagné, déploiement |
 | QA connecté : Peer Review | L'agent se connecte par un coffre H créé pour l'essai, puis consulte sans rien modifier. Compte d'Alec : 18 missions réelles (0,259 $), depuis le terminal ou la file web, où le mot de passe est chiffré dans le navigateur. 10 répétitions : connexion et identité prouvées 10/10, « Mon parcours » 10/10, aucune évaluation ouverte, 40 s et 0,015 $ en moyenne. La garde a été renforcée après une évaluation ouverte à 22 h 48 (rien de noté) | Compte de Nathan refusé par le site (2 essais) : son mot de passe en vigueur ; la recette du formulaire connecté désormais raccordé dans la console ; titres de l'accueil tronqués par H, donc non concluants |
 | Pentest : banc | Paie Express, une application de test à failles injectées : 59 failles prouvées sur 60, en 10 audits, 0 faux positif | — |
 | Pentest : Peer Review | S-PEER-01 (barrière d'accès sans connexion) exécuté en réel depuis la console le 19/11 : conforme, 307 vers `/connexion`, 24 s, 0,004 $. Connexion HTTP de A validée en réel ; ressource témoin et règle de visibilité confirmées (Kimi) | B refusé par le site ; agent H recréé par Kimi et confirmé (20 h 38) ; contrôle A/B jamais exécuté ; modules non raccordés (`contributions/`) |
