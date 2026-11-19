@@ -3,9 +3,11 @@
 import { BookOpen, CornerDownLeft, Mic, Square, Volume2, VolumeX, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { creerDictee as creerDicteeJs } from '../../../web/lib/qa-dictee.mjs'
+import { parler, taire } from '@/lib/expert/voix.mjs'
 
 // D-51 : l'expert QA ou Pentest du studio. On lui parle (micro, même transcription que la dictée) ou on lui écrit ;
-// il répond d'après le Manuel HSentinel et le contexte de la mission, et sa réponse est lue à voix haute.
+// il répond d'après le Manuel HSentinel et le contexte de la mission, et sa réponse est lue à voix haute,
+// par Kokoro sur Hugging Face, avec la voix du système réglée comme celle de LEVELS en secours.
 // Il ne lance rien : une consigne proposée ne remplace la vôtre que sur « Reprendre dans la consigne ».
 
 // Le contrôleur de la dictée est en JavaScript : ses rappels prennent bien un argument, ce que l'inférence ne voit pas.
@@ -35,24 +37,40 @@ export function MissionExpert({ volet, cible, consigne, disabled = false, onAppl
   const etat = useRef({ volet, cible, consigne, messages, voix })
   etat.current = { volet, cible, consigne, messages, voix }
 
+  // Une lecture en cours ne doit jamais en chevaucher une autre : chaque lecture porte un numéro, arrêter l'invalide.
+  const lecture = useRef(0)
+  const audio = useRef<HTMLAudioElement | null>(null)
+
   function arreterVoix() {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+    lecture.current++
+    audio.current?.pause()
+    audio.current = null
+    taire()
     setParle(false)
   }
 
-  function lire(texte: string) {
-    if (!etat.current.voix || typeof window === 'undefined' || !('speechSynthesis' in window)) return
-    const synthese = window.speechSynthesis
-    synthese.cancel()
-    const phrase = new SpeechSynthesisUtterance(texte)
-    phrase.lang = 'fr-FR'
-    const francaise = synthese.getVoices().find((v) => v.lang?.toLowerCase().startsWith('fr'))
-    if (francaise) phrase.voice = francaise
-    phrase.rate = 1.05
-    phrase.onend = () => setParle(false)
-    phrase.onerror = () => setParle(false)
+  // La voix de Hugging Face (Kokoro, voix française), servie par la console ; si elle manque, la voix du système
+  // réglée comme celle de LEVELS (lib/expert/voix.mjs) prend le relais : l'expert ne se tait jamais.
+  async function lire(texte: string) {
+    if (!etat.current.voix) return
+    const n = ++lecture.current
     setParle(true)
-    synthese.speak(phrase)
+    try {
+      const res = await fetch('/api/console/expert/voix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ texte }) })
+      if (!res.ok) throw new Error('voix indisponible')
+      const url = URL.createObjectURL(await res.blob())
+      if (n !== lecture.current) { URL.revokeObjectURL(url); return }
+      const a = new Audio(url)
+      audio.current = a
+      const fin = () => { URL.revokeObjectURL(url); if (audio.current === a) { audio.current = null; setParle(false) } }
+      a.onended = fin
+      a.onerror = fin
+      await a.play()
+    } catch {
+      if (n !== lecture.current) return
+      audio.current = null
+      if (!parler(texte, () => setParle(false))) setParle(false)
+    }
   }
 
   async function demander(texte: string) {
@@ -72,7 +90,7 @@ export function MissionExpert({ volet, cible, consigne, disabled = false, onAppl
       const data = await res.json()
       if (!res.ok) throw new Error(data.erreur || 'L’expert ne répond pas pour l’instant.')
       setMessages((m) => [...m, { role: 'expert', texte: data.reponse, consigne: data.consigne_proposee, fiches: data.fiches }])
-      lire(data.reponse)
+      void lire(data.reponse)
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'L’expert ne répond pas pour l’instant.')
     } finally {

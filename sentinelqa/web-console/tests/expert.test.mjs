@@ -36,3 +36,20 @@ test('sans fiche trouvée, l’expert reçoit la fiche d’ouverture de son vole
   assert.deepEqual(blocFiches('bonjour', 'pentest').ids, ['hsentinel', 'pentest'])
   assert.ok(blocFiches('bonjour', 'qa').texte.startsWith('FICHES DU MANUEL HSENTINEL'))
 })
+
+// La voix de l'expert : celle de LEVELS (choix stable, version améliorée d'abord, une phrase par énoncé).
+import { choisirVoixParmi, phrases } from '../lib/expert/voix.mjs'
+
+test('la voix choisie suit les préférences de LEVELS, pas l’ordre du système', () => {
+  const v = (name, lang = 'fr-FR', extra = {}) => ({ name, lang, voiceURI: name, default: false, ...extra })
+  const systeme = [v('Bad News'), v('Jacques', 'fr-FR', { default: true }), v('Thomas'), v('Amélie (améliorée)'), v('Amélie'), v('Samantha', 'en-US')]
+  assert.equal(choisirVoixParmi(systeme).name, 'Amélie (améliorée)')
+  assert.equal(choisirVoixParmi([v('Bad News'), v('Jacques', 'fr-FR', { default: true })]).name, 'Jacques')
+  assert.equal(choisirVoixParmi([v('Thomas', 'fr-CA'), v('Henri', 'fr-FR')]).name, 'Henri')
+  assert.equal(choisirVoixParmi([v('Samantha', 'en-US')]), null)
+})
+
+test('une phrase par énoncé', () => {
+  assert.deepEqual(phrases('Vous devez ouvrir la page. Puis vérifier « Bac+3 » ! Fini…  Oui'), ['Vous devez ouvrir la page.', 'Puis vérifier « Bac+3 » !', 'Fini…', 'Oui'])
+  assert.deepEqual(phrases(''), [])
+})

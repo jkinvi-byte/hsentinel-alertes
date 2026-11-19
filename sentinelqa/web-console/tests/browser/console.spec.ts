@@ -20,12 +20,21 @@ const report = { schema_version: 3, phase: 'completed', titre: 'Recette UI · r�
   results: [{ id: 'C1', description: 'Page atteinte', status: 'passed', observe: 'Observation de test.' },
     { id: 'C2', description: 'Texte à confirmer', status: 'inconclusive', observe: 'La citation reste à vérifier.' }], evidence: [], sessions: [] }
 
+// Un dixième de seconde de silence, en WAV : ce que la voix Hugging Face rend dans la recette (D-51).
+const SILENCE_WAV = (() => {
+  const donnees = Buffer.alloc(1600), tete = Buffer.alloc(44)
+  tete.write('RIFF', 0); tete.writeUInt32LE(36 + donnees.length, 4); tete.write('WAVE', 8); tete.write('fmt ', 12)
+  tete.writeUInt32LE(16, 16); tete.writeUInt16LE(1, 20); tete.writeUInt16LE(1, 22); tete.writeUInt32LE(8000, 24)
+  tete.writeUInt32LE(16000, 28); tete.writeUInt16LE(2, 32); tete.writeUInt16LE(16, 34); tete.write('data', 36); tete.writeUInt32LE(donnees.length, 40)
+  return Buffer.concat([tete, donnees])
+})()
+
 async function loginCookie(page: Page) {
   await page.context().addCookies([{ name: 'hs_operator_session', value: createSession(secret), url: baseURL, httpOnly: true, sameSite: 'Lax' }])
 }
 async function fixtures(page: Page) {
   const calls = { starts: [] as any[], plans: [] as any[], stops: 0, transcriptions: 0, failed: false, running: false,
-    keys: 0, keyAvailable: true, alertsFailed: false, expert: [] as any[] }
+    keys: 0, keyAvailable: true, alertsFailed: false, expert: [] as any[], voix: [] as any[], voixEnPanne: false }
   await page.route('**/api/console/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname
     const response = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
@@ -41,6 +50,11 @@ async function fixtures(page: Page) {
       return response({ application, limite: 50, alertes: rows, bilan: bilanAlertes(rows), applications: [{ id: 'eugenia-public', nom: 'Eugenia' }, { id: 'peer-review', nom: 'Peer Review' }] })
     }
     if (path === '/api/console/plan') { calls.plans.push(request.postDataJSON()); return response({ plan }) }
+    if (path === '/api/console/expert/voix') {
+      calls.voix.push(request.postDataJSON())
+      if (calls.voixEnPanne) return response({ erreur: 'La voix est momentanément indisponible.' }, 503)
+      return route.fulfill({ status: 200, contentType: 'audio/wav', body: SILENCE_WAV })
+    }
     if (path === '/api/console/expert') {
       calls.expert.push(request.postDataJSON())
       return response({ reponse: 'Réponse synthétique de l’expert.', consigne_proposee: 'Ouvrir le menu « Programmes », puis vérifier le texte « Bac+3 ».', fiches: ['consigne'], modele: 'fixture', latence_s: 0.1 })
@@ -78,6 +92,8 @@ test('Les routes réelles refusent une session absente ou la session simulée hi
   const signed = `hs_operator_session=${createSession(secret)}`
   expect((await request.get('/api/console/catalogue', { headers: { cookie: signed } })).status()).toBe(200)
   expect((await request.get('/api/console/cle-runner')).status()).toBe(401)
+  expect((await request.post('/api/console/expert', { data: { volet: 'qa', cible: 'eugenia-public', question: 'test' } })).status()).toBe(401)
+  expect((await request.post('/api/console/expert/voix', { data: { texte: 'test' } })).status()).toBe(401)
   expect((await request.get('/api/console/alertes')).status()).toBe(401)
   expect((await request.get('/api/console/alertes?limite=0', { headers: { cookie: signed } })).status()).toBe(400)
   const blocked = await request.post('/api/console/missions', { headers: { cookie: signed, origin: 'http://127.0.0.1:3102' }, data: { schema_version: 2, mode: 'security', target_id: 'peer-review', scenario_id: 'S-PEER-02' } })
@@ -346,16 +362,22 @@ test('Expert du studio : question écrite ou dite, réponse lue, consigne repris
   await expect(page.getByText('Réponse synthétique de l’expert.')).toBeVisible()
   expect(calls.starts).toHaveLength(0)
   expect(calls.expert[0]).toMatchObject({ volet: 'qa', question: 'Comment formuler ma consigne ?', historique: [] })
-  expect(await page.evaluate(() => (window as unknown as { __lu: string[] }).__lu)).toEqual(['Réponse synthétique de l’expert.'])
+  // La réponse est lue par la voix Hugging Face ; la voix du système n'est pas sollicitée.
+  await expect.poll(() => calls.voix.length).toBe(1)
+  expect(calls.voix[0]).toEqual({ texte: 'Réponse synthétique de l’expert.' })
+  expect(await page.evaluate(() => (window as unknown as { __lu: string[] }).__lu)).toEqual([])
   await expect(page.getByLabel('Votre consigne')).toHaveValue('')
   await page.getByRole('button', { name: 'Reprendre dans la consigne' }).click()
   await expect(page.getByLabel('Votre consigne')).toHaveValue('Ouvrir le menu « Programmes », puis vérifier le texte « Bac+3 ».')
 
   // À la voix : le micro synthétique, la même transcription que la dictée, puis la question part seule.
+  // Cette fois la voix Hugging Face est en panne : la voix du système, réglée comme celle de LEVELS, prend le relais.
+  calls.voixEnPanne = true
   await page.getByRole('button', { name: 'Parler à l’expert' }).click()
   await page.getByRole('button', { name: 'Arrêter et envoyer' }).click()
   await expect.poll(() => calls.expert.length).toBe(2)
   expect(calls.expert[1]).toMatchObject({ question: 'Vérifie le Bachelor et son diplôme.', historique: [{ role: 'utilisateur', texte: 'Comment formuler ma consigne ?' }, { role: 'expert', texte: 'Réponse synthétique de l’expert.' }] })
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __lu: string[] }).__lu)).toEqual(['Réponse synthétique de l’expert.'])
   expect(calls.starts).toHaveLength(0)
 
   await page.goto('/app/nouveau?volet=pentest')
