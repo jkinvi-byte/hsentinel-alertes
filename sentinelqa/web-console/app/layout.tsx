@@ -12,9 +12,9 @@ const instrument = localFont({
 const martian = localFont({ src: './polices/MartianMono-VF.ttf', weight: '100 800', variable: '--font-martian', display: 'swap' })
 
 export const metadata: Metadata = {
-  title: 'HSentinel — QA et Pentest',
+  title: 'HSentinel — QA + Pentest, à chaque déploiement',
   description:
-    'Préparez vos tests, suivez les agents et examinez les résultats avec leurs preuves.',
+    'Prouvez qu’un client de votre SaaS ne voit pas les données d’un autre : des agents QA et Pentest auditent chaque déploiement.',
   generator: 'v0.app',
   icons: {
     icon: [

@@ -83,7 +83,7 @@ test('Les routes réelles refusent une session absente ou la session simulée hi
 test('Connexion opérateur : un faux code est refusé', async ({ page }) => {
   await page.goto('/login')
   await page.getByLabel('Code d’accès de l’équipe').fill('not-the-token')
-  await page.getByRole('button', { name: 'Ouvrir la console' }).click()
+  await page.getByRole('button', { name: 'Se connecter' }).click()
   await expect(page.getByRole('alert').filter({ hasText: 'Ce code d’accès n’est pas reconnu.' })).toHaveText('Ce code d’accès n’est pas reconnu.')
 })
 

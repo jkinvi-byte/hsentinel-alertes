@@ -32,9 +32,11 @@
   --color-safe: var(--safe);
   --color-subtle: var(--subtle);
   --color-steel: var(--steel);
-  --color-canvas: var(--canvas);
   --color-warn: var(--warn);
   --color-high: var(--high);
+  --color-canvas: var(--canvas);
+  --color-ink: var(--ink);
+  --color-ink-line: var(--ink-line);
 
   --radius-sm: calc(var(--radius) * 0.5);
   --radius-md: calc(var(--radius) * 0.75);
@@ -67,87 +69,11 @@
   --danger: #ff5a52;
   --danger-soft: #170f13;
   --safe: #49d08b;
-  --canvas: #0e131c;
   --warn: #fcd34d;
   --high: #fdba74;
   --radius: 0.5rem;
 }
 
-/* La console (D-48) : le style de project 2. Clair par défaut, sombre au choix de l'opérateur (cookie hs_theme).
-   --warn (ambre : moyenne, à confirmer) et --high (orange : élevée) gardent leur sens dans les deux thèmes. */
-.theme-console {
-  color-scheme: light;
-  --background: #f7f7f5;
-  --foreground: #0b0b0c;
-  --card: #ffffff;
-  --card-foreground: #0b0b0c;
-  --popover: #ffffff;
-  --popover-foreground: #0b0b0c;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  --secondary: #f3f3f4;
-  --secondary-foreground: #0b0b0c;
-  --muted: #f3f3f4;
-  --muted-foreground: #5b5e66;
-  --subtle: #8d9099;
-  --accent: #f3f3f4;
-  --accent-foreground: #0b0b0c;
-  --destructive: #dc2626;
-  --border: #e7e7ea;
-  --input: #dcdce0;
-  --ring: #2563eb;
-  --steel: #2563eb;
-  --danger: #dc2626;
-  --danger-soft: #fef2f2;
-  --safe: #15803d;
-  --canvas: #ffffff;
-  --warn: #b45309;
-  --high: #c2410c;
-  background-color: var(--background);
-  color: var(--foreground);
-}
-
-.theme-console[data-theme='dark'] {
-  color-scheme: dark;
-  --background: #0b0e14;
-  --foreground: #e6e9ef;
-  --card: #111722;
-  --card-foreground: #e6e9ef;
-  --popover: #111722;
-  --popover-foreground: #e6e9ef;
-  --primary: #3b82f6;
-  --secondary: #161d2a;
-  --secondary-foreground: #e6e9ef;
-  --muted: #161d2a;
-  --muted-foreground: #8a94a6;
-  --subtle: #5a6476;
-  --accent: rgb(255 255 255 / 0.04);
-  --accent-foreground: #e6e9ef;
-  --destructive: #ff5a52;
-  --border: rgb(255 255 255 / 0.08);
-  --input: rgb(255 255 255 / 0.1);
-  --ring: #3b82f6;
-  --steel: #3b82f6;
-  --danger: #ff5a52;
-  --danger-soft: #170f13;
-  --safe: #49d08b;
-  --canvas: #0e131c;
-  --warn: #fcd34d;
-  --high: #fdba74;
-}
-
-.theme-console .logo-mark { filter: invert(1); }
-.theme-console[data-theme='dark'] .logo-mark { filter: none; }
-.theme-console .logo-word { color: var(--foreground); }
-.theme-console ::selection { background: rgb(37 99 235 / 0.18); }
-.theme-console[data-theme='dark'] ::selection { background: rgb(59 130 246 / 0.3); }
-
-/* Le fond derrière la page (rebond du défilement sur Mac et iPhone) suit son thème : jamais le bleu nuit de :root sous une page claire. */
-body:has(.theme-h) { background-color: #ffffff; }
-body:has(.theme-console) { background-color: #f7f7f5; }
-body:has(.theme-console[data-theme='dark']) { background-color: #0b0e14; }
-
-/* Le site (accueil), comme celui de project 2 (D-48) : blanc pur. */
 .theme-h {
   color-scheme: light;
   --background: #ffffff;
@@ -183,14 +109,251 @@ body:has(.theme-console[data-theme='dark']) { background-color: #0b0e14; }
   --ink: #0a0f1c;
   --ink-line: rgb(255 255 255 / 0.1);
 }
+
+.theme-console {
+  color-scheme: light;
+  --background: #f7f7f5;
+  --foreground: #0b0b0c;
+  --card: #ffffff;
+  --card-foreground: #0b0b0c;
+  --popover: #ffffff;
+  --popover-foreground: #0b0b0c;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f3f4;
+  --secondary-foreground: #0b0b0c;
+  --muted: #f3f3f4;
+  --muted-foreground: #5b5e66;
+  --subtle: #8d9099;
+  --accent: #f3f3f4;
+  --accent-foreground: #0b0b0c;
+  --destructive: #dc2626;
+  --border: #e7e7ea;
+  --input: #dcdce0;
+  --ring: #2563eb;
+  --steel: #2563eb;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --safe: #15803d;
+  --warn: #b45309;
+  --high: #c2410c;
+  --canvas: #ffffff;
+  --ink: #0a0f1c;
+  --ink-line: rgb(255 255 255 / 0.1);
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+.theme-console[data-theme='dark'] {
+  color-scheme: dark;
+  --background: #0b0e14;
+  --foreground: #e6e9ef;
+  --card: #111722;
+  --card-foreground: #e6e9ef;
+  --popover: #111722;
+  --popover-foreground: #e6e9ef;
+  --primary: #3b82f6;
+  --secondary: #161d2a;
+  --secondary-foreground: #e6e9ef;
+  --muted: #161d2a;
+  --muted-foreground: #8a94a6;
+  --subtle: #5a6476;
+  --accent: rgb(255 255 255 / 0.04);
+  --accent-foreground: #e6e9ef;
+  --destructive: #ff5a52;
+  --border: rgb(255 255 255 / 0.08);
+  --input: rgb(255 255 255 / 0.1);
+  --ring: #3b82f6;
+  --steel: #3b82f6;
+  --danger: #ff5a52;
+  --danger-soft: #170f13;
+  --safe: #49d08b;
+  --warn: #fcd34d;
+  --high: #fdba74;
+  --canvas: #0e131c;
+}
+
+.theme-console[data-theme='dark'] .logo-mark {
+  filter: none;
+}
+
+.theme-console[data-theme='dark'] ::selection {
+  background: rgb(59 130 246 / 0.3);
+}
+
+.theme-console ::selection {
+  background: rgb(37 99 235 / 0.18);
+}
+
+.theme-console .logo-word {
+  color: var(--foreground);
+}
+
+.theme-console .logo-mark {
+  filter: invert(1);
+}
+
+.theme-ink {
+  color-scheme: dark;
+  --background: #0a0f1c;
+  --foreground: #e6e9ef;
+  --card: #0f1626;
+  --card-foreground: #e6e9ef;
+  --popover: #0f1626;
+  --popover-foreground: #e6e9ef;
+  --secondary: #161d2a;
+  --secondary-foreground: #e6e9ef;
+  --muted: #161d2a;
+  --muted-foreground: #8a94a6;
+  --subtle: #5a6476;
+  --accent: rgb(255 255 255 / 0.04);
+  --accent-foreground: #e6e9ef;
+  --border: rgb(255 255 255 / 0.08);
+  --input: rgb(255 255 255 / 0.1);
+  --steel: #3b82f6;
+  --ring: #3b82f6;
+  --danger: #ff5a52;
+  --danger-soft: #170f13;
+  --safe: #49d08b;
+  color: var(--foreground);
+}
+
+.dot-grid {
+  background-image: radial-gradient(circle at 1px 1px, rgb(10 15 28 / 0.11) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+.dot-grid-dark {
+  background-image: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.07) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+.fade-mask {
+  mask-image: linear-gradient(to bottom, black 40%, transparent);
+}
+
+@keyframes h-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.h-marquee {
+  animation: h-marquee 38s linear infinite;
+}
+
 .theme-h ::selection {
   background: rgb(37 99 235 / 0.18);
 }
+
 .theme-h .logo-word {
   color: var(--foreground);
 }
+
 .theme-h .logo-mark {
   filter: invert(1);
+}
+
+@keyframes h-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes h-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes h-pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+
+.h-rise {
+  animation: h-rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.h-caret {
+  animation: h-caret 1s steps(1) infinite;
+}
+
+/* fable-fps : l'anneau est pré-rendu (ombre statique) ; seules son échelle et son opacité s'animent. */
+.h-pulse {
+  position: relative;
+}
+.h-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 6px rgb(37 99 235 / 0.35);
+  opacity: 0;
+  pointer-events: none;
+  animation: h-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes replay-progress {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes replay-flash {
+  0% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.replay-progress {
+  animation: replay-progress linear both;
+}
+
+.replay-flash {
+  animation: replay-flash 0.6s ease-out both;
+}
+
+@supports (animation-timeline: view()) {
+  .h-reveal {
+    animation: h-rise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 35%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .h-rise,
+  .h-caret,
+  .h-pulse,
+  .h-pulse::after,
+  .h-marquee,
+  .h-reveal,
+  .replay-flash {
+    animation: none;
+  }
+  .replay-progress {
+    animation: none;
+    width: 100%;
+  }
 }
 
 @utility panel {
@@ -198,17 +361,6 @@ body:has(.theme-console[data-theme='dark']) { background-color: #0b0e14; }
   border: 1px solid var(--border);
   border-radius: 8px;
 }
-
-.console-field { width: 100%; border: 1px solid var(--input); border-radius: 6px; background: var(--background); color: var(--foreground); padding: 10px 12px; font-size: 13px; outline: none; }
-.console-field:focus-visible { border-color: var(--steel); box-shadow: 0 0 0 2px rgb(59 130 246 / .22); }
-.console-field:disabled { opacity: .55; }
-.console-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 13px; border-radius: 6px; border: 1px solid var(--border); font-size: 13px; font-weight: 500; cursor: pointer; }
-.console-button:hover { background: color-mix(in srgb, var(--foreground) 5%, transparent); }
-.console-button:focus-visible { outline: 2px solid var(--steel); outline-offset: 3px; }
-.console-button:disabled { opacity: .45; cursor: not-allowed; }
-.console-button.primary { background: var(--steel); color: white; border-color: var(--steel); }
-.console-button.primary:hover:not(:disabled) { background: #1d4ed8; }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 
 @utility label-mono {
   font-family: var(--font-mono);
@@ -235,3 +387,19 @@ body:has(.theme-console[data-theme='dark']) { background-color: #0b0e14; }
     background: rgb(59 130 246 / 0.35);
   }
 }
+
+/* HSentinel : nos champs et boutons de formulaire (studio de mission), en jetons. */
+.console-field { width: 100%; border: 1px solid var(--input); border-radius: 6px; background: var(--background); color: var(--foreground); padding: 10px 12px; font-size: 13px; outline: none; }
+.console-field:focus-visible { border-color: var(--steel); box-shadow: 0 0 0 2px rgb(59 130 246 / .22); }
+.console-field:disabled { opacity: .55; }
+.console-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 13px; border-radius: 6px; border: 1px solid var(--border); font-size: 13px; font-weight: 500; cursor: pointer; }
+.console-button:hover { background: color-mix(in srgb, var(--foreground) 5%, transparent); }
+.console-button:focus-visible { outline: 2px solid var(--steel); outline-offset: 3px; }
+.console-button:disabled { opacity: .45; cursor: not-allowed; }
+.console-button.primary { background: var(--steel); color: white; border-color: var(--steel); }
+.console-button.primary:hover:not(:disabled) { background: #1d4ed8; }
+
+/* Le fond derrière la page (rebond du défilement sur Mac et iPhone) suit son thème. */
+body:has(.theme-h) { background-color: #ffffff; }
+body:has(.theme-console) { background-color: #f7f7f5; }
+body:has(.theme-console[data-theme='dark']) { background-color: #0b0e14; }

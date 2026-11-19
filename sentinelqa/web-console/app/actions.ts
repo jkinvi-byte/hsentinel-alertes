@@ -18,3 +18,7 @@ export async function logout() {
   ;(await cookies()).delete(OPERATOR_COOKIE)
   redirect('/login')
 }
+// « Démarrer l'essai de 7 jours » : pas de compte en libre-service, l'essai passe par une demande de démo.
+export async function signup() {
+  redirect('/demo')
+}
