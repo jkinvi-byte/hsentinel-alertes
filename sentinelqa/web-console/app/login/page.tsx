@@ -6,7 +6,7 @@ import { hasSession } from '@/lib/session'
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   if (await hasSession()) redirect('/app')
   const { error } = await searchParams
-  return <main className="flex min-h-dvh items-center justify-center px-5 py-10">
+  return <main className="theme-console flex min-h-dvh items-center justify-center bg-background px-5 py-10">
     <div className="flex w-full max-w-sm flex-col items-center gap-6">
       <Logo href="/" />
       <form action={login} className="panel flex w-full flex-col gap-4 p-6">

@@ -6,7 +6,7 @@ function SectionHeading({ eyebrow, title, intro }: { eyebrow: string; title: str
   return (
     <div className="flex max-w-2xl flex-col gap-3">
       <p className="label-mono text-steel">{eyebrow}</p>
-      <h2 className="font-heading text-[26px] leading-tight font-bold tracking-tight text-balance text-white md:text-[32px]">
+      <h2 className="font-heading text-[26px] leading-tight font-bold tracking-tight text-balance text-foreground md:text-[32px]">
         {title}
       </h2>
       {intro ? <p className="text-[14.5px] leading-relaxed text-pretty text-muted-foreground">{intro}</p> : null}
@@ -43,14 +43,14 @@ export function ProblemSection() {
             <ShieldAlert className="size-5 text-danger" aria-hidden="true" />
             <div className="flex flex-col">
               <span className="font-mono text-[11px] text-steel">QA + Pentest</span>
-              <span className="text-[13px] font-semibold text-white">Des constats vérifiables</span>
+              <span className="text-[13px] font-semibold text-foreground">Des constats vérifiables</span>
             </div>
           </div>
         </div>
         <div className="grid gap-px overflow-hidden rounded-lg border border-border bg-border md:grid-cols-3">
           {PROBLEMS.map((p) => (
             <article key={p.title} className="flex flex-col gap-2 bg-card p-5">
-              <h3 className="text-[14px] font-semibold text-white">{p.title}</h3>
+              <h3 className="text-[14px] font-semibold text-foreground">{p.title}</h3>
               <p className="text-[13px] leading-relaxed text-muted-foreground">{p.body}</p>
             </article>
           ))}
@@ -96,7 +96,7 @@ export function HowItWorksSection() {
                   {step.actor}
                 </span>
               </div>
-              <h3 className="text-[16px] font-semibold text-white">{step.title}</h3>
+              <h3 className="text-[16px] font-semibold text-foreground">{step.title}</h3>
               <p className="text-[13px] leading-relaxed text-muted-foreground">{step.body}</p>
             </li>
           ))}
@@ -146,7 +146,7 @@ export function AgentsSection() {
                   <agent.icon className="size-4 text-steel" aria-hidden="true" />
                 </span>
                 <div className="flex flex-col">
-                  <h3 className="text-[16px] font-semibold text-white">Agent {agent.name}</h3>
+                  <h3 className="text-[16px] font-semibold text-foreground">Agent {agent.name}</h3>
                   <p className="text-[12.5px] text-muted-foreground">{agent.tagline}</p>
                 </div>
               </div>
@@ -190,7 +190,7 @@ export function OffersSection({ signedIn }: { signedIn: boolean }) {
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex flex-col gap-1">
-                  <h3 className="text-[16px] font-semibold text-white">{offer.name}</h3>
+                  <h3 className="text-[16px] font-semibold text-foreground">{offer.name}</h3>
                   <p className="font-mono text-[11px] text-muted-foreground">{offer.modules}</p>
                 </div>
                 {offer.featured ? (
@@ -210,8 +210,8 @@ export function OffersSection({ signedIn }: { signedIn: boolean }) {
                 className={cn(
                   'flex h-9 items-center justify-center rounded-md text-[13px] font-semibold transition-colors',
                   offer.featured
-                    ? 'bg-steel text-white hover:bg-[#2f72e0]'
-                    : 'border border-border text-foreground hover:bg-white/[0.05]',
+                    ? 'bg-steel text-white hover:bg-[#1d4ed8]'
+                    : 'border border-border text-foreground hover:bg-foreground/[0.05]',
                 )}
               >
                 Demander un accès

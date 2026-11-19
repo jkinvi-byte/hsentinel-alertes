@@ -142,6 +142,57 @@
 .theme-console ::selection { background: rgb(37 99 235 / 0.18); }
 .theme-console[data-theme='dark'] ::selection { background: rgb(59 130 246 / 0.3); }
 
+/* Le fond derrière la page (rebond du défilement sur Mac et iPhone) suit son thème : jamais le bleu nuit de :root sous une page claire. */
+body:has(.theme-h) { background-color: #ffffff; }
+body:has(.theme-console) { background-color: #f7f7f5; }
+body:has(.theme-console[data-theme='dark']) { background-color: #0b0e14; }
+
+/* Le site (accueil), comme celui de project 2 (D-48) : blanc pur. */
+.theme-h {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #0b0b0c;
+  --card: #ffffff;
+  --card-foreground: #0b0b0c;
+  --popover: #ffffff;
+  --popover-foreground: #0b0b0c;
+  --primary: #0b0b0c;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f3f4;
+  --secondary-foreground: #0b0b0c;
+  --muted: #f3f3f4;
+  --muted-foreground: #5b5e66;
+  --subtle: #8d9099;
+  --accent: #f3f3f4;
+  --accent-foreground: #0b0b0c;
+  --border: #e7e7ea;
+  --input: #e7e7ea;
+  --ring: #2563eb;
+  --steel: #2563eb;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --safe: #15803d;
+  --warn: #b45309;
+  --high: #c2410c;
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+.theme-h {
+  --canvas: #f5f5f2;
+  --ink: #0a0f1c;
+  --ink-line: rgb(255 255 255 / 0.1);
+}
+.theme-h ::selection {
+  background: rgb(37 99 235 / 0.18);
+}
+.theme-h .logo-word {
+  color: var(--foreground);
+}
+.theme-h .logo-mark {
+  filter: invert(1);
+}
+
 @utility panel {
   background-color: var(--card);
   border: 1px solid var(--border);

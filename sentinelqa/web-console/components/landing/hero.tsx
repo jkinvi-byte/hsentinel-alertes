@@ -13,9 +13,9 @@ export function Hero({ signedIn }: { signedIn: boolean }) {
     <section className="border-b border-border">
       <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] lg:py-24">
         <div className="flex flex-col items-start gap-6">
-          <Image src="/logo-mark.png" alt="" width={56} height={56} priority className="size-14" />
+          <Image src="/logo-mark.png" alt="" width={56} height={56} priority className="logo-mark size-14" />
           <div className="flex flex-col gap-4">
-            <h1 className="font-heading text-[34px] leading-[1.08] font-bold tracking-tight text-balance text-white md:text-[46px]">
+            <h1 className="font-heading text-[34px] leading-[1.08] font-bold tracking-tight text-balance text-foreground md:text-[46px]">
               HSentinel — QA + Pentest, sur vos vrais parcours
             </h1>
             <p className="max-w-xl text-[15px] leading-relaxed text-pretty text-muted-foreground md:text-[17px]">
@@ -25,13 +25,13 @@ export function Hero({ signedIn }: { signedIn: boolean }) {
           <div className="flex flex-wrap gap-2.5">
             <Link
               href={signedIn ? '/app' : '/login'}
-              className="flex h-9 items-center rounded-md bg-steel px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#2f72e0]"
+              className="flex h-9 items-center rounded-md bg-steel px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#1d4ed8]"
             >
               {signedIn ? 'Ouvrir la console' : 'Accéder à la console'}
             </Link>
             <a
               href="#fonctionnement"
-              className="flex h-9 items-center rounded-md border border-border px-4 text-[13px] text-foreground transition-colors hover:bg-white/[0.05]"
+              className="flex h-9 items-center rounded-md border border-border px-4 text-[13px] text-foreground transition-colors hover:bg-foreground/[0.05]"
             >
               Voir le fonctionnement
             </a>
@@ -53,7 +53,7 @@ export function Hero({ signedIn }: { signedIn: boolean }) {
               <li key={row.step} className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-b-0">
                 <span className="font-mono text-[10.5px] text-subtle tabular-nums">0{i + 1}</span>
                 <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="text-[13px] font-semibold text-white">
+                  <span className="text-[13px] font-semibold text-foreground">
                     {row.step}
                   </span>
                   <span className="font-mono text-[10.5px] text-muted-foreground">{row.actor}</span>
@@ -62,7 +62,7 @@ export function Hero({ signedIn }: { signedIn: boolean }) {
               </li>
             ))}
           </ol>
-          <figcaption className="border-t border-border bg-white/[0.02] px-4 py-2 font-mono text-[10.5px] text-muted-foreground">
+          <figcaption className="border-t border-border bg-foreground/[0.02] px-4 py-2 font-mono text-[10.5px] text-muted-foreground">
             Les rapports réels distinguent conforme, écart, non concluant et non exécuté.
           </figcaption>
         </figure>

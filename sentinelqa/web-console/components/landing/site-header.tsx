@@ -21,7 +21,7 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
         </nav>
         <Link
           href={signedIn ? '/app' : '/login'}
-          className="flex h-7 items-center rounded-md border border-border px-2.5 text-[12.5px] text-foreground transition-colors hover:bg-white/[0.05]"
+          className="flex h-7 items-center rounded-md border border-border px-2.5 text-[12.5px] text-foreground transition-colors hover:bg-foreground/[0.05]"
         >
           {signedIn ? 'Ouvrir la console' : 'Se connecter'}
         </Link>
