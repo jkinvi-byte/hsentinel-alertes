@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
+import { createServer } from 'node:http'
 import { constants, generateKeyPairSync, privateDecrypt } from 'node:crypto'
 import { createSession } from '../../lib/operator-session.mjs'
 import { normaliseMission } from '../../lib/mission-view.mjs'
@@ -89,17 +90,138 @@ test('Connexion opérateur : un faux code est refusé', async ({ page }) => {
 
 })
 
-test('Historique vide et erreur réseau restent explicites', async ({ page }) => {
-  await loginCookie(page); const calls = await fixtures(page)
+// D-49 : les pages de la console v0 lisent la base côté serveur. Une fausse base PostgREST sert des lignes synthétiques,
+// une base vide ou une panne, selon le mode choisi par chaque test.
+let modeBase: 'donnees' | 'vide' | 'panne' = 'donnees'
+const ici = Date.now(), ilYa = (minutes: number) => new Date(ici - minutes * 60000).toISOString()
+const AUDIT_BANC = '22222222-2222-4222-8222-222222222222', MISSION_QA = '33333333-3333-4333-8333-333333333333'
+const CONSTAT_LECTURE = '44444444-4444-4444-8444-444444444444', CONSTAT_ADMIN = '55555555-5555-4555-8555-555555555555'
+const TABLES: Record<string, unknown[]> = {
+  applications: [
+    { id: 'paie-express', nom: 'Paie Express', origine: 'http://localhost:3000', observation_active: false, observee_le: null, mise_a_jour_le: null },
+    { id: 'eugenia-public', nom: 'Eugenia School', origine: 'https://www.eugeniaschool.com', observation_active: true, observee_le: ilYa(5), mise_a_jour_le: null },
+    { id: 'blackbox-local', nom: 'Banc local', origine: 'http://127.0.0.1:8765', observation_active: false, observee_le: null, mise_a_jour_le: null },
+  ],
+  audits: [{ id: AUDIT_BANC, cree_le: ilYa(60), statut: 'termine', application: 'Paie Express', cible: 'https://hsentinel-banc.vercel.app/', erreur: null,
+    rapport: { schema_version: 2, phase: 'completed', scenario_title: 'Tests IDOR sur le banc (synthétique)', duration_s: 300, cost_h: 0.2, cost_hf: 0.0004,
+      request: { mode: 'security', scenario_id: 'S-BANC-01', target_id: 'paie-express' },
+      results: [{ id: 'F1', type: 'lecture', status: 'failed', observed: 'Prouvée (synthétique).' }, { id: 'F5', type: 'admin', status: 'failed', observed: 'Prouvée (synthétique).' },
+        { id: 'C1', type: 'lecture', status: 'passed', observed: 'Contrôle sain (synthétique).' }],
+      banc: { pages: { A: ['/fiches-de-paie/1', '/administration'], C: ['/tableau-de-bord'] }, score: { total: 6, detectees: 2, faux_positifs: 0 },
+        sessions: [{ role: 'Compte A', cible: 'cartographie', duree_s: 100 }, { role: 'Compte B', cible: '/fiches-de-paie/1', duree_s: 40 }],
+        rejeux: [{ chemin: '/fiches-de-paie/1', theme: 'lecture', http: 200, http_a: 200, similarite: 1, suspicion: true, donnees: ['salaires'] }],
+        preuves: [{ chemin: '/fiches-de-paie/1' }, { chemin: '/administration' }] } } }],
+  qa_missions: [{ id: MISSION_QA, cree_le: ilYa(30), statut: 'termine', cible: 'eugenia-public', erreur: null, arret_demande: false,
+    demande: { mode: 'qa', pilotage: 'exploration', instruction: 'Explorer le site (synthétique)', source: 'texte' },
+    rapport: { schema_version: 3, phase: 'completed', titre: 'Exploration synthétique', duration_s: 30, cost_h: 0.012, cost_hf: null,
+      summary: { passed: 1, failed: 0, inconclusive: 1, skipped: 0 }, scope_snapshot: { origine: 'https://www.eugeniaschool.com' },
+      visites: [{ chemin: '/', titre: 'Accueil', geste: null }], parcours: [], sessions: [{ duree_s: 27 }],
+      results: [{ id: 'P1', description: 'Page / (synthétique)', status: 'passed', observe: 'HTTP 200.' }, { id: 'P2', description: 'Titre attendu', status: 'inconclusive', observe: 'Texte tronqué.' }] } }],
+  constats: [
+    { id: CONSTAT_LECTURE, cree_le: ilYa(58), application_id: 'paie-express', audit_id: AUDIT_BANC, audit_le: ilYa(58), theme: 'lecture', methode: 'GET', chemin: '/fiches-de-paie/1',
+      gravite: 'critique', donnees: ['salaires'], raisons: ['Une autre entreprise lit des salaires (synthétique)'], critere: null, similarite: 1, seuil: 0.9, confirme_ecran: true,
+      session_h: 'session-synthetique', piste: 'Vérifier l’entreprise propriétaire (synthétique).', empreinte: 'e-lecture', alerte_statut: 'traitee', github_issue_number: 15, email_envoye: true, alerte_traitee_le: ilYa(57) },
+    { id: CONSTAT_ADMIN, cree_le: ilYa(58), application_id: 'paie-express', audit_id: AUDIT_BANC, audit_le: ilYa(58), theme: 'admin', methode: 'GET', chemin: '/administration',
+      gravite: 'élevée', donnees: [], raisons: ['Un salarié entre dans l’administration (synthétique)'], critere: null, similarite: 1, seuil: 0.9, confirme_ecran: true,
+      session_h: null, piste: null, empreinte: 'e-admin', alerte_statut: 'echec', github_issue_number: null, email_envoye: false, alerte_traitee_le: null },
+  ],
+}
+const fausseBase = createServer((req, res) => {
+  const table = new URL(req.url ?? '/', 'http://base').pathname.replace('/rest/v1/', '')
+  if (modeBase === 'panne') { res.writeHead(503).end('{}'); return }
+  res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(modeBase === 'vide' ? [] : TABLES[table] ?? []))
+})
+test.beforeAll(async () => { await new Promise<void>(resolve => fausseBase.listen(3199, '127.0.0.1', resolve)) })
+test.afterAll(async () => { await new Promise(resolve => fausseBase.close(resolve)) })
+test.beforeEach(() => { modeBase = 'donnees' })
+
+test('Console v0 : chaque page montre les données de la base, sans chiffre inventé', async ({ page }) => {
+  await loginCookie(page)
   await page.goto('/app')
-  await expect(page.getByText('Votre première mission commence ici')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Simuler un déploiement' })).toHaveCount(0)
-  calls.failed = true
-  await page.getByRole('button', { name: 'Pentest', exact: true }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'Service temporairement indisponible.' })).toBeVisible()
-  calls.failed = false
+  await expect(page.getByRole('heading', { name: 'Vue d’ensemble' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Diagnostics\s*2/ })).toBeVisible()
+  await expect(page.getByText('Exploration synthétique').first()).toBeVisible()
+
+  await page.goto('/app/audits')
+  await expect(page.getByRole('heading', { name: 'Tests IDOR sur le banc (synthétique)' })).toBeVisible()
+  await expect(page.getByText('Matrice action × compte')).toBeVisible()
+  await expect(page.getByText('FAILLE', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('2/6', { exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: /Ticket GitHub\s*#15/ })).toHaveAttribute('href', 'https://github.com/jkinvi-byte/hsentinel-alertes/issues/15')
+  await page.getByRole('tab', { name: /QA/ }).click()
+  await expect(page.getByRole('heading', { name: 'Exploration synthétique' })).toBeVisible()
+  await expect(page.getByText('Aucun écart prouvé ; 1 critère à confirmer.')).toBeVisible()
+
+  await page.goto('/app/diagnostic')
+  await expect(page.getByText('2 failles sur 2')).toBeVisible()
+  await page.getByRole('link', { name: /Une autre entreprise peut lire GET \/fiches-de-paie\/1/ }).click()
+  await expect(page).toHaveURL(new RegExp(`/app/diagnostic/${CONSTAT_LECTURE}`))
+  await expect(page.getByRole('link', { name: /Ticket GitHub #15/ })).toHaveAttribute('href', 'https://github.com/jkinvi-byte/hsentinel-alertes/issues/15')
+  await expect(page.getByText('Alerte envoyée', { exact: true })).toBeVisible()
+  await expect(page.getByText('https://hsentinel-banc.vercel.app', { exact: true })).toBeVisible()
+  await page.goto(`/app/diagnostic/${CONSTAT_ADMIN}`)
+  await expect(page.getByText('Alerte en échec · reprise toutes les 15 min')).toBeVisible()
+  await expect(page.getByRole('link', { name: /Ticket GitHub/ })).toHaveCount(0)
+
+  await page.goto('/app/applications')
+  await expect(page.getByRole('button', { name: /Paie Express/ })).toBeVisible()
+  await expect(page.getByText('Banc local')).toHaveCount(0)
+  await expect(page.getByText('S-BANC-01')).toBeVisible()
+
+  await page.goto('/app/facturation')
+  await expect(page.getByText('Aucun paiement n’est branché.', { exact: false })).toBeVisible()
+  await page.goto('/app/compte')
+  await expect(page.getByText('Aucune offre souscrite')).toBeVisible()
+
+  // À 390 px, aucune page ne déborde en largeur.
+  await page.setViewportSize({ width: 390, height: 844 })
+  await mkdir('test-results/apercus', { recursive: true })
+  for (const chemin of ['/app', '/app/audits', '/app/diagnostic', `/app/diagnostic/${CONSTAT_LECTURE}`, '/app/applications', '/app/facturation', '/app/compte']) {
+    await page.goto(chemin)
+    // Le navigateur de test se dit « ordinateur » : on attend que la barre latérale ait fini de se replier avant de mesurer.
+    await expect(page.locator('#app-sidebar')).toHaveCSS('width', '48px')
+    // En cas d'échec, le message nomme les éléments qui dépassent : la page et sa cause d'un coup d'œil.
+    const debordent = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth ? [] : [...document.querySelectorAll('body *')]
+      .filter((e) => {
+        const w = window.innerWidth + 1
+        if (e.getBoundingClientRect().right <= w || (e.parentElement?.getBoundingClientRect().right ?? 0) > w) return false
+        // Un débordement rogné par un parent (overflow hidden ou auto) ne fait pas défiler la page.
+        for (let a = e.parentElement; a; a = a.parentElement) if (getComputedStyle(a).overflowX !== 'visible' && a.getBoundingClientRect().right <= w) return false
+        return true
+      })
+      .slice(0, 5).map((e) => `${e.tagName}.${String(e.className).slice(0, 60)} → ${Math.round(e.getBoundingClientRect().right)}`))
+    await page.screenshot({ path: `test-results/apercus/console${chemin.replace(/\//g, '-')}-390.png`, fullPage: true })
+    expect(debordent, chemin).toEqual([])
+  }
+})
+
+test('Base vide : chaque page le dit, sans planter', async ({ page }) => {
+  modeBase = 'vide'; await loginCookie(page)
+  await page.goto('/app')
+  await expect(page.getByText('Aucune session navigateur pour l’instant : lancez un audit QA.')).toBeVisible()
+  await page.goto('/app/audits')
+  await expect(page.getByText('Aucune mission dans ce volet')).toBeVisible()
+  await page.goto('/app/diagnostic')
+  await expect(page.getByText('Aucune faille prouvée pour l’instant')).toBeVisible()
+  await page.goto('/app/applications')
+  await expect(page.getByText('Aucune application autorisée')).toBeVisible()
+})
+
+test('Base injoignable : message explicite, puis reprise par « Réessayer »', async ({ page }) => {
+  modeBase = 'panne'; await loginCookie(page)
+  await page.goto('/app/diagnostic')
+  await expect(page.getByRole('alert').filter({ hasText: 'La base de la console ne répond pas pour l’instant.' })).toBeVisible()
+  modeBase = 'donnees'
   await page.getByRole('button', { name: 'Réessayer' }).click()
-  await expect(page.getByText('Votre première mission commence ici')).toBeVisible()
+  await expect(page.getByText('2 failles sur 2')).toBeVisible()
+})
+
+test('Les anciennes adresses mènent aux pages de la console v0', async ({ page }) => {
+  await loginCookie(page)
+  await page.goto('/app/alertes')
+  await expect(page).toHaveURL(/\/app\/diagnostic$/)
+  await page.goto('/app/cibles')
+  await expect(page).toHaveURL(/\/app\/applications$/)
 })
 
 test('Parcours QA : plan périmé bloqué, lancement unique et résultats non concluants', async ({ page }) => {
@@ -236,22 +358,4 @@ test('Changer de cible efface le compte et ne le joint jamais à un QA public', 
   await page.getByRole('button', { name: 'Lancer la mission' }).click()
   await expect(page).toHaveURL(new RegExp(`/app/missions/qa/${id}`))
   expect(calls.starts[0].compte).toBeUndefined()
-})
-
-test('Alertes : filtre, état d’envoi, ticket et panne du service', async ({ page }) => {
-  await loginCookie(page); const calls = await fixtures(page)
-  await page.goto('/app/alertes')
-  await expect(page.getByRole('link', { name: 'Ticket #7', exact: true })).toHaveAttribute('href', 'https://github.com/jkinvi-byte/hsentinel-alertes/issues/7')
-  await expect(page.getByText('Alerte envoyée', { exact: true })).toBeVisible()
-  await expect(page.getByText('Alerte en échec · reprise toutes les 15 min')).toBeVisible()
-  await page.getByLabel('Filtrer par application').selectOption('peer-review')
-  await expect(page.getByRole('link', { name: 'Ticket #7', exact: true })).toHaveCount(0)
-  await expect(page.getByText('Aucun ticket associé')).toBeVisible()
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  await mkdir('test-results/apercus', { recursive: true })
-  await page.screenshot({ path: 'test-results/apercus/alertes-mobile.png', fullPage: true })
-  calls.alertsFailed = true
-  await page.getByRole('button', { name: 'Actualiser', exact: true }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'Alertes momentanément indisponibles.' })).toBeVisible()
 })

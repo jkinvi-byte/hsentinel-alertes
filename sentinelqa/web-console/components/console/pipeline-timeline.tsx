@@ -23,7 +23,7 @@ export function PipelineTimeline({ steps, activeIndex }: TimelineProps) {
                 'relative z-10 mt-px flex size-[19px] shrink-0 items-center justify-center rounded-full border font-mono text-[9.5px]',
                 proven && 'border-danger bg-danger-soft text-danger',
                 running && 'border-steel bg-steel/15 text-steel',
-                !proven && !running && !pending && 'border-white/20 bg-card text-foreground',
+                !proven && !running && !pending && 'border-foreground/20 bg-card text-foreground',
                 pending && 'border-border bg-background text-subtle',
               )}
             >
@@ -31,7 +31,7 @@ export function PipelineTimeline({ steps, activeIndex }: TimelineProps) {
             </span>
             <div className={cn('flex min-w-0 flex-1 flex-col gap-0.5', pending && 'opacity-45')}>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <h4 className={cn('text-[13px] font-semibold', proven ? 'text-danger' : 'text-white')}>{step.title}</h4>
+                <h4 className={cn('text-[13px] font-semibold', proven ? 'text-danger' : 'text-foreground')}>{step.title}</h4>
                 {step.actor !== 'result' ? (
                   <span className="rounded border border-border px-1 font-mono text-[9.5px] leading-4 text-muted-foreground">
                     {step.actorLabel}

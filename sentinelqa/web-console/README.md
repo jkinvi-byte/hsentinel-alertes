@@ -88,7 +88,9 @@ Pour utiliser un serveur de développement déjà ouvert : `CONSOLE_TEST_URL=htt
 - `lib/console-contract.mjs` : validation des lancements et disponibilités.
 - `lib/mission-view.mjs` : vue publique d’un rapport, sans comptes ni demande brute.
 - `lib/qa-account.mjs` et `components/console/mission-account.tsx` : chiffrement et formulaire du compte.
-- `components/console/alerts-console.tsx` : consultation des alertes.
+- `lib/console-reel.ts` : l'adaptateur des pages de la console (D-49) ; il lit missions, constats et applications côté serveur.
 - `components/console/mission-*.tsx` et `mission-dictation.jsx` : parcours actif.
 
-Les composants de l’ancien prototype (`security-console`, `audit-detail`, `onboarding-*`, `audit-mock`, `audit-source`) restent comme référence de design, sans import dans les routes actives. `/api/audit` répond 410. `ORCHESTRATOR_URL`, les abonnements, les alertes et les déclencheurs simulés ne pilotent pas cette intégration.
+Les pages de la console reprennent la web app v0 de référence (D-49, 19/11) : vue d’ensemble, audits, diagnostics, applications, crédits et compte lisent la base côté serveur par `lib/console-reel.ts`, sans donnée fictive ; un champ inconnu (commit, auteur, date d’introduction d’une faille) n’est pas affiché. `audit-detail`, `pipeline-timeline`, `role-matrix` et `finding-card` servent la page Audits avec les rapports réels. Le simulateur de l’ancien prototype (`security-console`, `audit-mock`, `audit-source`), l’ancienne liste des missions et l’ancienne page Alertes sont supprimés : `/app/alertes` et `/app/cibles` redirigent vers les diagnostics et les applications. `onboarding-*` reste une maquette hors console. `/api/audit` répond 410. Si la base ne répond pas, `app/app/error.tsx` le dit et propose « Réessayer ».
+
+Recette : `npm test` (contrats) et `npm run test:browser`. La recette navigateur ouvre elle-même une fausse base PostgREST sur le port 3199 (données synthétiques, base vide ou panne) : les pages serveur sont testées sans toucher la vraie base.

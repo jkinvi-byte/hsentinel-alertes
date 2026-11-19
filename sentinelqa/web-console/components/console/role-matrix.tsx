@@ -14,9 +14,9 @@ export function RoleMatrix({ matrix }: { matrix: RoleMatrixData }) {
       <table className="w-full min-w-[520px] border-collapse text-left">
         <caption className="sr-only">Matrice rôle × action observée pendant l’audit</caption>
         <thead>
-          <tr className="border-b border-border bg-white/[0.02]">
+          <tr className="border-b border-border bg-foreground/[0.02]">
             <th scope="col" className="px-3 py-1.5 font-normal label-mono">
-              Rôle
+              {matrix.corner ?? 'Rôle'}
             </th>
             {matrix.actions.map((action) => (
               <th key={action} scope="col" className="px-3 py-1.5 font-normal label-mono">
@@ -29,8 +29,8 @@ export function RoleMatrix({ matrix }: { matrix: RoleMatrixData }) {
           {matrix.rows.map((row) => {
             const leaking = row.cells.includes('leak')
             return (
-              <tr key={`${row.role}-${row.tenant}`} className={cn('transition-colors hover:bg-white/[0.02]', leaking && 'bg-danger/[0.04]')}>
-                <th scope="row" className="px-3 py-1.5 text-[12.5px] font-medium whitespace-nowrap text-white">
+              <tr key={`${row.role}-${row.tenant}`} className={cn('transition-colors hover:bg-foreground/[0.02]', leaking && 'bg-danger/[0.04]')}>
+                <th scope="row" className="px-3 py-1.5 text-[12.5px] font-medium whitespace-nowrap text-foreground">
                   {row.role} <span className="font-mono text-[10px] font-normal text-muted-foreground">{row.tenant}</span>
                 </th>
                 {row.cells.map((cell, i) => (

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { ArrowUpRight, Check, ChevronDown, FileText, Mail, Repeat, Send } from 'lucide-react'
 import type { Finding } from '@/lib/audit-types'
@@ -21,13 +22,19 @@ export function FindingCard({ finding }: { finding: Finding }) {
           <span className="rounded border border-danger/50 bg-danger/10 px-1.5 font-mono text-[10px] leading-[18px] font-semibold uppercase tracking-wider text-danger">
             Faille prouvée · {finding.severity}
           </span>
-          <span className="font-mono text-[10.5px] text-muted-foreground">{finding.id}</span>
+          {finding.href ? (
+            <Link href={finding.href} className="font-mono text-[10.5px] text-steel hover:underline">
+              {finding.id} · diagnostic
+            </Link>
+          ) : (
+            <span className="font-mono text-[10.5px] text-muted-foreground">{finding.id}</span>
+          )}
         </div>
-        <h3 id={`finding-${finding.id}`} className="text-[15px] leading-snug font-semibold text-white">
+        <h3 id={`finding-${finding.id}`} className="text-[15px] leading-snug font-semibold text-foreground">
           {finding.title}
         </h3>
         <p className="text-[12.5px] leading-relaxed text-muted-foreground">{finding.summary}</p>
-        <code className="w-fit rounded border border-border bg-black/40 px-2 py-0.5 font-mono text-[11px] text-foreground">
+        <code className="w-fit rounded border border-border bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground">
           {finding.endpoint}
         </code>
       </div>
@@ -35,8 +42,8 @@ export function FindingCard({ finding }: { finding: Finding }) {
       <PanelToggle id="replay" label="Replay" icon={<Repeat className="size-3.5" aria-hidden="true" />} open={open === 'replay'} onToggle={toggle} findingId={finding.id} />
       {open === 'replay' ? (
         <div id={`${finding.id}-replay`} className="grid gap-px border-t border-border bg-border md:grid-cols-2">
-          <CodeBlock label="Requête · session B" content={finding.replay.request} />
-          <CodeBlock label="Réponse · 200 au lieu de 403" content={finding.replay.response} />
+          <CodeBlock label="Requête rejouée" content={finding.replay.request} />
+          <CodeBlock label={finding.replay.responseLabel ?? 'Réponse'} content={finding.replay.response} />
         </div>
       ) : null}
 
@@ -47,7 +54,7 @@ export function FindingCard({ finding }: { finding: Finding }) {
             const [label, ...rest] = line.split(' : ')
             return (
               <li key={line} className="text-[12.5px] leading-relaxed">
-                <span className="font-semibold text-white">{label}</span>
+                <span className="font-semibold text-foreground">{label}</span>
                 {rest.length ? <span className="text-muted-foreground"> : {rest.join(' : ')}</span> : null}
               </li>
             )
@@ -61,6 +68,14 @@ export function FindingCard({ finding }: { finding: Finding }) {
 }
 
 function AlertsRow({ alerts }: { alerts: Finding['alerts'] }) {
+  if (!alerts.ticket && !alerts.email) {
+    return (
+      <p className="flex items-center gap-1.5 border-t border-border px-4 py-2.5 font-mono text-[10.5px] text-muted-foreground">
+        <Send className="size-3" aria-hidden="true" />
+        Aucune alerte envoyée pour cette faille.
+      </p>
+    )
+  }
   return (
     <div className="flex flex-col gap-1.5 border-t border-border px-4 py-2.5">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
@@ -68,11 +83,12 @@ function AlertsRow({ alerts }: { alerts: Finding['alerts'] }) {
           <Send className="size-3" aria-hidden="true" />
           Alertes
         </span>
+        {alerts.ticket ? (
         <a
           href={alerts.ticket.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded border border-border bg-black/30 px-2 py-0.5 text-[12px] text-foreground transition-colors hover:border-steel/50 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="inline-flex items-center gap-1.5 rounded border border-border bg-muted px-2 py-0.5 text-[12px] text-foreground transition-colors hover:border-steel/50 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           <GithubMark className="size-3.5" />
           Ticket GitHub
@@ -80,12 +96,15 @@ function AlertsRow({ alerts }: { alerts: Finding['alerts'] }) {
           <ArrowUpRight className="size-3 text-subtle" aria-hidden="true" />
           <span className="sr-only">(nouvel onglet)</span>
         </a>
-        <span className="inline-flex items-center gap-1.5 rounded border border-border bg-black/30 px-2 py-0.5 text-[12px] text-foreground">
+        ) : null}
+        {alerts.email ? (
+        <span className="inline-flex items-center gap-1.5 rounded border border-border bg-muted px-2 py-0.5 text-[12px] text-foreground">
           <Mail className="size-3.5" aria-hidden="true" />
           E-mail envoyé
           <span className="font-mono text-[10.5px] text-muted-foreground">via {alerts.email.via}</span>
           <Check className="size-3 text-safe" aria-label="envoyé" />
         </span>
+        ) : null}
       </div>
       <p className="font-mono text-[10.5px] text-muted-foreground">
         Un seul ticket par faille, sans aucune donnée sensible.
@@ -118,7 +137,7 @@ function PanelToggle({ id, label, icon, open, findingId, onToggle }: PanelToggle
       aria-expanded={open}
       aria-controls={`${findingId}-${id}`}
       onClick={() => onToggle(id)}
-      className="flex w-full items-center gap-2 border-t border-border px-4 py-2 text-left text-[12.5px] font-medium transition-colors hover:bg-white/[0.03] focus-visible:outline-2 focus-visible:-outline-offset-2"
+      className="flex w-full items-center gap-2 border-t border-border px-4 py-2 text-left text-[12.5px] font-medium transition-colors hover:bg-foreground/[0.03] focus-visible:outline-2 focus-visible:-outline-offset-2"
     >
       <span className="text-muted-foreground">{icon}</span>
       <span className="flex-1">{label}</span>

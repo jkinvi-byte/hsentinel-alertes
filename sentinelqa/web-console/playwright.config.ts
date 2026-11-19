@@ -17,7 +17,8 @@ export default defineConfig({
     url: 'http://127.0.0.1:3102/login', reuseExistingServer: false, timeout: 30_000,
     env: {
       HSENTINEL_OPERATOR_TOKEN: 'synthetic-browser-test-access-token',
-      SUPABASE_URL: 'http://127.0.0.1:1', SUPABASE_SECRET_KEY: 'synthetic-disabled-database',
+      // Une fausse base PostgREST, ouverte par la recette elle-même (tests/browser/console.spec.ts) : données, base vide ou panne.
+      SUPABASE_URL: 'http://127.0.0.1:3199', SUPABASE_SECRET_KEY: 'synthetic-disabled-database',
       HF_TOKEN: 'synthetic-disabled-provider', HAI_API_KEY: 'synthetic-disabled-provider',
     },
   },

@@ -13,7 +13,12 @@ export function useLoopStep(count: number, stepMs = 900, holdMs = 2600) {
     }
     let current = 0
     let timer: ReturnType<typeof setTimeout>
+    // Onglet caché : la boucle attend sans avancer, rien ne se redessine pour personne (fable-fps).
     const tick = () => {
+      if (document.hidden) {
+        timer = setTimeout(tick, stepMs)
+        return
+      }
       current = current >= count ? 0 : current + 1
       setStep(current)
       timer = setTimeout(tick, current === count ? holdMs : stepMs)

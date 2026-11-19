@@ -30,8 +30,8 @@ export function ModuleTabs({ active, subscribed, counts, onSelect, onUnlock }: M
               disabled={locked}
               onClick={() => onSelect(module)}
               className={cn(
-                '-mb-px flex h-8 items-center gap-1.5 border-b-2 px-3 text-[12.5px] transition-colors outline-none focus-visible:bg-white/[0.04]',
-                selected ? 'border-steel font-semibold text-white' : 'border-transparent text-muted-foreground',
+                '-mb-px flex h-8 items-center gap-1.5 border-b-2 px-3 text-[12.5px] transition-colors outline-none focus-visible:bg-foreground/[0.04]',
+                selected ? 'border-steel font-semibold text-foreground' : 'border-transparent text-muted-foreground',
                 locked ? 'cursor-not-allowed text-subtle' : !selected && 'hover:text-foreground',
               )}
             >
@@ -73,7 +73,7 @@ export function PlanSelect({ plan, onChange }: { plan: Plan; onChange: (plan: Pl
             key={option.id}
             className={cn(
               'cursor-pointer rounded px-2 font-mono text-[10.5px] leading-5 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-steel/60',
-              plan === option.id ? 'bg-steel/15 text-white' : 'text-muted-foreground hover:text-foreground',
+              plan === option.id ? 'bg-steel/15 text-foreground' : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <input

@@ -306,12 +306,13 @@
   animation: h-pulse 1.6s ease-in-out infinite;
 }
 
+/* Composé (fable-fps) : la barre grandit par transform, jamais par width. */
 @keyframes replay-progress {
   from {
-    width: 0;
+    transform: scaleX(0);
   }
   to {
-    width: 100%;
+    transform: scaleX(1);
   }
 }
 
@@ -325,6 +326,8 @@
 }
 
 .replay-progress {
+  width: 100%;
+  transform-origin: left;
   animation: replay-progress linear both;
 }
 
@@ -349,6 +352,9 @@
   .h-reveal,
   .replay-flash {
     animation: none;
+  }
+  .replay-flash {
+    opacity: 0;
   }
   .replay-progress {
     animation: none;

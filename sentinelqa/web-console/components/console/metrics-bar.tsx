@@ -27,15 +27,15 @@ export function MetricsBar({ kpis, lastRunAt }: MetricsBarProps) {
       {detection ? (
         <div className="flex items-baseline gap-1.5">
           <dt>Détection</dt>
-          <dd className="font-semibold tabular-nums text-white">{detection}</dd>
+          <dd className="font-semibold tabular-nums text-foreground">{detection}</dd>
         </div>
       ) : null}
       {falsePositives ? (
         <>
           <span aria-hidden="true" className="text-subtle">·</span>
           <div className="flex items-baseline gap-1.5">
-            <dd className="font-semibold tabular-nums text-white">{falsePositives}</dd>
-            <dt>faux positif</dt>
+            <dd className="font-semibold tabular-nums text-foreground">{falsePositives}</dd>
+            <dt>{Number(falsePositives) > 1 ? 'faux positifs' : 'faux positif'}</dt>
           </div>
         </>
       ) : null}

@@ -8,7 +8,7 @@ const timeFormat = new Intl.DateTimeFormat('fr-FR', {
   minute: '2-digit',
 })
 
-export function VulnChip({ count }: { count: number }) {
+export function VulnChip({ count, noun = 'faille' }: { count: number; noun?: string }) {
   const unsafe = count > 0
   return (
     <span
@@ -17,7 +17,8 @@ export function VulnChip({ count }: { count: number }) {
         unsafe ? 'border-danger/40 bg-danger/10 text-danger' : 'border-border text-safe',
       )}
     >
-      {count} faille{count > 1 ? 's' : ''}
+      {count} {noun}
+      {count > 1 ? 's' : ''}
     </span>
   )
 }
@@ -26,27 +27,31 @@ type FeedProps = {
   deployments?: Deployment[]
   selectedId?: string
   onSelect: (id: string) => void
+  /** D-49 : « en direct » seulement quand la page se rafraîchit vraiment (une mission tourne). */
+  live?: boolean
 }
 
-export function DeploymentsFeed({ deployments, selectedId, onSelect }: FeedProps) {
+export function DeploymentsFeed({ deployments, selectedId, onSelect, live = false }: FeedProps) {
   return (
     <section aria-labelledby="feed-title" className="panel flex flex-col overflow-hidden">
       <div className="flex h-9 items-center justify-between border-b border-border px-3">
-        <h2 id="feed-title" className="text-[12.5px] font-semibold text-white">
-          Déploiements
+        <h2 id="feed-title" className="text-[12.5px] font-semibold text-foreground">
+          Missions
           {deployments ? <span className="ml-1.5 font-mono text-[10.5px] font-normal text-subtle">{deployments.length}</span> : null}
         </h2>
-        <span className="flex items-center gap-1.5 label-mono">
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-safe" />
-          en direct
-        </span>
+        {live ? (
+          <span className="flex items-center gap-1.5 label-mono">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-safe" />
+            en direct
+          </span>
+        ) : null}
       </div>
       <div className="grid grid-cols-[1fr_auto] border-b border-border px-3 py-1.5 label-mono text-subtle" aria-hidden="true">
-        <span>Commit</span>
+        <span>Mission</span>
         <span>Résultat</span>
       </div>
       <ul
-        aria-label="Déploiements précédents — sélectionner pour revoir l’audit"
+        aria-label="Missions précédentes — sélectionner pour revoir l’audit"
         className="flex flex-col divide-y divide-border lg:max-h-[calc(100dvh-11rem)] lg:overflow-y-auto"
       >
         {deployments
@@ -60,15 +65,15 @@ export function DeploymentsFeed({ deployments, selectedId, onSelect }: FeedProps
                     aria-pressed={selected}
                     className={cn(
                       'flex w-full items-center gap-3 border-l-2 px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2',
-                      selected ? 'border-l-steel bg-steel/[0.07]' : 'border-l-transparent hover:bg-white/[0.025]',
+                      selected ? 'border-l-steel bg-steel/[0.07]' : 'border-l-transparent hover:bg-foreground/[0.025]',
                     )}
                   >
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="flex items-center gap-2">
-                        <span className={cn('min-w-0 flex-1 truncate text-[12.5px]', selected ? 'font-medium text-white' : 'text-foreground')}>
+                        <span className={cn('min-w-0 flex-1 truncate text-[12.5px]', selected ? 'font-medium text-foreground' : 'text-foreground')}>
                           {d.message}
                         </span>
-                        <VulnChip count={d.vulnerabilities} />
+                        <VulnChip count={d.vulnerabilities} noun={d.module === 'qa' ? 'écart' : 'faille'} />
                       </span>
                       <span className="truncate font-mono text-[10px] text-muted-foreground">
                         <span className={selected ? 'text-steel' : undefined}>{d.commit}</span>
