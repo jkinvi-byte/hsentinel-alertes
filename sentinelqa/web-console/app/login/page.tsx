@@ -44,9 +44,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             Se connecter
           </button>
           <p className="text-center text-[12.5px] text-muted-foreground">
-            Pas encore de compte ?{' '}
+            Pas encore d’accès ?{' '}
             <Link href="/signup" className="font-medium text-steel hover:underline">
-              Créer un compte
+              Demander un accès
             </Link>
           </p>
         </form>

@@ -1,23 +1,22 @@
 'use server'
 
+import { EMAIL, enregistrerDemande, lireFormulaire, TAILLES } from '@/lib/demandes'
+
 export type DemoState = { status: 'idle' | 'success' | 'error'; message?: string; email?: string }
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const SIZES = new Set(['1-9', '10-50', '51-200', '200+'])
-
 export async function requestDemo(_prev: DemoState, formData: FormData): Promise<DemoState> {
-  const name = String(formData.get('name') ?? '').trim().slice(0, 120)
-  const email = String(formData.get('email') ?? '').trim().toLowerCase().slice(0, 200)
-  const company = String(formData.get('company') ?? '').trim().slice(0, 120)
-  const size = String(formData.get('size') ?? '')
-  const message = String(formData.get('message') ?? '').trim().slice(0, 2000)
+  const f = lireFormulaire(formData)
+  if (!f.nom || !f.entreprise) return { status: 'error', message: 'Indiquez votre nom et votre entreprise.' }
+  if (!EMAIL.test(f.email)) return { status: 'error', message: 'Adresse e-mail invalide.' }
+  if (!TAILLES.has(f.taille)) return { status: 'error', message: 'Sélectionnez la taille de votre équipe.' }
+  if (f.robot) return { status: 'success', email: f.email }
 
-  if (!name || !company) return { status: 'error', message: 'Indiquez votre nom et votre entreprise.' }
-  if (!EMAIL.test(email)) return { status: 'error', message: 'Adresse e-mail invalide.' }
-  if (!SIZES.has(size)) return { status: 'error', message: 'Sélectionnez la taille de votre équipe.' }
-
-  // TODO: persist the lead (database or CRM) once a storage integration is connected.
-  console.log('[demo-request]', { name, email, company, size, hasMessage: message.length > 0 })
-
-  return { status: 'success', email }
+  // D-50 : la demande est vraiment enregistrée ; sinon, le formulaire le dit, au lieu d'afficher « Demande reçue ».
+  try {
+    await enregistrerDemande({ type: 'demo', nom: f.nom, email: f.email, entreprise: f.entreprise, taille: f.taille, message: f.message })
+  } catch (erreur) {
+    console.error('[demande-demo]', erreur instanceof Error ? erreur.message : erreur)
+    return { status: 'error', message: 'Votre demande n’a pas pu être enregistrée. Réessayez dans un instant.' }
+  }
+  return { status: 'success', email: f.email }
 }

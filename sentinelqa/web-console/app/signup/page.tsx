@@ -2,34 +2,30 @@ import { Check } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { signup } from '@/app/actions'
 import { Logo } from '@/components/brand/logo'
+import { AccessForm } from '@/components/site/access-form'
 import { hasSession } from '@/lib/session'
 
 export const metadata: Metadata = {
-  title: 'Essai gratuit 7 jours — HSentinel',
-  description: 'Créez votre compte HSentinel et lancez votre premier audit QA + Pentest en préproduction.',
+  title: 'Demander un accès — HSentinel',
+  description: 'Demandez votre accès d’essai de 7 jours à HSentinel : l’équipe l’ouvre et cadre avec vous votre préproduction.',
 }
-
-const inputClass =
-  'h-10 rounded-md border border-input bg-foreground/[0.02] px-3 text-[13.5px] text-foreground outline-none placeholder:text-subtle focus-visible:border-steel focus-visible:ring-2 focus-visible:ring-steel/30'
 
 const INCLUDED = [
   'Agents QA et Pentest sur 1 application',
-  'Jusqu’à 5 entreprises de test et leurs rôles',
-  'Rejeu navigateur et captures de chaque faille',
-  'Alertes GitHub, Slack et e-mail',
+  'Captures et session de l’agent H pour chaque faille prouvée',
+  'Alertes : ticket GitHub et e-mail',
+  'Le coût des agents, mesuré audit par audit',
 ]
 
 const STEPS = [
-  { title: 'Créez votre compte', detail: 'Sans carte bancaire.' },
-  { title: 'Ajoutez votre préproduction', detail: 'URL et comptes de test.' },
-  { title: 'Recevez le premier rapport', detail: 'En moins de 30 minutes.' },
+  { title: 'Demandez votre accès', detail: 'Sans carte bancaire.' },
+  { title: 'Cadrez avec l’équipe', detail: 'URL de préproduction, comptes de test et autorisation écrite.' },
+  { title: 'Recevez le premier rapport', detail: 'Failles prouvées, preuves et alertes.' },
 ]
 
-export default async function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function SignupPage() {
   if (await hasSession()) redirect('/app')
-  const { error } = await searchParams
 
   return (
     <main className="theme-console grid min-h-dvh bg-background lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -41,60 +37,17 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
               Essai gratuit · 7 jours
             </span>
             <h1 className="text-balance text-[26px] leading-tight font-bold tracking-tight text-foreground">
-              Testez l’isolation de votre SaaS dès aujourd’hui
+              Demandez votre accès d’essai
             </h1>
-            <p className="text-[13.5px] text-muted-foreground">Aucune carte bancaire. Annulable à tout moment.</p>
+            <p className="text-[13.5px] text-muted-foreground">
+              L’équipe ouvre votre accès et cadre avec vous votre préproduction. Les 7 jours démarrent à l’ouverture, sans carte bancaire.
+            </p>
           </div>
 
-          <form action={signup} className="flex flex-col gap-4">
-            {error ? (
-              <p role="alert" className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-[12.5px] text-danger">
-                Renseignez votre nom, un e-mail valide et un mot de passe d&apos;au moins 8 caractères.
-              </p>
-            ) : null}
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="name" className="text-[12.5px] font-medium text-foreground">
-                Nom complet
-              </label>
-              <input id="name" name="name" type="text" autoComplete="name" required placeholder="Camille Roux" className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="email" className="text-[12.5px] font-medium text-foreground">
-                E-mail professionnel
-              </label>
-              <input id="email" name="email" type="email" autoComplete="email" required placeholder="vous@entreprise.fr" className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="password" className="text-[12.5px] font-medium text-foreground">
-                Mot de passe
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={8}
-                aria-describedby="password-hint"
-                className={inputClass}
-              />
-              <p id="password-hint" className="text-[11.5px] text-subtle">
-                8 caractères minimum.
-              </p>
-            </div>
-            <button
-              type="submit"
-              className="h-10 rounded-md bg-steel text-[13.5px] font-semibold text-white transition-colors hover:bg-[#1d4ed8] focus-visible:ring-2 focus-visible:ring-steel/50 focus-visible:outline-none"
-            >
-              Démarrer mon essai gratuit
-            </button>
-            <p className="text-[11.5px] leading-relaxed text-subtle">
-              En créant un compte, vous acceptez nos conditions d’utilisation. HSentinel n’attaque que la préproduction que vous déclarez.
-            </p>
-          </form>
+          <AccessForm />
 
           <p className="text-[13px] text-muted-foreground">
-            Déjà un compte ?{' '}
+            Déjà un accès ?{' '}
             <Link href="/login" className="font-medium text-steel hover:underline">
               Se connecter
             </Link>

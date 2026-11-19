@@ -15,6 +15,7 @@ Le SQL de `hsentinel-dev` n'existe pas en fichier : il est réécrit dans notre 
 - **W3** : `preparer_alerte`, `noter_alerte` et `constats_a_alerter`, plus un déclencheur qui appelle W3 à chaque nouveau constat. Un ticket par faille (empreinte : application, type d'accès, méthode, chemin), commenté si la faille revient, jamais deux à la fois.
 - **W4** : `creer_demandes_pentest`. Une demande au format du premier lot, que lit le runner du pentest ; pas de doublon ; une alerte unique après 3 échecs d'affilée. Désactivé par défaut pour chaque application.
 - **W1** : `creer_demande_audit_github`. Il vérifie la signature GitHub, ne garde que les déploiements réussis d'une application autorisée qui a un profil QA, et crée une exploration bornée dans `qa_missions`, en remplaçant celle qui attend encore.
+- **W5** (D-50) : `prendre_demandes_acces`. Toutes les 5 minutes, il prend d'un seul geste les nouvelles demandes d'accès et de démo du site (20 au plus) et envoie un seul e-mail récapitulatif à l'équipe. La table est dans `supabase/acces.sql`. Monter : `monter.py --seul w5`.
 - **Le runner** (`runner/constats.py`) écrit chaque faille prouvée du banc dans `constats`, à la fin de chaque audit. Une ligne ne porte jamais de donnée du site testé.
 
 **Vérifié** (*mesuré*, 18/11 au soir) : dix groupes d'essais sur une base PostgreSQL 17 locale qui imite Supabase (coffre, appel HTTP, rôles) ; les 10 failles prouvées réelles de l'audit du 17/11 à 8 h 51 acceptées et rédigées en tickets ; les demandes de W1 et W4 acceptées par les validateurs Python des workers.

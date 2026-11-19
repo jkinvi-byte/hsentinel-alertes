@@ -14,7 +14,7 @@ const EXTRA = [
   {
     label: 'Compte',
     links: [
-      { label: 'Créer un compte', href: '/signup' },
+      { label: 'Demander un accès', href: '/signup' },
       { label: 'Se connecter', href: '/login' },
       { label: 'Console', href: '/app' },
     ],

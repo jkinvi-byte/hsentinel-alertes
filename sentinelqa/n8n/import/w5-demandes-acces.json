@@ -1,0 +1,123 @@
+{
+  "name": "HSentinel W5 · Demandes d’accès → e-mail",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "name": "Toutes les 5 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://auaitjryhgwdbczwkdef.supabase.co/rest/v1/rpc/prendre_demandes_acces",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"p_limite\": 20}",
+        "options": {}
+      },
+      "name": "Prendre les demandes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        300,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "remplace",
+          "name": "Supabase hsentinel-dev (clé secrète)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Un seul e-mail par passage, quel que soit le nombre de demandes. Les champs viennent d'un formulaire public : tout est échappé.\nconst esc = (s) => String(s ?? '').replace(/[&<>\"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[c]));\nconst demandes = $input.all().map((i) => i.json);\nconst lignes = demandes.map((d) =>\n  `<li><strong>${d.type === 'demo' ? 'Démo' : 'Accès'}</strong> · ${esc(d.nom)} (${esc(d.entreprise)}${d.taille ? ', ' + esc(d.taille) : ''})`\n  + ` · <a href=\"mailto:${esc(d.email)}\">${esc(d.email)}</a>${d.message ? `<br><em>${esc(d.message)}</em>` : ''}</li>`).join('');\nconst n = demandes.length;\nreturn [{ json: {\n  sujet: `[HSentinel] ${n} demande${n > 1 ? 's' : ''} d’accès ou de démo`,\n  html: `<p>Nouvelles demandes reçues sur le site HSentinel :</p><ul>${lignes}</ul><p>Elles restent dans Supabase, table <code>demandes_acces</code>. Personne n'a encore de compte : l'accès s'ouvre à la main.</p>`,\n} }];"
+      },
+      "name": "Rédiger le récapitulatif",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "appendAttribution": false,
+          "senderName": "HSentinel"
+        },
+        "sendTo": "destinataire-remplace-par-monter-py",
+        "subject": "={{ $json.sujet }}",
+        "message": "={{ $json.html }}"
+      },
+      "name": "Prévenir l’équipe",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "remplace",
+          "name": "Gmail Hsentinel"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Toutes les 5 min": {
+      "main": [
+        [
+          {
+            "node": "Prendre les demandes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prendre les demandes": {
+      "main": [
+        [
+          {
+            "node": "Rédiger le récapitulatif",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rédiger le récapitulatif": {
+      "main": [
+        [
+          {
+            "node": "Prévenir l’équipe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

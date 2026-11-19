@@ -126,14 +126,25 @@ const TABLES: Record<string, unknown[]> = {
       session_h: null, piste: null, empreinte: 'e-admin', alerte_statut: 'echec', github_issue_number: null, email_envoye: false, alerte_traitee_le: null },
   ],
 }
+// Les écritures reçues (demandes d'accès et de démo, D-50), table par table.
+const recues: Record<string, any[]> = {}
 const fausseBase = createServer((req, res) => {
   const table = new URL(req.url ?? '/', 'http://base').pathname.replace('/rest/v1/', '')
   if (modeBase === 'panne') { res.writeHead(503).end('{}'); return }
+  if (req.method === 'POST') {
+    let corps = ''
+    req.on('data', (morceau) => { corps += morceau })
+    req.on('end', () => {
+      ;(recues[table] ??= []).push(JSON.parse(corps || '{}'))
+      res.writeHead(201, { 'content-type': 'application/json' }).end(JSON.stringify([{ id: 'synthetique' }]))
+    })
+    return
+  }
   res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(modeBase === 'vide' ? [] : TABLES[table] ?? []))
 })
 test.beforeAll(async () => { await new Promise<void>(resolve => fausseBase.listen(3199, '127.0.0.1', resolve)) })
 test.afterAll(async () => { await new Promise(resolve => fausseBase.close(resolve)) })
-test.beforeEach(() => { modeBase = 'donnees' })
+test.beforeEach(() => { modeBase = 'donnees'; for (const t of Object.keys(recues)) delete recues[t] })
 
 test('Console v0 : chaque page montre les données de la base, sans chiffre inventé', async ({ page }) => {
   await loginCookie(page)
@@ -214,6 +225,48 @@ test('Base injoignable : message explicite, puis reprise par « Réessayer »', 
   modeBase = 'donnees'
   await page.getByRole('button', { name: 'Réessayer' }).click()
   await expect(page.getByText('2 failles sur 2')).toBeVisible()
+})
+
+test('Demande d’accès : enregistrée sans mot de passe ; robot ignoré ; base en panne dite, sans faux succès', async ({ page }) => {
+  await page.goto('/signup')
+  await expect(page.getByRole('heading', { name: 'Demandez votre accès d’essai' })).toBeVisible()
+  await expect(page.locator('input[type="password"]')).toHaveCount(0)
+  await page.getByLabel('Nom complet').fill('Camille Roux')
+  await page.getByLabel('E-mail professionnel').fill('Camille@Exemple.fr')
+  await page.getByLabel('Entreprise').fill('Paie Express')
+  await page.getByRole('button', { name: 'Demander mon accès' }).click()
+  await expect(page.getByText('Demande enregistrée.')).toBeVisible()
+  expect(recues.demandes_acces).toEqual([{ type: 'acces', nom: 'Camille Roux', email: 'camille@exemple.fr', entreprise: 'Paie Express', taille: null, message: null }])
+
+  // Un robot remplit le champ caché : on lui répond comme à un humain, sans rien enregistrer.
+  await page.goto('/signup')
+  await page.getByLabel('Nom complet').fill('Robot')
+  await page.getByLabel('E-mail professionnel').fill('robot@exemple.fr')
+  await page.getByLabel('Entreprise').fill('Spam')
+  await page.locator('input[name="site"]').evaluate((e: HTMLInputElement) => { e.value = 'https://spam.example' })
+  await page.getByRole('button', { name: 'Demander mon accès' }).click()
+  await expect(page.getByText('Demande enregistrée.')).toBeVisible()
+  expect(recues.demandes_acces).toHaveLength(1)
+
+  modeBase = 'panne'
+  await page.goto('/signup')
+  await page.getByLabel('Nom complet').fill('Camille Roux')
+  await page.getByLabel('E-mail professionnel').fill('camille@exemple.fr')
+  await page.getByLabel('Entreprise').fill('Paie Express')
+  await page.getByRole('button', { name: 'Demander mon accès' }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'Votre demande n’a pas pu être enregistrée.' })).toBeVisible()
+  await expect(page.getByText('Demande enregistrée.')).toHaveCount(0)
+})
+
+test('Demande de démo : vraiment enregistrée avant « Demande reçue »', async ({ page }) => {
+  await page.goto('/demo')
+  await page.getByLabel('Nom complet').fill('Alex Martin')
+  await page.getByLabel('E-mail professionnel').fill('alex@exemple.fr')
+  await page.getByLabel('Entreprise').fill('Bêta Logistique')
+  await page.getByLabel('Taille de l’équipe').selectOption('10-50')
+  await page.getByRole('button', { name: 'Demander ma démo' }).click()
+  await expect(page.getByText('Demande reçue.')).toBeVisible()
+  expect(recues.demandes_acces).toEqual([{ type: 'demo', nom: 'Alex Martin', email: 'alex@exemple.fr', entreprise: 'Bêta Logistique', taille: '10-50', message: null }])
 })
 
 test('Les anciennes adresses mènent aux pages de la console v0', async ({ page }) => {

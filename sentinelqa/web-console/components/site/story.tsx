@@ -216,7 +216,7 @@ export function ClosingCta({ signedIn }: { signedIn: boolean }) {
             href={signedIn ? '/app' : '/signup'}
             className="flex h-11 items-center rounded-full bg-white px-5 text-[15px] font-medium text-[#0b0b0c] transition-opacity hover:opacity-85"
           >
-            {signedIn ? 'Ouvrir la console' : 'Créer un compte'}
+            {signedIn ? 'Ouvrir la console' : 'Demander un accès'}
           </Link>
           <Link
             href="/tarifs"

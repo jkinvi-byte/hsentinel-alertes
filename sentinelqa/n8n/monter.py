@@ -1,7 +1,7 @@
-"""Monter les workflows HSentinel (W1, W3, W4) dans une instance n8n, par son API, en une commande.
+"""Monter les workflows HSentinel (W1, W3, W4, W5) dans une instance n8n, par son API, en une commande.
 
 Crée ou met à jour les identifiants n8n, importe les trois exports de `import/` avec ces identifiants,
-active W3 et W4 (W1 reste inactif tant que le webhook GitHub n'existe pas), puis vérifie l'activation.
+active W3, W4 et W5 (W1 reste inactif tant que le webhook GitHub n'existe pas), puis vérifie l'activation.
 Aucune clé n'est affichée : elles viennent de ~/.config/sentinelqa/.env (N8N_URL, N8N_API_KEY,
 SUPABASE_URL, SUPABASE_SECRET_KEY, SUPABASE_ACCESS_TOKEN, GITHUB_N8N_TOKEN, HSENTINEL_EMAIL_EQUIPE). Le secret du webhook W3
 est lu dans le coffre de notre Supabase : l'en-tête attendu par n8n est donc, par construction, celui
@@ -10,6 +10,7 @@ que la base envoie (le 403 « Authorization data is wrong! » du 19/11 venait d'
 Usage :
   python sentinelqa/n8n/monter.py --verifier   (lit l'instance et les exports, n'écrit rien)
   python sentinelqa/n8n/monter.py              (monte et active)
+  python sentinelqa/n8n/monter.py --seul w5    (ne monte que ce workflow, sans toucher aux autres)
 """
 
 import argparse
@@ -21,8 +22,9 @@ from pathlib import Path
 import httpx
 
 ICI = Path(__file__).resolve().parent
-EXPORTS = {"w1": "w1-mise-en-ligne-audit-qa.json", "w3": "w3-faille-prouvee-alertes.json", "w4": "w4-pentest-regulier.json"}
-A_ACTIVER = ("w3", "w4")
+EXPORTS = {"w1": "w1-mise-en-ligne-audit-qa.json", "w3": "w3-faille-prouvee-alertes.json", "w4": "w4-pentest-regulier.json",
+           "w5": "w5-demandes-acces.json"}
+A_ACTIVER = ("w3", "w4", "w5")
 PROJET_SUPABASE = "auaitjryhgwdbczwkdef"
 GMAIL = "HSentinel · Gmail"  # créé à la main dans n8n (Connect Google) : l'API ne sait pas faire le consentement OAuth
 REGLAGES_PERMIS = {"executionOrder", "timezone", "saveDataErrorExecution", "saveDataSuccessExecution", "saveManualExecutions",
@@ -111,6 +113,7 @@ def preparer(export, ids, email_equipe):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--verifier", action="store_true", help="Lire l'instance et les exports sans rien écrire")
+    parser.add_argument("--seul", choices=sorted(EXPORTS), help="Ne monter que ce workflow")
     args = parser.parse_args()
     env = lire_env()
     n8n = N8n(env)
@@ -140,6 +143,8 @@ def main():
         print(f"Gmail pas encore connecté : les e-mails échoueront proprement. Créer « {GMAIL} » dans n8n (Connect Google), puis relancer ce script.")
 
     for cle, export in EXPORTS.items():
+        if args.seul and cle != args.seul:
+            continue
         corps = preparer(export, ids, env["HSENTINEL_EMAIL_EQUIPE"])
         if corps["name"] in existants:
             wf = n8n.appel("PUT", f"/workflows/{existants[corps['name']]['id']}", json=corps)

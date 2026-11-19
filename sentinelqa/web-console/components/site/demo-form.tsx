@@ -66,6 +66,8 @@ export function DemoForm({ defaultEmail }: { defaultEmail?: string }) {
           </select>
         </label>
       </div>
+      {/* Piège à robots : invisible et ignoré par un humain, rempli par un script. */}
+      <input type="text" name="site" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" />
       <label className="flex flex-col gap-1.5 text-[13.5px] font-medium">
         Votre contexte <span className="font-normal text-muted-foreground">(facultatif)</span>
         <textarea
