@@ -9,7 +9,7 @@ Des agents IA de H Company testent un site web autorisé comme un humain : ils n
 
 Hors de `main` : la branche `jahdiel/suivi-n8n` (le suivi des alertes n8n, repris dans SUIVI.md) et `agents-ia-qa-pentest` (le bac à sable de Mohamed). Voir [ARCHITECTURE.md, section 14](ARCHITECTURE.md#14-les-travaux-de-léquipe-hors-de-main).
 
-## État au 19/11, 0 h 15
+## État au 19/11, 2 h
 
 | Volet | Fonctionne, vérifié en réel | Manque |
 |---|---|---|
@@ -17,7 +17,7 @@ Hors de `main` : la branche `jahdiel/suivi-n8n` (le suivi des alertes n8n, repri
 | QA connecté : Peer Review | L'agent se connecte par un coffre H créé pour l'essai, puis consulte sans rien modifier. Compte d'Alec : 18 missions réelles (0,259 $), depuis le terminal ou la file web, où le mot de passe est chiffré dans le navigateur. 10 répétitions : connexion et identité prouvées 10/10, « Mon parcours » 10/10, aucune évaluation ouverte, 40 s et 0,015 $ en moyenne. La garde a été renforcée après une évaluation ouverte à 22 h 48 (rien de noté) | Compte de Nathan refusé par le site (2 essais) : son mot de passe en vigueur ; la recette du formulaire connecté désormais raccordé dans la console ; titres de l'accueil tronqués par H, donc non concluants |
 | Pentest : banc | Paie Express, une application de test à failles injectées : 59 failles prouvées sur 60, en 10 audits, 0 faux positif | — |
 | Pentest : Peer Review | Connexion HTTP de A validée en réel ; ressource témoin et règle de visibilité confirmées (Kimi) | B refusé par le site ; agent H recréé par Kimi et confirmé (20 h 38) ; contrôle A/B jamais exécuté ; modules non raccordés (`contributions/`) |
-| Alertes n8n (Jahdiel) | W1, W3, W4 construits par Jahdiel ; leur SQL réécrit et en place dans notre base (`supabase/alertes.sql`) ; chaque faille prouvée du banc écrite dans `constats` (`runner/constats.py`) | Secrets de W3 en place dans le coffre Supabase (vérifié à 23 h). Restent la bascule des workflows vers notre base, le secret de W1 et la recette d'un ticket (`sentinelqa/n8n/README.md`) |
+| Alertes n8n (Jahdiel) | W1, W3, W4 construits par Jahdiel ; leur SQL réécrit et en place dans notre base (`supabase/alertes.sql`) ; chaque faille prouvée du banc écrite dans `constats` (`runner/constats.py`). Recette réelle du 19/11 : un constat de test devient le ticket GitHub n° 7, son état revient dans la base et la console l'affiche ; republié, il commente le même ticket (« Toujours présente ») | Le webhook instantané est refusé par n8n (403) : l'identifiant de W3 et notre coffre n'ont pas le même secret (Jahdiel). D'ici là, l'alerte part par le rattrapage, en 15 min au plus. Restent aussi le secret de W1 et un destinataire d'e-mail |
 | Interface : la console de l'équipe (`web-console`) | L'interface d'un camarade, raccordée par Codex aux services de la web (`/api/console`), avec QA connecté et page Alertes ; 28 tests locaux et compilation réussis | Recette réelle faite dans Chrome le 19/11 : dictée, mission publique, mission connectée (K1/K2). Restent à recetter l'arrêt d'une mission réelle et la page Alertes avec de vrais constats. Publiée sur `main`, pas encore déployée |
 
 ## Lancer le volet QA
