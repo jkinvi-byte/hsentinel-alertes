@@ -1,6 +1,6 @@
 # Suivi du projet
 
-> Mis à jour le 19/11/2026 à 2 h. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
+> Mis à jour le 19/11/2026 à 3 h. Une ligne par tâche. On met l'état à jour dans le même commit que le travail. Les responsables sont proposés d'après les rôles et restent à confirmer en équipe.
 >
 > Priorité **P0** : indispensable à la démo de vendredi. **P1** : utile, mais elle peut s'en passer.
 
@@ -45,7 +45,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 5 | ~~Valider la connexion HTTP à Peer Review~~ : fait par Kimi pour A, le 18/11 à 18 h 39 (voir « Fait et vérifié ») | Pentest | P0 | Kimi | Fait |
 | 6 | ~~Obtenir un compte B actif~~ : le nouveau B est validé avec identité vérifiée ; le triplet HTTP réel A/anonyme/B a tourné. A et l'anonyme passent ; B reçoit sa propre vue sans le témoin de A, donc aucune fuite de A démontrée, mais pas de refus explicite | Pentest | P0 | Kimi | Fait |
 | 7 | Intégrer `contributions/kimi-pentest` au runner et à la web (S-PEER-02) | Pentest | P0 | Aurian | Jeu 19 |
-| 8 | Exécuter S-PEER-01 (la barrière anonyme) en réel et noter le résultat. Son agent existe depuis 19 h 40, dans l'espace de Jahdiel | Pentest | P1 | Aurian | Jeu 19 |
+| 8 | ~~Exécuter S-PEER-01 (la barrière anonyme) en réel~~ : fait le 19/11 à 2 h 52, depuis la console. Conforme : 307 vers `/connexion`, vu aussi à l'écran ; 24 s, 0,004 $ | Pentest | P1 | Claude | Fait |
 | 9 | Déployer la web sur Vercel avec l'accès opérateur (`HSENTINEL_OPERATOR_TOKEN`) | Plateforme | P0 | Aurian | Jeu 19 |
 | 10 | Confirmer le projet Supabase de l'équipe : seul `auaitjryhgwdbczwkdef` est configuré | Plateforme | P0 | Jahdiel | Mer 18 |
 | 11 | Inviter les membres sur ce dépôt (*Settings → Collaborators*) | Plateforme | P0 | Jahdiel | Mer 18 |
@@ -102,6 +102,7 @@ Chaque jalon dit ce qui doit être vrai à cette heure-là. Les numéros renvoie
 | 19/11 | Écritures refusées (403) sur 127.0.0.1 dans la console (dictée, plan, lancement, arrêt) et dans l'ancienne web : une seule garde d'origine, comparée à l'hôte appelé | Reproduit au curl ; un test qui échoue sans le correctif ; console rechargée : 403 → accepté, origine étrangère toujours refusée |
 | 19/11 | Recette réelle de la console dans Chrome, sans fenêtre (Playwright) | Dictée transcrite, mission publique 3/3, mission connectée K1/K2 ; 12 tests navigateur sur 12 en production |
 | 19/11 | Chaîne des alertes de bout en bout sur notre base : constat → n8n (rattrapage de W3) → ticket GitHub → état noté → page Alertes de la console | Constat `eef16877` écrit à 1 h 36, ticket n° 7 à 1 h 48, état « traitée » relu dans la base ; capture de la console avec « Ticket #7 ». Le même constat republié commente le ticket n° 7 (« Toujours présente », 2 h 04), sans doublon |
+| 19/11 | Premier pentest réel de HSentinel sur Peer Review (S-PEER-01), lancé depuis la console : file `audits`, worker pentest, lecture HTTP et agent H, rapport dans la console | Conforme : `GET /etudiant` → 307 vers `/connexion`, page de connexion vue par l'agent ; 24 s, 0,004 $ ; aucune réponse en erreur |
 
 ## Risques connus
 
