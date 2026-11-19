@@ -34,7 +34,8 @@ async function loginCookie(page: Page) {
 }
 async function fixtures(page: Page) {
   const calls = { starts: [] as any[], plans: [] as any[], stops: 0, transcriptions: 0, failed: false, running: false,
-    keys: 0, keyAvailable: true, alertsFailed: false, expert: [] as any[], voix: [] as any[], voixEnPanne: false }
+    keys: 0, keyAvailable: true, alertsFailed: false, expert: [] as any[], voix: [] as any[], voixEnPanne: false,
+    reponseExpert: 'Réponse synthétique de l’expert.', transcription: 'Vérifie le Bachelor et son diplôme.' }
   await page.route('**/api/console/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname
     const response = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
@@ -57,11 +58,11 @@ async function fixtures(page: Page) {
     }
     if (path === '/api/console/expert') {
       calls.expert.push(request.postDataJSON())
-      return response({ reponse: 'Réponse synthétique de l’expert.', consigne_proposee: 'Ouvrir le menu « Programmes », puis vérifier le texte « Bac+3 ».', fiches: ['consigne'], modele: 'fixture', latence_s: 0.1 })
+      return response({ reponse: calls.reponseExpert, consigne_proposee: 'Ouvrir le menu « Programmes », puis vérifier le texte « Bac+3 ».', fiches: ['consigne'], modele: 'fixture', latence_s: 0.1 })
     }
     if (path === '/api/console/transcription') {
       calls.transcriptions++; await new Promise(resolve => setTimeout(resolve, 350))
-      return response({ texte: 'Vérifie le Bachelor et son diplôme.', latence_s: .35, modele: 'fixture' })
+      return response({ texte: calls.transcription, latence_s: .35, modele: 'fixture' })
     }
     if (path === '/api/console/missions' && request.method() === 'POST') { calls.starts.push(request.postDataJSON()); return response({ id, module: request.postDataJSON().mode === 'qa' ? 'qa' : 'pentest' }, 201) }
     if (path.endsWith('/arret')) { calls.stops++; calls.running = false; return response({ demande: true }, 202) }
@@ -382,6 +383,83 @@ test('Expert du studio : question écrite ou dite, réponse lue, consigne repris
 
   await page.goto('/app/nouveau?volet=pentest')
   await expect(page.getByRole('heading', { name: 'L’expert Pentest' })).toBeVisible()
+})
+
+test('Mode conversation : l’expert parle le premier, puis répond à la phrase dite, mot à mot en voix Hugging Face, et l’écoute reprend seule', async ({ page }) => {
+  await loginCookie(page); const calls = await fixtures(page)
+  calls.reponseExpert = 'Première phrase de l’expert. Seconde phrase, avec « Bac+3 ».'
+  await page.goto('/app/nouveau')
+  await page.getByRole('button', { name: 'Converser à la voix' }).click()
+  const dialogue = page.getByRole('dialog', { name: /Conversation/ })
+  await expect(dialogue).toBeVisible()
+  await expect(dialogue.getByText('Eugenia School', { exact: true })).toBeVisible()
+  // Comme la Voix de LEVELS, l'expert ouvre la conversation, à voix haute, d'après la cible à l'écran.
+  const accueil = 'Je suis l’expert QA. Nous préparons une mission sur Eugenia School. Que voulez-vous vérifier ?'
+  await expect(dialogue.locator('.expert-tour-expert').first()).toContainText(accueil)
+  await expect(dialogue.getByRole('status')).toHaveText('L’expert QA vous écoute', { timeout: 10_000 })
+  // L'accueil préchargé au survol n'est demandé qu'une fois, phrase par phrase.
+  expect(calls.voix.map((v: { texte: string }) => v.texte)).toEqual(['Je suis l’expert QA.', 'Nous préparons une mission sur Eugenia School.', 'Que voulez-vous vérifier ?'])
+  // Le micro synthétique émet des bips : la fin de phrase peut venir du silence ou du bouton.
+  await dialogue.getByRole('button', { name: 'J’ai fini' }).click({ timeout: 3000 }).catch(() => {})
+  await expect(dialogue.getByText('« Vérifie le Bachelor et son diplôme. »')).toBeVisible()
+  await expect(dialogue.locator('.expert-tour-expert').last()).toContainText('Seconde phrase, avec « Bac+3 ».')
+  // L'accueil est dans l'historique partagé : l'expert sait ce qu'il vient de dire.
+  await expect.poll(() => calls.expert.length).toBe(1)
+  expect(calls.expert[0].historique).toEqual([{ role: 'expert', texte: accueil }])
+  await expect.poll(() => calls.voix.length).toBe(5)
+  expect(calls.voix.slice(3).map((v: { texte: string }) => v.texte)).toEqual(['Première phrase de l’expert.', 'Seconde phrase, avec « Bac+3 ».'])
+  // Mains libres : la réponse dite, tous ses mots sont écrits, et l'écoute reprend seule.
+  await expect(dialogue.getByRole('status')).toHaveText('L’expert QA vous écoute', { timeout: 10_000 })
+  await expect(dialogue.locator('[data-direct]')).toHaveCount(0)
+  await dialogue.getByRole('button', { name: 'Reprendre dans la consigne' }).click()
+  await expect(dialogue.getByRole('button', { name: 'Reprise dans la consigne' })).toBeDisabled()
+  await page.keyboard.press('Escape')
+  await expect(dialogue).toHaveCount(0)
+  await expect(page.getByLabel('Votre consigne')).toHaveValue('Ouvrir le menu « Programmes », puis vérifier le texte « Bac+3 ».')
+  // Le panneau garde toute la conversation, accueil compris ; rien n'a été lancé.
+  await expect(page.getByText(accueil)).toBeVisible()
+  await expect(page.getByText('Première phrase de l’expert. Seconde phrase, avec « Bac+3 ».').first()).toBeVisible()
+  expect(calls.starts).toHaveLength(0)
+})
+
+test('Mode conversation : la voix Hugging Face en panne, la voix du système parle jusqu’au bout, sans retour à Kokoro', async ({ page }) => {
+  // Une synthèse du système simulée qui parle vite : départ, puis fin de chaque phrase.
+  await page.addInitScript(() => {
+    const w = window as unknown as { __lu: string[] }
+    w.__lu = []
+    window.speechSynthesis.speak = (u: SpeechSynthesisUtterance) => {
+      w.__lu.push(u.text)
+      setTimeout(() => { u.onstart?.(new Event('start') as SpeechSynthesisEvent); setTimeout(() => u.onend?.(new Event('end') as SpeechSynthesisEvent), 40) }, 10)
+    }
+  })
+  await loginCookie(page); const calls = await fixtures(page)
+  calls.voixEnPanne = true
+  await page.goto('/app/nouveau')
+  await page.getByRole('button', { name: 'Converser à la voix' }).click()
+  const dialogue = page.getByRole('dialog', { name: /Conversation/ })
+  await expect(dialogue.getByRole('status')).toHaveText('L’expert QA vous écoute', { timeout: 10_000 })
+  await expect(dialogue.getByText(/voix du système/)).toBeVisible()
+  const kokoro = calls.voix.length
+  await dialogue.getByRole('button', { name: 'J’ai fini' }).click({ timeout: 3000 }).catch(() => {})
+  await expect(dialogue.locator('.expert-tour-expert').last()).toContainText('Réponse synthétique de l’expert.')
+  await expect(dialogue.getByRole('status')).toHaveText('L’expert QA vous écoute', { timeout: 10_000 })
+  // L'accueil puis la réponse ont été dits par la voix du système, et Kokoro n'a plus été sollicité.
+  expect(await page.evaluate(() => (window as unknown as { __lu: string[] }).__lu)).toEqual(['Je suis l’expert QA.', 'Nous préparons une mission sur Eugenia School.', 'Que voulez-vous vérifier ?', 'Réponse synthétique de l’expert.'])
+  expect(calls.voix.length).toBe(kokoro)
+  await expect(dialogue.locator('[data-direct]')).toHaveCount(0)
+})
+
+test('Mode conversation : une transcription fantôme de Whisper ne déclenche aucune réponse', async ({ page }) => {
+  await loginCookie(page); const calls = await fixtures(page)
+  calls.transcription = 'Thank you.'
+  await page.goto('/app/nouveau')
+  await page.getByRole('button', { name: 'Converser à la voix' }).click()
+  const dialogue = page.getByRole('dialog', { name: /Conversation/ })
+  await expect(dialogue.getByRole('status')).toHaveText('L’expert QA vous écoute', { timeout: 10_000 })
+  await dialogue.getByRole('button', { name: 'J’ai fini' }).click({ timeout: 3000 }).catch(() => {})
+  await expect(dialogue.getByRole('alert')).toHaveText('Je n’ai rien entendu de clair. Reparlez, ou écrivez votre question.')
+  await expect(dialogue.getByRole('status')).toHaveText('L’expert QA vous écoute')
+  expect(calls.expert).toHaveLength(0)
 })
 
 test('Le studio reste utilisable à 390 pixels', async ({ page }) => {

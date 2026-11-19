@@ -1,9 +1,11 @@
 'use client'
 
-import { BookOpen, CornerDownLeft, Mic, Square, Volume2, VolumeX, X } from 'lucide-react'
+import { AudioLines, BookOpen, CornerDownLeft, Mic, Square, Volume2, VolumeX, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { creerDictee as creerDicteeJs } from '../../../web/lib/qa-dictee.mjs'
 import { parler, taire } from '@/lib/expert/voix.mjs'
+import { accueilExpert, typographie } from '@/lib/expert/conversation.mjs'
+import { amorcerAudio, ExpertConversation, prechargerAccueil, type ReponseExpert } from './expert-conversation'
 
 // D-51 : l'expert QA ou Pentest du studio. On lui parle (micro, même transcription que la dictée) ou on lui écrit ;
 // il répond d'après le Manuel HSentinel et le contexte de la mission, et sa réponse est lue à voix haute,
@@ -16,7 +18,7 @@ const creerDictee = creerDicteeJs as unknown as (options: Record<string, unknown
 
 type Volet = 'qa' | 'pentest'
 type Message = { role: 'utilisateur' | 'expert'; texte: string; consigne?: string | null; fiches?: string[] }
-type Props = { volet: Volet; cible: string; consigne: string; disabled?: boolean; onApply: (texte: string) => void }
+type Props = { volet: Volet; cible: string; cibleNom?: string | null; consigne: string; disabled?: boolean; onApply: (texte: string) => void }
 
 const NOM: Record<Volet, string> = { qa: 'L’expert QA', pentest: 'L’expert Pentest' }
 const AIDE: Record<Volet, string> = {
@@ -24,7 +26,7 @@ const AIDE: Record<Volet, string> = {
   pentest: 'Demandez-lui ce que vérifie un contrôle, comment une faille est prouvée, ou ce que la cible permet.',
 }
 
-export function MissionExpert({ volet, cible, consigne, disabled = false, onApply }: Props) {
+export function MissionExpert({ volet, cible, cibleNom = null, consigne, disabled = false, onApply }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
   const [dictee, setDictee] = useState('repos')
@@ -32,6 +34,8 @@ export function MissionExpert({ volet, cible, consigne, disabled = false, onAppl
   const [voix, setVoix] = useState(true)
   const [parle, setParle] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
+  const [conversation, setConversation] = useState(false)
+  const [origine, setOrigine] = useState<{ x: number; y: number } | null>(null)
   const controleur = useRef<Dictee | null>(null)
   const fil = useRef<HTMLOListElement>(null)
   const etat = useRef({ volet, cible, consigne, messages, voix })
@@ -73,15 +77,10 @@ export function MissionExpert({ volet, cible, consigne, disabled = false, onAppl
     }
   }
 
-  async function demander(texte: string) {
-    const q = texte.trim()
-    if (!q || attente) return
-    arreterVoix()
-    setErreur(null)
+  // Une question à l'expert, partagée par le panneau et le mode conversation : l'historique est le même.
+  async function poser(q: string): Promise<ReponseExpert | null> {
     const historique = etat.current.messages.slice(-6).map((m) => ({ role: m.role, texte: m.texte }))
     setMessages((m) => [...m, { role: 'utilisateur', texte: q }])
-    setQuestion('')
-    setAttente(true)
     try {
       const res = await fetch('/api/console/expert', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -90,12 +89,39 @@ export function MissionExpert({ volet, cible, consigne, disabled = false, onAppl
       const data = await res.json()
       if (!res.ok) throw new Error(data.erreur || 'L’expert ne répond pas pour l’instant.')
       setMessages((m) => [...m, { role: 'expert', texte: data.reponse, consigne: data.consigne_proposee, fiches: data.fiches }])
-      void lire(data.reponse)
+      return { reponse: data.reponse, consigne_proposee: data.consigne_proposee ?? null }
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'L’expert ne répond pas pour l’instant.')
-    } finally {
-      setAttente(false)
+      return null
     }
+  }
+
+  async function demander(texte: string) {
+    const q = texte.trim()
+    if (!q || attente) return
+    arreterVoix()
+    setErreur(null)
+    setQuestion('')
+    setAttente(true)
+    const r = await poser(q)
+    setAttente(false)
+    if (r) void lire(r.reponse)
+  }
+
+  // Ce que l'expert dit en ouvrant la conversation : il parle le premier, d'après la cible choisie.
+  const accueil = accueilExpert({ volet, cible: cibleNom, reprise: messages.length > 0 })
+
+  // La conversation naît du bouton touché (comme la Voix de LEVELS) : son centre devient l'origine du dépliage,
+  // et le son s'ouvre dans le geste même.
+  function ouvrirConversation(bouton: HTMLElement) {
+    arreterVoix()
+    if (controleur.current?.etat !== 'repos') controleur.current?.annuler()
+    amorcerAudio()
+    prechargerAccueil(accueil)
+    const r = bouton.getBoundingClientRect()
+    setOrigine({ x: r.left + r.width / 2, y: r.top + r.height / 2 })
+    setErreur(null)
+    setConversation(true)
   }
   const demanderRef = useRef(demander)
   demanderRef.current = demander
@@ -163,6 +189,12 @@ export function MissionExpert({ volet, cible, consigne, disabled = false, onAppl
             {NOM[volet]}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">{AIDE[volet]} Il ne lance rien.</p>
+          <button type="button" className="console-button primary mt-3" disabled={disabled || !cible}
+            onPointerEnter={() => prechargerAccueil(accueil)} onFocus={() => prechargerAccueil(accueil)}
+            onClick={(e) => ouvrirConversation(e.currentTarget)}>
+            <AudioLines className="size-4" aria-hidden="true" />
+            Converser à la voix
+          </button>
         </div>
         <button
           type="button"
@@ -180,14 +212,14 @@ export function MissionExpert({ volet, cible, consigne, disabled = false, onAppl
           {messages.map((m, i) => (
             <li key={i} className={m.role === 'utilisateur' ? 'flex justify-end' : 'flex'}>
               {m.role === 'utilisateur' ? (
-                <p className="max-w-[85%] rounded-lg bg-foreground/[0.05] px-3 py-2 text-sm">{m.texte}</p>
+                <p className="max-w-[85%] rounded-lg bg-foreground/[0.05] px-3 py-2 text-sm">{typographie(m.texte)}</p>
               ) : (
                 <div className="max-w-[92%] space-y-2 rounded-lg border border-steel/30 bg-steel/[0.04] px-3 py-2">
-                  <p className="text-sm leading-relaxed">{m.texte}</p>
+                  <p className="text-sm leading-relaxed">{typographie(m.texte)}</p>
                   {m.consigne ? (
                     <div className="space-y-2 rounded-md border border-border bg-background p-2.5">
                       <p className="label-mono">{volet === 'qa' ? 'Consigne proposée' : 'Précisions proposées'}</p>
-                      <p className="text-sm">{m.consigne}</p>
+                      <p className="text-sm">{typographie(m.consigne)}</p>
                       <button type="button" className="console-button" disabled={disabled} onClick={() => onApply(m.consigne!)}>
                         <CornerDownLeft className="size-4" aria-hidden="true" />
                         Reprendre dans la consigne
@@ -245,6 +277,11 @@ export function MissionExpert({ volet, cible, consigne, disabled = false, onAppl
       </div>
 
       {statut ? <p className="text-xs text-muted-foreground" role="status">{statut}</p> : null}
+      {conversation ? (
+        <ExpertConversation nom={NOM[volet]} volet={volet} cibleNom={cibleNom} accueil={accueil} fil={messages} origine={origine}
+          poser={poser} annoncer={(texte) => setMessages((m) => [...m, { role: 'expert', texte }])}
+          onApply={onApply} onClose={() => setConversation(false)} />
+      ) : null}
       {erreur ? <p className="text-sm text-danger" role="alert">{erreur}</p> : null}
     </section>
   )

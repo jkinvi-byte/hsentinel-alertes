@@ -53,3 +53,47 @@ test('une phrase par énoncé', () => {
   assert.deepEqual(phrases('Vous devez ouvrir la page. Puis vérifier « Bac+3 » ! Fini…  Oui'), ['Vous devez ouvrir la page.', 'Puis vérifier « Bac+3 » !', 'Fini…', 'Oui'])
   assert.deepEqual(phrases(''), [])
 })
+
+import { transcriptionUtile } from '../lib/expert/voix.mjs'
+test('les phrases fantômes de Whisper ne sont pas des questions', () => {
+  // « Thank you. » : le bip du micro de recette, transcrit par Whisper le 19/11, auquel l'expert avait répondu.
+  for (const fantome of ['', '…', 'Merci.', 'Sous-titres réalisés par la communauté d’Amara.org', 'Merci d’avoir regardé !', 'Euh.', 'Sous-titrage ST’ 501',
+    'Thank you.', 'Thank you so much!', 'Thanks for watching!', 'you', 'Bye.', 'Sous-titrage Société Radio-Canada'])
+    assert.equal(transcriptionUtile(fantome), false, fantome)
+  for (const vraie of ['Comment je vérifie le Bachelor ?', 'Pourquoi mon critère reste à confirmer ?', 'Merci, et pour le Pentest ?', 'Thank you, and what about Peer Review?'])
+    assert.equal(transcriptionUtile(vraie), true, vraie)
+})
+
+import { mots, planMots, motsDits, accueilExpert, typographie } from '../lib/expert/conversation.mjs'
+test('les mots s’allument au rythme de la voix, au prorata des lettres', () => {
+  // Les espaces insécables restent dans le mot : « Bac+3 » ne se coupe pas.
+  assert.deepEqual(mots('Vérifiez «\u00a0Bac+3\u00a0» ici.'), ['Vérifiez', '«\u00a0Bac+3\u00a0»', 'ici.'])
+  assert.deepEqual(mots(''), [])
+  // Le modèle écrit souvent les guillemets avec des espaces ordinaires : ils se soudent au mot, comme ? et !.
+  assert.deepEqual(mots('les mots exacts « Bac+3 ».'), ['les', 'mots', 'exacts', '«\u00a0Bac+3\u00a0».'])
+  assert.deepEqual(mots('Que voulez-vous vérifier ?'), ['Que', 'voulez-vous', 'vérifier\u202f?'])
+  assert.deepEqual(mots('« Bac+3 »'), ['«\u00a0Bac+3\u00a0»'])
+  assert.equal(typographie('Comment je vérifie Bac plus 3?'), 'Comment je vérifie Bac plus 3?')
+  assert.equal(typographie('Attention : la page « Programmes » !'), 'Attention\u202f: la page «\u00a0Programmes\u00a0»\u202f!')
+  const plan = planMots(['Un deux trois.', 'Quatre cinq.'])
+  assert.deepEqual(plan.map((l) => [l.debut, l.total]), [[0, 3], [3, 2]])
+  // Au départ, le premier mot s'allume (la voix l'attaque) ; à la fin, toute la phrase ; jamais la phrase suivante.
+  assert.equal(motsDits(plan, 0, 0), 1)
+  assert.equal(motsDits(plan, 0, 1), 3)
+  assert.equal(motsDits(plan, 1, 0), 4)
+  assert.equal(motsDits(plan, 1, 1), 5)
+  // Un mot plus long dure plus longtemps : à mi-phrase, « Un » et « deux » sont dits, pas « trois. ».
+  assert.equal(motsDits(plan, 0, 0.4), 2)
+  // Une durée inconnue (NaN) ou une phrase absente ne font rien avancer.
+  assert.equal(motsDits(plan, 0, Number.NaN), 1)
+  assert.equal(motsDits(plan, 7, 0.5), 0)
+})
+
+test('l’expert ouvre la conversation d’après la cible à l’écran, et reprend sans se représenter', () => {
+  assert.equal(accueilExpert({ volet: 'qa', cible: 'Eugenia School' }), 'Je suis l’expert QA. Nous préparons une mission sur Eugenia School. Que voulez-vous vérifier ?')
+  assert.match(accueilExpert({ volet: 'pentest', cible: 'Peer Review' }), /^Je suis l’expert Pentest\. .*sur Peer Review/)
+  assert.equal(accueilExpert({ volet: 'qa' }), 'Je suis l’expert QA. Nous préparons une mission. Que voulez-vous vérifier ?')
+  assert.equal(accueilExpert({ volet: 'pentest', cible: 'Peer Review', reprise: true }), 'Reprenons. Que voulez-vous préciser ?')
+  // Chaque phrase de l'accueil se lit seule (une phrase par énoncé) et se termine par sa ponctuation.
+  for (const v of ['qa', 'pentest']) for (const p of phrases(accueilExpert({ volet: v, cible: 'X' }))) assert.match(p, /[.?!]$/)
+})

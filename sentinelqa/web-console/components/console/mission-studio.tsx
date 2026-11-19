@@ -111,7 +111,7 @@ export function MissionStudio({ catalog, initialModule, initialTarget }: { catal
             {module === 'qa' && mode === 'guide' && <button className="console-button" type="button" disabled={busy || !instruction.trim()} onClick={prepare}><Sparkles className="size-4" aria-hidden="true" />{pending === 'plan' ? 'Préparation du plan…' : plan ? 'Préparer de nouveau' : 'Préparer le plan'}</button>}
           </section>
           {/* D-51 : l'expert QA ou Pentest ; il ne lance rien, sa consigne ne remplace la vôtre que sur demande. */}
-          <MissionExpert volet={module} cible={module === 'qa' ? target : (selectedScenario?.targetId ?? '')} consigne={instruction} disabled={busy}
+          <MissionExpert volet={module} cible={module === 'qa' ? target : (selectedScenario?.targetId ?? '')} cibleNom={module === 'qa' ? selected?.name : selectedScenario?.target} consigne={instruction} disabled={busy}
             onApply={(texte: string) => { setInstruction(texte); if (module === 'qa') setMode('guide'); begin() }} />
           {module === 'qa' && mode === 'guide' && plan && <section className="panel space-y-4 p-5" aria-labelledby="plan-title"><p className="label-mono">03 / Relecture</p><h2 id="plan-title" className="text-base font-medium">{plan.titre}</h2>
             {stale && <p role="status" className="text-sm text-warn">La consigne a changé. Préparez de nouveau le plan avant de lancer.</p>}

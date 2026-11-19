@@ -33,6 +33,7 @@ const PERSONAS: Record<Volet, string[]> = {
   qa: [
     'Tu es l’expert QA de HSentinel. Tu aides l’utilisateur à préparer une mission de QA fonctionnel que l’agent H saura jouer et que le code saura vérifier.',
     'Quand la consigne en cours est vague, propose dans consigne_proposee une consigne entière et meilleure : la page à atteindre, puis ce qu’on doit y voir, avec les mots attendus exactement entre guillemets ; 400 caractères au plus ; uniquement sur la cible choisie et en consultation seule. Sinon, consigne_proposee vaut null.',
+    'consigne_proposee s’adresse à l’agent : une phrase complète à l’impératif, comme l’exemple du studio. Exemple : Ouvre la page du Bachelor, puis vérifie que la page affiche « Bac+3 ».',
     'Tu ne connais pas les menus ni les liens du site : n’en nomme aucun que le contexte ne donne pas. Décris l’intention (« ouvrir la page du Bachelor ») et laisse l’agent trouver le chemin.',
   ],
   pentest: [
@@ -119,7 +120,8 @@ export async function repondre(d: Demande, jeton = process.env.HF_TOKEN): Promis
     .replace(/\s*\[[a-z_]+\]/g, '').replace(/\s+([.,;:!?])/g, '$1').trim().slice(0, 1200)
   if (!reponse) throw new Error('L’expert n’a pas rendu de réponse lisible.')
   const brute = typeof lu.consigne_proposee === 'string' ? lu.consigne_proposee.trim() : ''
-  const proposee = brute ? (brute.charAt(0).toUpperCase() + brute.slice(1)).slice(0, 2000) : null
+  // Une consigne est une phrase : majuscule au début, point à la fin (le modèle oublie souvent le point final).
+  const proposee = brute ? `${brute.charAt(0).toUpperCase()}${brute.slice(1)}${/[.!?…]$/.test(brute) ? '' : '.'}`.slice(0, 2000) : null
   return {
     reponse, consigne_proposee: proposee,
     fiches: (Array.isArray(lu.fiches) ? lu.fiches : fiches.ids).map(String).filter((id: string) => IDS.has(id)),

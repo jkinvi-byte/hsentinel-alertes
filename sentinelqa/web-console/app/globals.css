@@ -409,3 +409,284 @@
 body:has(.theme-h) { background-color: #ffffff; }
 body:has(.theme-console) { background-color: #f7f7f5; }
 body:has(.theme-console[data-theme='dark']) { background-color: #0b0e14; }
+
+/* D-51 : le mode conversation de l'expert, sur le modèle de la Voix de LEVELS. Il suit le thème de la console :
+   la salle blanche en clair (le blanc froid de MARQUE.md), l'encre en sombre. Aucun flou d'arrière-plan.
+   L'écran se déplie depuis le bouton touché (--ox, --oy posés au clic), en transform et opacité, une seule fois.
+   L'instrument ne s'anime que par transform (fable-fps) : la boucle rAF le pilote quand quelqu'un parle, des
+   animations composées le font respirer pendant la réflexion. Tout s'arrête avec l'écran, démonté à la fermeture. */
+.expert-conversation {
+  --xc-encre: #0e1116;
+  --xc-second: #3f4652;
+  --xc-doux: #6b7383;
+  --xc-filet: rgb(14 17 22 / 0.1);
+  --xc-repos: rgb(14 17 22 / 0.18);
+  --xc-voix: #2563eb;
+  --xc-carte: #ffffff;
+  --xc-plein: #0e1116;
+  --xc-sur-plein: #ffffff;
+  --xc-alerte: #c42a24;
+  background: radial-gradient(130% 85% at 50% 0%, #ffffff 0%, #f5f6f8 52%, #eef1f5 100%);
+  color: var(--xc-encre);
+  transform-origin: var(--ox, 50%) var(--oy, 100%);
+  animation: expert-arrivee 0.46s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.theme-console[data-theme='dark'] .expert-conversation {
+  --xc-encre: #f3f5f9;
+  --xc-second: #c3c9d4;
+  --xc-doux: #8a94a6;
+  --xc-filet: rgb(255 255 255 / 0.12);
+  --xc-repos: rgb(255 255 255 / 0.28);
+  --xc-voix: #60a5fa;
+  --xc-carte: rgb(255 255 255 / 0.04);
+  --xc-plein: #f3f5f9;
+  --xc-sur-plein: #0a0d13;
+  --xc-alerte: #fca5a5;
+  background: radial-gradient(130% 85% at 50% 0%, #121a2b 0%, #0a0d13 55%, #06080c 100%);
+}
+@keyframes expert-arrivee {
+  from { opacity: 0; transform: scale(0.72); }
+  to { opacity: 1; transform: none; }
+}
+.expert-conversation.expert-fermeture { animation: expert-depart 0.2s ease-in both; }
+@keyframes expert-depart {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: scale(0.96); }
+}
+
+/* Le haut : qui parle, sur quelle cible, et les deux réglages. */
+.expert-qui {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--xc-doux);
+}
+.expert-nom { color: var(--xc-encre); }
+.expert-qui-voix { color: var(--xc-voix); }
+.expert-cible { margin-top: 4px; font-size: 13px; color: var(--xc-second); }
+.expert-bascule,
+.expert-fermer {
+  height: 34px;
+  border: 1px solid var(--xc-filet);
+  border-radius: 10px;
+  color: var(--xc-second);
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.expert-bascule { padding: 0 10px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.expert-bascule[aria-pressed='true'] { border-color: var(--xc-encre); color: var(--xc-encre); }
+.expert-fermer { display: flex; width: 34px; align-items: center; justify-content: center; }
+.expert-bascule:hover,
+.expert-fermer:hover { border-color: var(--xc-encre); color: var(--xc-encre); }
+
+/* L'instrument : une rangée de barres sur une ligne de base, comme un appareil de mesure. */
+.expert-barres { position: relative; display: flex; height: 76px; align-items: center; gap: 5px; }
+.expert-barres::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -18px;
+  right: -18px;
+  height: 1px;
+  background: var(--xc-filet);
+}
+.expert-barres span {
+  position: relative;
+  display: block;
+  width: 3px;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--xc-repos);
+  transform: scaleY(0.06);
+  transform-origin: center;
+  will-change: transform;
+  transition: transform 90ms linear, background-color 0.35s ease;
+}
+.expert-conversation[data-etat='ecoute'] .expert-barres span { background: var(--xc-encre); }
+.expert-conversation[data-etat='reponse'] .expert-barres span { background: var(--xc-voix); }
+/* L'arrivée : la présence prend place depuis le centre, puis se pose. */
+.expert-barres[data-animation='arrivee'] span {
+  animation: expert-barre-arrivee 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: calc(0.14s + var(--i) * 14ms);
+}
+@keyframes expert-barre-arrivee {
+  0% { transform: scaleY(0); }
+  55% { transform: scaleY(calc(0.72 - var(--i) * 0.036)); }
+  100% { transform: scaleY(0.06); }
+}
+.expert-barres[data-animation='reflexion'] span {
+  animation: expert-reflexion 1.2s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -70ms);
+  transition: background-color 0.35s ease;
+}
+.expert-barres[data-animation='parole'] span {
+  animation: expert-parole 0.8s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -55ms);
+  transition: background-color 0.35s ease;
+}
+@keyframes expert-reflexion {
+  0%, 100% { transform: scaleY(0.06); }
+  50% { transform: scaleY(0.34); }
+}
+@keyframes expert-parole {
+  0%, 100% { transform: scaleY(0.14); }
+  35% { transform: scaleY(0.8); }
+  70% { transform: scaleY(0.38); }
+}
+.expert-etat {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--xc-second);
+}
+
+/* Le fil : vous à droite, l'expert à gauche ; l'échange en cours net, les tours plus anciens à moitié effacés. */
+.expert-defilement {
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  /* Les tours anciens s'effacent en remontant, au lieu d'être coupés net sous l'instrument. */
+  mask-image: linear-gradient(to bottom, transparent 0, #000 96px, #000 calc(100% - 10px), transparent 100%);
+}
+.expert-defilement::-webkit-scrollbar { display: none; }
+.expert-fil { display: flex; flex-direction: column; gap: 26px; margin-block: auto; padding-block: 24px; }
+.expert-tour {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity 0.45s ease;
+  animation: expert-tour 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+@keyframes expert-tour {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.expert-tour-vous { align-items: flex-end; text-align: right; }
+.expert-tour-passe { opacity: 0.4; }
+.expert-vous { max-width: 85%; font-size: 17px; line-height: 1.5; font-style: italic; color: var(--xc-second); }
+.expert-dit {
+  font-family: var(--font-heading);
+  font-size: 23px;
+  font-weight: 600;
+  line-height: 1.24;
+  letter-spacing: -0.012em;
+  color: var(--xc-encre);
+  text-wrap: pretty;
+}
+@media (min-width: 640px) {
+  .expert-dit { font-size: 29px; }
+}
+/* La réponse en cours : chaque mot attend que la voix le dise. */
+.expert-mot { display: inline-block; transition: opacity 0.22s ease-out, transform 0.22s ease-out; }
+.expert-tour[data-direct] .expert-mot:not([data-dit]) { opacity: 0; transform: translateY(0.2em); }
+.expert-tour[data-direct][data-mode='phrase'] .expert-mot { transition-delay: calc(var(--m) * 55ms); }
+
+.expert-proposition {
+  margin-top: 10px;
+  max-width: 520px;
+  border: 1px solid var(--xc-filet);
+  border-radius: 16px;
+  background: var(--xc-carte);
+  padding: 16px 18px;
+  animation: expert-tour 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.expert-proposition-texte { margin-top: 8px; font-size: 15.5px; line-height: 1.55; color: var(--xc-encre); }
+.expert-action {
+  display: inline-flex;
+  margin-top: 14px;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  background: var(--xc-voix);
+  padding: 0 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #fff;
+  transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+}
+.theme-console[data-theme='dark'] .expert-action { color: #0a0d13; }
+.expert-action:active:not(:disabled) { transform: scale(0.97); }
+.expert-action:disabled { opacity: 0.6; }
+
+/* Le bas : la commande principale d'encre (rayon de 14 px, la recette des boutons de LEVELS), le clavier à côté. */
+.expert-erreur { text-align: center; font-size: 14px; color: var(--xc-alerte); }
+.expert-remarque { text-align: center; font-size: 14px; color: var(--xc-second); }
+.expert-bouton {
+  display: inline-flex;
+  height: 56px;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+.expert-bouton:active:not(:disabled) { transform: scale(0.98); }
+.expert-bouton:disabled { opacity: 0.4; }
+.expert-bouton-plein { background: var(--xc-plein); color: var(--xc-sur-plein); }
+.expert-bouton-trait { border: 1.5px solid var(--xc-encre); color: var(--xc-encre); }
+.expert-bouton-trait:disabled { border-color: var(--xc-filet); opacity: 0.55; }
+.expert-clavier {
+  display: flex;
+  width: 56px;
+  height: 56px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--xc-filet);
+  border-radius: 14px;
+  color: var(--xc-second);
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.expert-clavier[aria-pressed='true'] { border-color: var(--xc-encre); color: var(--xc-encre); }
+.expert-saisie {
+  height: 48px;
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--xc-filet);
+  border-radius: 12px;
+  background: var(--xc-carte);
+  padding: 0 16px;
+  font-size: 16px;
+  color: var(--xc-encre);
+  outline: none;
+}
+.expert-saisie::placeholder { color: var(--xc-doux); }
+.expert-saisie:focus { border-color: var(--xc-encre); }
+.expert-envoyer {
+  height: 48px;
+  border: 1px solid var(--xc-filet);
+  border-radius: 12px;
+  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--xc-encre);
+}
+.expert-envoyer:disabled { opacity: 0.4; }
+.expert-note {
+  text-align: center;
+  text-wrap: balance;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--xc-doux);
+}
+.expert-conversation :focus-visible { outline: 2px solid var(--xc-voix); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .expert-conversation,
+  .expert-conversation.expert-fermeture,
+  .expert-barres span,
+  .expert-tour,
+  .expert-proposition {
+    animation: none !important;
+  }
+  .expert-barres span { transition: background-color 0.35s ease; }
+  .expert-tour[data-direct] .expert-mot:not([data-dit]) { transform: none; }
+  .expert-mot { transition: opacity 0.22s ease-out; }
+}

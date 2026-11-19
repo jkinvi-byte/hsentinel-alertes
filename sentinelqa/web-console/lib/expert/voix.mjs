@@ -27,6 +27,19 @@ export function phrases(texte) {
   return String(texte ?? '').split(/(?<=[.!?…])\s+/).map((p) => p.trim()).filter(Boolean)
 }
 
+// Les phrases fantômes que Whisper « entend » dans le bruit ou le silence : sous-titres et fins de vidéo, en français
+// comme en anglais (le 19/11, un bip du micro de recette est devenu « Thank you. », et l'expert y a répondu).
+const FANTOMES = /amara\.org|sous-?titr|radio-canada|merci d.avoir regard|^merci[\s.!]*$|^(euh|hum|hm)[\s.!]*$|^(thank you|thanks)( (so much|very much|for watching|for listening))?[\s.!]*$|^(bye|you)[\s.!]*$/i
+
+/** Une transcription à laquelle l'expert doit répondre : ni vide, ni l'une des phrases fantômes de Whisper.
+ *  @param {string} texte
+ *  @returns {boolean} */
+export function transcriptionUtile(texte) {
+  const t = String(texte ?? '').trim()
+  if (t.replace(/[^\p{L}\p{N}]/gu, '').length < 4) return false
+  return !FANTOMES.test(t)
+}
+
 let cache = null
 let enCours = []
 let garde = null
@@ -45,8 +58,13 @@ function voixChoisie() {
   return cache
 }
 
-/** Lit le texte. surFin est appelé une seule fois : à la fin, en cas d'erreur, ou si la voix ne démarre jamais. */
-export function parler(texte, surFin = () => {}) {
+/** Lit le texte. surFin est appelé une seule fois : à la fin, en cas d'erreur, ou si la voix ne démarre jamais.
+ *  surPhrase(i) suit le VRAI départ de chaque phrase : l'écran suit la voix, jamais un minuteur (comme LEVELS).
+ *  @param {string} texte
+ *  @param {() => void} [surFin]
+ *  @param {(i: number) => void} [surPhrase]
+ *  @returns {boolean} */
+export function parler(texte, surFin = () => {}, surPhrase = () => {}) {
   const s = synthese()
   const suite = phrases(texte)
   if (!s || !suite.length) return false
@@ -70,7 +88,7 @@ export function parler(texte, surFin = () => {}) {
   }
   const armer = (ms) => { clearTimeout(garde); garde = setTimeout(terminer, ms) }
   enCours.forEach((u, i) => {
-    u.onstart = () => armer(Math.min(30000, u.text.length * 95 + 4000))
+    u.onstart = () => { armer(Math.min(30000, u.text.length * 95 + 4000)); try { surPhrase(i) } catch {} }
     u.onend = () => (i === enCours.length - 1 ? terminer() : armer(3500))
     u.onerror = terminer
     s.speak(u)
