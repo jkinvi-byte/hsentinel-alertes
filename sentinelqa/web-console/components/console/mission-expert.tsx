@@ -1,10 +1,11 @@
 'use client'
 
-import { ArrowRight, CornerDownLeft, Keyboard, Mic, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react'
+import { ArrowRight, CornerDownLeft, KeyRound, Keyboard, Mic, Plus, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react'
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { parler, taire } from '@/lib/expert/voix.mjs'
 import { accueilExpert, typographie } from '@/lib/expert/conversation.mjs'
-import { amorcerAudio, ExpertConversation, prechargerAccueil, type ReponseExpert } from './expert-conversation'
+import { amorcerAudio, ExpertConversation, prechargerAccueil, type ActionProposee, type ReponseExpert } from './expert-conversation'
 
 // D-51 puis D-55 : l'expert QA ou Pentest, porte d'entrée de la nouvelle mission. On commence par la voix : le grand
 // bouton ouvre la conversation (le seul micro du studio, D-55 : « parler avec l'IA en plus de la reconnaissance vocale,
@@ -12,7 +13,7 @@ import { amorcerAudio, ExpertConversation, prechargerAccueil, type ReponseExpert
 // ne remplace la vôtre que sur « Reprendre dans la consigne ».
 
 type Volet = 'qa' | 'pentest'
-type Message = { role: 'utilisateur' | 'expert'; texte: string; consigne?: string | null; fiches?: string[] }
+type Message = { role: 'utilisateur' | 'expert'; texte: string; consigne?: string | null; action?: ActionProposee | null; fiches?: string[] }
 type Props = {
   volet: Volet
   cible: string
@@ -90,8 +91,8 @@ export function MissionExpert({ volet, cible, cibleNom = null, consigne, disable
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.erreur || 'L’expert ne répond pas pour l’instant.')
-      setMessages((m) => [...m, { role: 'expert', texte: data.reponse, consigne: data.consigne_proposee, fiches: data.fiches }])
-      return { reponse: data.reponse, consigne_proposee: data.consigne_proposee ?? null }
+      setMessages((m) => [...m, { role: 'expert', texte: data.reponse, consigne: data.consigne_proposee, action: data.action ?? null, fiches: data.fiches }])
+      return { reponse: data.reponse, consigne_proposee: data.consigne_proposee ?? null, action: data.action ?? null }
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'L’expert ne répond pas pour l’instant.')
       return null
@@ -192,6 +193,15 @@ export function MissionExpert({ volet, cible, cibleNom = null, consigne, disable
                     <CornerDownLeft aria-hidden="true" />
                     Reprendre dans la consigne
                   </button>
+                </div>
+              ) : null}
+              {m.action ? (
+                <div className="lv-expert-proposition">
+                  <p className="lv-expert-qui">{m.action.type === 'ajouter_compte' ? 'Compte de test' : 'Votre application'}</p>
+                  <Link href={m.action.href} className="lv-bouton lv-bouton-bleu">
+                    {m.action.type === 'ajouter_compte' ? <KeyRound aria-hidden="true" /> : <Plus aria-hidden="true" />}
+                    {m.action.libelle}
+                  </Link>
                 </div>
               ) : null}
             </li>

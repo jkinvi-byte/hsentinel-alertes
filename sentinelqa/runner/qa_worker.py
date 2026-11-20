@@ -16,11 +16,12 @@ from pathlib import Path
 import httpx
 from hai_agents import Client
 
+import applications
 import constats
 import veille
 from base import Base, env_postgres, lire_cles
 from cle_runner import cle_privee, dechiffrer, publier
-from qa_moteur import ecrire_rapport, executer_qa, maintenant, preparer_coffre, supprimer_coffre, trouver_cible
+from qa_moteur import CATALOGUE, ecrire_rapport, executer_qa, maintenant, preparer_coffre, supprimer_coffre, trouver_cible
 
 SCHEMA_QA = Path(__file__).resolve().parent.parent / "supabase" / "qa.sql"
 
@@ -63,19 +64,36 @@ def publier_ecarts(base, rapport, journal):
         journal(f"Alertes non transmises : {erreur.__class__.__name__}", "erreur")
 
 
-def preparer_compte(base, client, mission_id, demande, journal):
-    """Site connecté : le mot de passe, chiffré par le navigateur avec la clé publique du runner, quitte la base avant tout,
-    est déchiffré en mémoire, puis versé dans un coffre H propre à la mission. Il n'est jamais écrit ni journalisé."""
-    compte = demande.pop("compte", None)
-    if compte is None:
+def cible_de(base, demande):
+    """Un exemple du catalogue, ou une application ajoutée par le client (D-56), relue et revérifiée ici."""
+    target_id = demande.get("target_id")
+    if any(c["id"] == target_id for c in CATALOGUE["cibles"]):
+        return trouver_cible(target_id)
+    return applications.cible_client(base, target_id)
+
+
+def preparer_compte(base, client, mission_id, demande, journal, cible):
+    """Site connecté : le mot de passe, chiffré par le navigateur avec la clé publique du runner, est déchiffré en mémoire,
+    puis versé dans un coffre H propre à la mission. Il n'est jamais écrit ni journalisé.
+    Saisi pour la mission (exemple du catalogue), son texte chiffré quitte la base avant tout ; enregistré avec
+    l'application (compte_id, D-56), il reste chiffré dans comptes_test, que seule la clé de ce poste ouvre."""
+    compte, compte_id = demande.pop("compte", None), demande.pop("compte_id", None)
+    if compte is None and compte_id is None:
         return None
-    base.modifier("qa_missions", {"demande": demande}, id=f"eq.{mission_id}")
-    cible = trouver_cible(demande.get("target_id"))
     if not cible.get("connexion"):
         raise ValueError("Un site public ne reçoit aucun compte.")
-    mot_de_passe = dechiffrer(cle_privee(), compte["secret_chiffre"])["mot_de_passe"]
-    coffre = preparer_coffre(client, cible, compte["identifiant"], mot_de_passe)
-    demande.update(coffre=coffre, identite=compte.get("identite") or [])
+    if compte_id is not None:
+        if not cible.get("client") or compte is not None:
+            raise ValueError("Un compte enregistré ne sert qu'à une application ajoutée.")
+        enregistre = applications.compte_client(base, cible["id"], compte_id)
+        identifiant, chiffre, identite = enregistre["identifiant"], enregistre["secret_chiffre"], enregistre.get("identite") or []
+        demande["compte_libelle"] = enregistre["libelle"]
+        base.modifier("comptes_test", {"utilise_le": maintenant()}, id=f"eq.{compte_id}")
+    else:
+        identifiant, chiffre, identite = compte["identifiant"], compte["secret_chiffre"], compte.get("identite") or []
+    mot_de_passe = dechiffrer(cle_privee(), chiffre)["mot_de_passe"]
+    coffre = preparer_coffre(client, cible, identifiant, mot_de_passe)
+    demande.update(coffre=coffre, identite=identite)
     journal("Coffre H créé pour la mission : l'agent se connectera sans voir le mot de passe.", "info")
     return coffre
 
@@ -97,8 +115,12 @@ def traiter(base, client, ligne):
 
     demande, coffre = dict(ligne["demande"]), None
     try:
-        coffre = preparer_compte(base, client, mission_id, demande, journal)
-        rapport = executer_qa(demande, client, journal, arret)
+        if "compte" in demande:
+            # Le texte chiffré saisi pour la mission quitte la base avant tout, même si la suite échoue.
+            base.modifier("qa_missions", {"demande": {k: v for k, v in demande.items() if k != "compte"}}, id=f"eq.{mission_id}")
+        cible = cible_de(base, demande)
+        coffre = preparer_compte(base, client, mission_id, demande, journal, cible)
+        rapport = executer_qa(demande, client, journal, arret, cible=cible)
         print(f"Rapport local : {ecrire_rapport(rapport)}", flush=True)
         base.modifier("qa_missions", {"statut": "termine", "fin": maintenant(), "rapport": rapport}, id=f"eq.{mission_id}")
         publier_ecarts(base, rapport, journal)

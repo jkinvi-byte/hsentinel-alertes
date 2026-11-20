@@ -35,6 +35,7 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 from hai_agents import VaultCreateRequestProviderConfig_Internal
 
+from applications import garder_hote
 from qa_agent import APPAREILS, MODELE, ReponseQA, assurer_agent
 
 ICI = Path(__file__).resolve().parent
@@ -45,7 +46,7 @@ PILOTAGES = tuple(CATALOGUE["pilotages"])
 TYPES_CRITERES = ("page", "texte", "constat")
 MODELES_H = (MODELE, "holo4-27b")
 CHAMPS = {"schema_version", "mode", "target_id", "pilotage", "appareil", "instruction", "source", "plan", "modele_h",
-          "preparation_humaine_s", "coffre", "identite"}
+          "preparation_humaine_s", "coffre", "identite", "compte_libelle"}
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 # Sur une cible connectée, hors de la page de connexion : un clic dont le libellé porte l'un de ces mots peut écrire
 # (noter, envoyer…). Le code arrête alors la session ; H a peut-être déjà exécuté ce clic : l'arrêt borne les suites.
@@ -178,11 +179,14 @@ def valider_plan(plan, cible):
     return propre
 
 
-def valider_mission(d):
-    """Revalider dans le runner, même si la demande vient de notre web : seules les formes connues passent."""
+def valider_mission(d, cible=None):
+    """Revalider dans le runner, même si la demande vient de notre web : seules les formes connues passent.
+    `cible` : une application ajoutée (D-56), déjà relue dans Supabase et revérifiée par applications.cible_client."""
     if not isinstance(d, dict) or d.get("schema_version") != VERSION or d.get("mode") != "qa" or set(d) - CHAMPS:
         raise ValueError("Le format de la mission QA est invalide.")
-    cible = trouver_cible(d.get("target_id"))
+    cible = copy.deepcopy(cible) if cible else trouver_cible(d.get("target_id"))
+    if cible["id"] != d.get("target_id"):
+        raise ValueError("La mission ne correspond pas à l'application relue.")
     pilotage, appareil = d.get("pilotage"), d.get("appareil", "ordinateur")
     if pilotage not in PILOTAGES or appareil not in APPAREILS:
         raise ValueError("Le pilotage ou l'appareil est inconnu.")
@@ -212,6 +216,9 @@ def valider_mission(d):
     }
     if cible.get("connexion"):
         mission.update(coffre=coffre, identite=[" ".join(x.split()) for x in identite])
+        libelle = d.get("compte_libelle")
+        if libelle is not None:
+            mission["compte_libelle"] = _texte(libelle, 60, "Le libellé du compte")
     if pilotage == "guide":
         if d.get("plan") is None:
             raise ValueError("Un parcours guidé demande un plan relu.")
@@ -291,6 +298,9 @@ class Lectures:
         if chemin in self.privees:
             raise Interruption("private_page")
         courant = self.cible["origine"] + chemin
+        if self.cible.get("client"):
+            # Une application ajoutée par un client (D-56) : jamais une adresse privée lue depuis notre poste.
+            garder_hote(urlsplit(self.cible["origine"]).hostname)
         for _ in range(4):
             self.controle.verifier()
             self.nombre += 1
@@ -690,9 +700,23 @@ def verifier(mission, cible, reponse, observations, gestes, lectures, arret_code
                                            observe=texte, preuves=preuves_de(chemin, page)))
             else:
                 chemin = chemin_agent or dernier
-                resultats.append(_resultat(**base, statut=manque, code=arret_code or "text_unverified", chemin=chemin,
-                                           observe="Le texte n'a pas été retrouvé à l'écran, et la page servie ne permet pas de conclure.",
-                                           preuves=preuves_de(chemin, None) if chemin else []))
+                # Une page privée (site connecté) : le code ne prouve pas une absence. Mais si l'agent signale un écart et que sa
+                # citation se retrouve à l'écran, on le dit avec son constat (D-56 : « 2 factures en retard » au lieu de 3).
+                textes_page = sources(chemin)[0] if chemin else []
+                signale = (agent and agent["statut"] == "ecart" and agent["citation"] and chemin
+                           and retrouver_citation(agent["citation"], textes_page))
+                if signale:
+                    constat = str(agent["constat"] or "").strip()[:240]
+                    constat += "" if not constat or constat[-1] in ".!?…" else "."
+                    resultats.append(_resultat(**base, statut=manque, code=arret_code or "agent_reported_gap", verification="citation",
+                                               chemin=chemin, preuves=preuves_de(chemin, None),
+                                               observe=f"L'agent signale un écart : {constat} Sa citation « "
+                                                       f"{agent['citation'][:160]} » est retrouvée à l'écran sur {chemin} (correspondance {signale}) ; "
+                                                       "le code ne peut pas prouver une absence sur une page privée : à confirmer sur la capture."))
+                else:
+                    resultats.append(_resultat(**base, statut=manque, code=arret_code or "text_unverified", chemin=chemin,
+                                               observe="Le texte n'a pas été retrouvé à l'écran, et la page servie ne permet pas de conclure.",
+                                               preuves=preuves_de(chemin, None) if chemin else []))
             continue
 
         # constat (et page sans chemin connu) : la citation de l'agent doit se retrouver sur la page qu'il a vue.
@@ -745,7 +769,11 @@ def verifier(mission, cible, reponse, observations, gestes, lectures, arret_code
                                    "passed" if ok else "failed", "page_ok" if ok else "page_http_error", f"HTTP {page['status_code']}.",
                                    verification="code", chemin=chemin, preuves=[page["id"]]))
     # Contrôle automatique : un texte anormal affiché à l'écran (« undefined », « lorem ipsum »…), relevé sans l'agent.
+    # Une page déjà en écart pour un texte anormal (le constat de l'agent, retrouvé par le code) n'est pas comptée deux fois.
+    deja_anormales = {r["chemin"] for r in resultats if r["status"] == "failed" and r["reason_code"] == "anomalous_text"}
     for n, (chemin, textes) in enumerate(affiches.items(), 1):
+        if chemin in deja_anormales:
+            continue
         trouve = next((a for a in map(anomalie, textes) if a), None)
         if trouve:
             resultats.append(_resultat(f"T{n}", "texte_anormal", f"Texte anormal affiché sur {chemin}", "Aucun texte provisoire ou d'erreur",
@@ -806,17 +834,25 @@ def explorer_resultats(cible, reponse, parcours, affiches, lectures, sources, pr
     pages_agent = {chemin_cible(cible, p.get("url", "")): p for p in (reponse or {}).get("pages", []) if isinstance(p, dict)}
     for n, (chemin, arrivee) in enumerate(parcours.items(), 1):
         textes, page = sources(chemin)
-        if page is None:
+        # Une page privée d'un site connecté (D-56) : la lecture anonyme est renvoyée à la connexion, mais l'agent l'a ouverte
+        # connecté. Sa ligne repose sur la trajectoire H ; un texte anormal à l'écran est relevé plus bas (contrôle T).
+        privee = page is None and chemin in lectures.privees and bool(textes)
+        if page is None and not privee:
             continue
         p = pages_agent.get(chemin) or {}
         titre = str(p.get("titre_cite") or "")[:200]
         cite = retrouver_citation(titre, textes) if titre else None
         titre_txt = f" Titre cité par l'agent : « {titre} »" + (f", retrouvé ({cite})." if cite else ", non retrouvé.") if titre else ""
-        ok = page["status_code"] < 400
-        resultats.append(_resultat(f"P{n}", "page_visitee", f"Page {chemin}", "La page s'ouvre sans erreur", "passed" if ok else "failed",
-                                   "page_ok" if ok else "page_http_error",
-                                   f"Ouverte {'au départ' if arrivee['mode'] == 'depart' else 'par ' + (arrivee['geste'] or 'navigation')} ; HTTP {page['status_code']}.{titre_txt}",
-                                   verification="code", chemin=chemin, preuves=preuves_de(chemin, page)))
+        ouverte = f"Ouverte {'au départ' if arrivee['mode'] == 'depart' else 'par ' + (arrivee['geste'] or 'navigation')}"
+        if privee:
+            resultats.append(_resultat(f"P{n}", "page_visitee", f"Page {chemin}", "La page s'ouvre sans erreur", "passed", "page_seen_connected",
+                                       f"{ouverte}, connecté : page privée, affichée dans le navigateur de l'agent.{titre_txt}",
+                                       verification="code", chemin=chemin, preuves=preuves_de(chemin, None)))
+        else:
+            ok = page["status_code"] < 400
+            resultats.append(_resultat(f"P{n}", "page_visitee", f"Page {chemin}", "La page s'ouvre sans erreur", "passed" if ok else "failed",
+                                       "page_ok" if ok else "page_http_error", f"{ouverte} ; HTTP {page['status_code']}.{titre_txt}",
+                                       verification="code", chemin=chemin, preuves=preuves_de(chemin, page)))
         for m, probleme in enumerate(p.get("problemes") or [], 1):
             if not isinstance(probleme, dict):
                 continue
@@ -1050,8 +1086,8 @@ def preparer_plan(instruction, cible, jeton, lectures, http=None):
 
 # ── La mission complète ─────────────────────────────────────────────────────────────────────────────────────
 
-def executer_qa(demande, client, journal=lambda *a, **k: None, arret=lambda: False, transport=None):
-    mission, cible = valider_mission(demande)
+def executer_qa(demande, client, journal=lambda *a, **k: None, arret=lambda: False, transport=None, cible=None):
+    mission, cible = valider_mission(demande, cible)
     debut = time.monotonic()
     limites = cible["limites"][mission["pilotage"]]
     plan = mission["plan"]

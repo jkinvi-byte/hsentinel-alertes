@@ -4,11 +4,13 @@ import { ArrowRight, Building2, ChevronDown, Globe, KeyRound, Plus, ShieldCheck 
 import Link from 'next/link'
 import { useState } from 'react'
 import { type Application, formatAge, formatDateTime } from '@/lib/console-data'
+import type { ApplicationAjoutee } from '@/lib/applications-types'
+import { etape } from '../../../../web/lib/applications-contrat.mjs'
 
 // D-55 : les applications de la référence Lovable. Les cibles du catalogue sont les exemples phares, chacune avec son
 // autorisation écrite (D-24) ; votre propre site entre de la même façon, par une demande d'ajout, jamais par une URL tapée
 // au hasard (art. 323-1 du Code pénal). Le détail (comptes de test, scénarios, veille) se déplie sous chaque ligne.
-export function ApplicationsManager({ initialApps }: { initialApps: Application[] }) {
+export function ApplicationsManager({ initialApps, ajoutees }: { initialApps: Application[]; ajoutees: ApplicationAjoutee[] | null }) {
   const [ouverte, setOuverte] = useState<string | null>(null)
 
   return (
@@ -69,19 +71,56 @@ export function ApplicationsManager({ initialApps }: { initialApps: Application[
         <div className="lv-titre-section">
           <div>
             <h2 id="vos-applications-titre">Vos applications</h2>
-            <p>Votre préproduction, testée comme les exemples : même agents, mêmes preuves.</p>
+            <p>Votre préproduction, testée comme les exemples : mêmes agents, mêmes preuves.</p>
           </div>
         </div>
-        <div className="lv-vide">
-          <span className="lv-vide-icone"><ShieldCheck aria-hidden="true" /></span>
-          <div>
-            <strong>Testez votre propre site.</strong>
-            <p>Chaque cible entre au catalogue avec une autorisation écrite de son responsable. Demandez l’ajout : l’équipe vérifie l’autorisation, puis vos missions QA et pentest s’y lancent.</p>
+        {ajoutees === null ? (
+          <p className="lv-note" data-ton="alerte" role="status">Vos applications sont momentanément illisibles. Rechargez la page dans un instant.</p>
+        ) : ajoutees.length ? (
+          <ul className="lv-lignes">{ajoutees.map((a) => <LigneAjoutee key={a.id} app={a} />)}</ul>
+        ) : (
+          <div className="lv-vide lv-vos-apps-vide">
+            <span className="lv-vide-icone"><ShieldCheck aria-hidden="true" /></span>
+            <div>
+              <strong>Testez votre propre site.</strong>
+              <p>Ajoutez son adresse, publiez le jeton de vérification sur le site, puis vos comptes de test : vos missions QA s’y lancent aussitôt, sans attendre l’équipe.</p>
+            </div>
+            <Link href="/app/applications/nouvelle" className="lv-bouton lv-bouton-bleu"><Plus aria-hidden="true" />Ajouter une application</Link>
           </div>
-          <Link href="/signup" className="lv-bouton lv-bouton-trait"><Plus aria-hidden="true" />Demander l’ajout</Link>
-        </div>
+        )}
       </section>
     </div>
+  )
+}
+
+// D-56 : une application ajoutée par son responsable. L'action principale dit ce qu'il reste à faire.
+function LigneAjoutee({ app }: { app: ApplicationAjoutee }) {
+  const suite = etape(app)
+  const connexion = Boolean(app.profil_qa?.connexion)
+  const n = app.comptes.length
+  return (
+    <li className="lv-app">
+      <div className="lv-app-ligne">
+        <span className="lv-ligne-icone" data-ton={suite === 'prete' ? 'sur' : undefined}><Globe aria-hidden="true" /></span>
+        <div className="lv-app-texte">
+          <h3>{app.nom}</h3>
+          <p>{app.origine.replace(/^https:\/\//, '')}</p>
+          <ul className="lv-app-puces" aria-label={`État de ${app.nom}`}>
+            <li className="lv-pill" data-ton={app.verifiee_le ? 'sur' : undefined}>{app.verifiee_le ? 'Vérifiée' : 'Vérification à faire'}</li>
+            <li className="lv-pill">{connexion ? 'QA · compte de test requis' : 'QA · pages publiques'}</li>
+            {connexion ? <li className="lv-pill">{n ? `${n} compte${n > 1 ? 's' : ''} de test` : 'Aucun compte de test'}</li> : null}
+          </ul>
+        </div>
+        <div className="lv-app-actions">
+          {suite === 'prete' ? (
+            <Link href={`/app/nouveau?volet=qa&cible=${encodeURIComponent(app.id)}`} className="lv-bouton lv-bouton-trait">Préparer un test <ArrowRight aria-hidden="true" /></Link>
+          ) : (
+            <Link href={`/app/applications/${app.id}`} className="lv-bouton lv-bouton-bleu">{suite === 'verification' ? 'Vérifier le site' : 'Ajouter un compte'} <ArrowRight aria-hidden="true" /></Link>
+          )}
+          <Link href={`/app/applications/${app.id}`} className="lv-bouton lv-bouton-discret">Gérer</Link>
+        </div>
+      </div>
+    </li>
   )
 }
 

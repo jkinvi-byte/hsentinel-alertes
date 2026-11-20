@@ -1,6 +1,7 @@
 // Le contrat du volet QA, partagé par les routes, les écrans et les tests : le catalogue (contrats/qa.json, lu aussi
 // par le runner), les mots de l'interface et la validation d'une mission. Mêmes règles que runner/qa_moteur.py.
 import catalogue from '../../contrats/qa.json' with { type: 'json' };
+import { estCompteId } from './applications-contrat.mjs';
 
 export const CATALOGUE_QA = catalogue;
 export const STATUTS_QA = { passed: 'Conforme', failed: 'Écart constaté', inconclusive: 'Non concluant', skipped: 'Non exécuté' };
@@ -21,7 +22,7 @@ export function bilanCriteres(rapport) {
 }
 export const MODELES_H = ['holo4-35b-a3b', 'holo4-27b'];
 const CHAMPS = new Set(['schema_version', 'mode', 'target_id', 'pilotage', 'appareil', 'instruction', 'source', 'plan', 'modele_h',
-  'preparation_humaine_s', 'compte']);
+  'preparation_humaine_s', 'compte', 'compte_id']);
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}$/;
 const CHIFFRE = /^[A-Za-z0-9+/]+={0,2}$/;
 
@@ -109,20 +110,29 @@ export function validerPlan(plan, cible) {
   return propre;
 }
 
-export function validerMissionQa(d) {
+// La cible est résolue par l'appelant quand c'est une application ajoutée (D-56, lue dans Supabase) ; sinon le catalogue.
+/** @param {any} d @param {Record<string, any> | null} [cibleResolue] */
+export function validerMissionQa(d, cibleResolue = null) {
   if (!d || typeof d !== 'object' || Array.isArray(d) || d.schema_version !== 3 || d.mode !== 'qa'
       || Object.keys(d).some((k) => !CHAMPS.has(k))) {
     throw new Error('Le format de la mission QA est invalide.');
   }
-  const cible = cibleQa(d.target_id);
+  const cible = cibleResolue ?? cibleQa(d.target_id);
   const appareil = d.appareil ?? 'ordinateur';
   if (!Object.hasOwn(catalogue.pilotages, d.pilotage) || !Object.hasOwn(catalogue.appareils, appareil)) {
     throw new Error('Le pilotage ou l’appareil est inconnu.');
   }
   if (!Object.hasOwn(cible.limites, d.pilotage)) throw new Error('Ce pilotage n’est pas ouvert sur ce site.');
   // Un site connecté : un compte de test, dont le runner versera le mot de passe dans un coffre H propre à la mission.
-  const compte = cible.connexion ? validerCompte(d.compte) : null;
-  if (!cible.connexion && d.compte != null) throw new Error('Un site public ne reçoit aucun compte.');
+  // Sur une application ajoutée (D-56), un compte enregistré (compte_id) ; sur un exemple du catalogue, un compte saisi.
+  if (!cible.connexion && (d.compte != null || d.compte_id != null)) throw new Error('Un site public ne reçoit aucun compte.');
+  let compte = null;
+  if (cible.connexion && cible.client) {
+    if (d.compte != null || !estCompteId(d.compte_id)) throw new Error('Choisissez un compte de test enregistré pour cette application.');
+  } else if (cible.connexion) {
+    if (d.compte_id != null) throw new Error('Ce site se teste avec un compte saisi pour la mission.');
+    compte = validerCompte(d.compte);
+  }
   const source = d.source ?? 'texte';
   if (!['texte', 'voix'].includes(source)) throw new Error('La source de la consigne est inconnue.');
   const modele = d.modele_h ?? MODELES_H[0];
@@ -138,6 +148,7 @@ export function validerMissionQa(d) {
     mission.plan = validerPlan(d.plan, cible);
   }
   if (compte) mission.compte = compte;
+  if (cible.connexion && cible.client) mission.compte_id = d.compte_id;
   return mission;
 }
 

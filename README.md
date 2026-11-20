@@ -20,6 +20,7 @@ Les équipes livrent chaque semaine, souvent avec du code écrit par l'IA. Les t
 | **QA fonctionnel** | Il suit un parcours tapé ou dicté, que Hugging Face découpe en étapes et en critères, relus avant le lancement. Ou il explore le site, 6 pages au plus. Sur ordinateur ou sur mobile, connecté ou non. | La page atteinte, le texte exact relu par HTTP, la citation de l'agent retrouvée dans la page, les erreurs HTTP, les liens cassés. |
 | **Pentest : tests IDOR** | Deux comptes de test, de deux entreprises différentes, rangés dans des coffres H : l'agent ne voit jamais les mots de passe. L'agent cartographie les pages du compte A. Le compte B tente ensuite de les ouvrir, puis de les modifier. Un salarié tente d'atteindre l'administration. | B reçoit-il la page de A (rejeu HTTP, similarité d'au moins 0,95) ? Son marqueur d'écriture apparaît-il chez A ? L'agent confirme ensuite chaque faille à l'écran. Une règle écrite calcule la gravité. |
 | **Pentest : barrière d'accès** | Un visiteur sans compte ouvre une page réservée. | Le serveur le refuse (401 ou 403) ou le renvoie vers la connexion. |
+| **Votre propre SaaS** | « Ajouter une application » : l'adresse, l'attestation, un jeton de vérification publié sur le site, puis les comptes de test (chiffrés dans le navigateur pour le runner, versés dans un coffre H le temps d'une mission). L'expert du studio y conduit au lieu de bloquer. | Rien ne part avant que le jeton soit relu sur le site ; adresses privées refusées ; consultation seule. Sur une page privée, le code prouve un texte anormal ou une erreur HTTP, et dit l'écart que l'agent signale et cite. |
 | **Veille des mises à jour** | Aucun agent : deux lectures HTTP de la page d'entrée, toutes les 15 minutes. | Si l'empreinte du site change (compilation, ressources, titres), une mission QA part toute seule. Rien n'est à installer chez le client. |
 | **Alertes** | — | Chaque faille prouvée et chaque écart constaté deviennent un constat. Pour nos propres applications, n8n en fait un ticket GitHub, et un e-mail si un destinataire est choisi. Si la même faille revient, le ticket reçoit un commentaire au lieu d'un doublon. Pour un site tiers, le constat reste privé dans la console : ce dépôt est public, et une faille ne s'y publie jamais avant que son propriétaire soit prévenu. |
 
@@ -37,6 +38,8 @@ Les tests IDOR, c'est-à-dire un compte qui lit ou modifie l'objet d'un autre en
 | QA connecté sur Peer Review, 10 répétitions | Connexion et identité prouvées 10 sur 10, aucune écriture | 40 s et 0,015 $ en moyenne |
 | Barrière d'accès de Peer Review (S-PEER-01) | Conforme : 307 vers `/connexion` | 24 s, 0,004 $ |
 | Veille : la console est redéployée | Mise à jour détectée en 56 s, exploration faite 30 s plus tard | 0,010 $ |
+| Un SaaS jamais vu, ajouté dans la console (Ardoise, 20/11) : vérifié par jeton, deux comptes de test, exploration connectée | Connexion et identité prouvées ; les 2 défauts plantés que le code peut prouver sur une page privée le sont (« undefined » à l'écran, aide en 404) | 73 s, 0,028 $ |
+| Le même SaaS, parcours guidé proposé par l'expert (« 3 factures en retard ») | Le 3e défaut (la page en annonce 2) signalé et cité par l'agent, retrouvé à l'écran : à confirmer, jamais prouvé sur une page privée | 51 s, 0,012 $ |
 
 Les coûts H sont lus dans l'API H, session par session.
 
@@ -57,6 +60,7 @@ Le principe : **l'agent montre, le code décide.** Hugging Face prépare le plan
 
 ## Tester
 
+- **Votre propre site** : Applications, « Ajouter une application ». Le SaaS de démonstration [Ardoise](https://ardoise-demo-ruddy.vercel.app) (`sentinelqa/ardoise`, défauts plantés dans `DEFAUTS.md`) y est déjà ajouté et vérifié.
 - **En ligne** : https://hsentinel-console.vercel.app, avec le code de l'équipe. Lancez un QA (consigne tapée ou dictée, puis « Préparer le plan » et « Lancer la mission »), le pentest « Vérifier la barrière d'accès sans connexion » ou « Tests IDOR sur le banc », qui prouve en direct les 6 failles du banc en 5 minutes environ, puis ouvrez la page Alertes. Les missions sont exécutées par les workers de l'équipe : s'ils sont arrêtés, une mission reste en attente. Le banc IDOR est en ligne lui aussi : https://hsentinel-banc.vercel.app, avec des comptes et des données fictifs (`sentinelqa/runner/comptes-demo.json`).
 - **En local** : il faut Python 3.12, Node 20 ou plus, une clé H (`pbpaste | holo login --key --force`), et les clés Supabase et `HF_TOKEN` dans `~/.config/sentinelqa/.env`, sur le modèle de [`sentinelqa/.env.example`](sentinelqa/.env.example). Les clés ne vont jamais dans le dépôt.
 

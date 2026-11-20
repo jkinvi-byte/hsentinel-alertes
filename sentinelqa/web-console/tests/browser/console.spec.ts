@@ -35,7 +35,8 @@ async function loginCookie(page: Page) {
 async function fixtures(page: Page) {
   const calls = { starts: [] as any[], plans: [] as any[], stops: 0, transcriptions: 0, failed: false, running: false,
     keys: 0, keyAvailable: true, alertsFailed: false, expert: [] as any[], voix: [] as any[], voixEnPanne: false,
-    reponseExpert: 'Réponse synthétique de l’expert.', transcription: 'Vérifie le Bachelor et son diplôme.' }
+    reponseExpert: 'Réponse synthétique de l’expert.', transcription: 'Vérifie le Bachelor et son diplôme.',
+    ajouts: [] as any[], verifications: 0, comptes: [] as any[], actionExpert: null as null | Record<string, unknown> }
   await page.route('**/api/console/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname
     const response = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
@@ -58,11 +59,28 @@ async function fixtures(page: Page) {
     }
     if (path === '/api/console/expert') {
       calls.expert.push(request.postDataJSON())
-      return response({ reponse: calls.reponseExpert, consigne_proposee: 'Ouvrir le menu « Programmes », puis vérifier le texte « Bac+3 ».', fiches: ['consigne'], modele: 'fixture', latence_s: 0.1 })
+      return response({ reponse: calls.reponseExpert, consigne_proposee: calls.actionExpert ? null : 'Ouvrir le menu « Programmes », puis vérifier le texte « Bac+3 ».',
+        action: calls.actionExpert, fiches: ['consigne'], modele: 'fixture', latence_s: 0.1 })
     }
     if (path === '/api/console/transcription') {
       calls.transcriptions++; await new Promise(resolve => setTimeout(resolve, 350))
       return response({ texte: calls.transcription, latence_s: .35, modele: 'fixture' })
+    }
+    // D-56 : l'assistant « Ajouter une application ». La première vérification échoue, la seconde passe.
+    if (path === '/api/console/applications' && request.method() === 'POST') {
+      calls.ajouts.push(request.postDataJSON())
+      return response({ application: { ...APP_AJOUTEE, verifiee_le: null, autorisee: false, comptes: [] } }, 201)
+    }
+    if (path === `/api/console/applications/${APP_AJOUTEE.id}/verification`) {
+      calls.verifications++
+      return response(calls.verifications === 1
+        ? { verifiee: false, fichier: 404, page: 200, raison: 'Jeton introuvable : /.well-known/hsentinel-verification.txt répond HTTP 404, et la page d’accueil n’a pas la balise.' }
+        : { verifiee: true, methode: 'fichier', verifiee_le: '2026-11-20T08:00:00Z' })
+    }
+    if (path === `/api/console/applications/${APP_AJOUTEE.id}/comptes` && request.method() === 'POST') {
+      const corps = request.postDataJSON()
+      calls.comptes.push(corps)
+      return response({ compte: { id: COMPTE_AJOUTE, application_id: APP_AJOUTEE.id, libelle: corps.libelle, identifiant: corps.identifiant, identite: corps.identite, cree_le: '2026-11-20T08:01:00Z', utilise_le: null } }, 201)
     }
     if (path === '/api/console/missions' && request.method() === 'POST') { calls.starts.push(request.postDataJSON()); return response({ id, module: request.postDataJSON().mode === 'qa' ? 'qa' : 'pentest' }, 201) }
     if (path.endsWith('/arret')) { calls.stops++; calls.running = false; return response({ demande: true }, 202) }
@@ -114,6 +132,13 @@ test('Connexion opérateur : un faux code est refusé', async ({ page }) => {
 // D-49 : les pages de la console v0 lisent la base côté serveur. Une fausse base PostgREST sert des lignes synthétiques,
 // une base vide ou une panne, selon le mode choisi par chaque test.
 let modeBase: 'donnees' | 'vide' | 'panne' = 'donnees'
+// D-56 : une application ajoutée et vérifiée, avec un compte de test enregistré ; servie seulement aux tests qui la demandent.
+let avecAjoutees = false
+const COMPTE_AJOUTE = '22222222-2222-4222-8222-222222222222'
+const APP_AJOUTEE = { id: 'ardoise-demo-vercel-app', nom: 'Ardoise', origine: 'https://ardoise-demo.vercel.app', autorisee: true, ajoutee_console: true, retiree_le: null,
+  profil_qa: { entree: 'https://ardoise-demo.vercel.app/connexion', connexion: { chemin: '/connexion' } }, attestee_le: '2026-11-20T07:58:00Z',
+  verification_jeton: 'hsv-0123456789abcdefghijklmnopqrstuv', verification_methode: 'fichier', verifiee_le: '2026-11-20T08:00:00Z', cree_le: '2026-11-20T07:58:00Z' }
+const COMPTES_AJOUTES = [{ id: COMPTE_AJOUTE, application_id: APP_AJOUTEE.id, libelle: 'Compte A · gérante', identifiant: 'camille@ardoise.test', identite: ['Camille Martin'], cree_le: '2026-11-20T08:01:00Z', utilise_le: null }]
 const ici = Date.now(), ilYa = (minutes: number) => new Date(ici - minutes * 60000).toISOString()
 const AUDIT_BANC = '22222222-2222-4222-8222-222222222222', MISSION_QA = '33333333-3333-4333-8333-333333333333'
 const CONSTAT_LECTURE = '44444444-4444-4444-8444-444444444444', CONSTAT_ADMIN = '55555555-5555-4555-8555-555555555555'
@@ -161,11 +186,17 @@ const fausseBase = createServer((req, res) => {
     })
     return
   }
-  res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(modeBase === 'vide' ? [] : TABLES[table] ?? []))
+  // Les seuls filtres que la base simule : ceux des applications ajoutées (D-56). Les autres requêtes reçoivent toute la table.
+  const params = new URL(req.url ?? '/', 'http://base').searchParams
+  let lignes = modeBase === 'vide' ? [] : [...(TABLES[table] ?? []), ...(avecAjoutees && table === 'applications' ? [APP_AJOUTEE] : []),
+    ...(avecAjoutees && table === 'comptes_test' ? COMPTES_AJOUTES : [])] as Record<string, unknown>[]
+  if (params.get('ajoutee_console') === 'eq.true') lignes = lignes.filter(l => l.ajoutee_console === true)
+  if (params.get('retiree_le') === 'is.null') lignes = lignes.filter(l => l.retiree_le == null)
+  res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(lignes))
 })
 test.beforeAll(async () => { await new Promise<void>(resolve => fausseBase.listen(3199, '127.0.0.1', resolve)) })
 test.afterAll(async () => { await new Promise(resolve => fausseBase.close(resolve)) })
-test.beforeEach(() => { modeBase = 'donnees'; for (const t of Object.keys(recues)) delete recues[t] })
+test.beforeEach(() => { modeBase = 'donnees'; avecAjoutees = false; for (const t of Object.keys(recues)) delete recues[t] })
 
 test('Console v0 : chaque page montre les données de la base, sans chiffre inventé', async ({ page }) => {
   await loginCookie(page)
@@ -591,4 +622,91 @@ test('Matrice IDOR : le rapport générique est visible dans une mission Pentest
   await expect(page.getByText('route découverte', { exact: true })).toBeVisible()
   await expect(page.getByText(/Méthodes HTTP observées : GET, POST/)).toBeVisible()
   await expect(page.getByText(/0 formulaire\(s\) métier soumis par le runner/)).toBeVisible()
+})
+
+// ── D-56 : ajouter son application, la vérifier, y enregistrer un compte de test, puis la tester ──────────────
+
+test('Ajouter une application : adresse, vérification par jeton, compte chiffré dans le navigateur, puis prête', async ({ page }) => {
+  await loginCookie(page)
+  const calls = await fixtures(page)
+  await page.goto('/app/applications')
+  await expect(page.getByRole('heading', { name: 'Testez votre propre site.' }).or(page.getByText('Testez votre propre site.'))).toBeVisible()
+  await page.getByRole('link', { name: 'Ajouter une application' }).first().click()
+  await expect(page).toHaveURL(/\/app\/applications\/nouvelle$/)
+  const continuer = page.getByRole('button', { name: /Continuer/ })
+  await page.getByLabel('Adresse du site').fill('ardoise-demo.vercel.app')
+  await expect(continuer).toBeDisabled() // l'attestation est obligatoire
+  await page.getByText(/J’ai le contrôle de ce site/).click()
+  await continuer.click()
+  expect(calls.ajouts[0]).toMatchObject({ adresse: 'ardoise-demo.vercel.app', connexion: '/connexion', attestation: true })
+  await expect(page).toHaveURL(new RegExp(`/app/applications/${APP_AJOUTEE.id}$`))
+  await expect(page.getByRole('heading', { name: 'Vérifions que ce site est à vous.' })).toBeFocused()
+  await expect(page.getByText(APP_AJOUTEE.verification_jeton, { exact: true })).toBeVisible()
+  await page.getByRole('tab', { name: 'Une balise' }).click()
+  await expect(page.getByText(`<meta name="hsentinel-verification" content="${APP_AJOUTEE.verification_jeton}">`)).toBeVisible()
+  await page.getByRole('button', { name: /Vérifier maintenant/ }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'répond HTTP 404' })).toBeVisible()
+  await page.getByRole('button', { name: /Vérifier de nouveau/ }).click()
+  await expect(page.getByRole('heading', { name: 'Les comptes de test.' })).toBeFocused()
+  const motDePasse = 'motdepasse-synthetique-ardoise'
+  await page.getByLabel('Libellé').fill('Compte A · gérante')
+  await page.getByLabel('Identifiant').fill('camille@ardoise.test')
+  await page.getByLabel('Mot de passe').fill(motDePasse)
+  await page.getByLabel(/Nom affiché une fois connecté/).fill('Camille Martin')
+  await page.getByRole('button', { name: /Chiffrer et enregistrer/ }).click()
+  await expect(page.getByRole('heading', { name: 'Ardoise est prête.' })).toBeFocused()
+  await expect(page.getByText('Chiffré pour le runner')).toBeVisible()
+  // Le mot de passe n'a quitté le navigateur que chiffré pour le runner : la clé privée de la recette le rouvre, rien d'autre.
+  const envoye = calls.comptes[0]
+  expect(JSON.stringify(envoye)).not.toContain(motDePasse)
+  expect(envoye.cle_runner_id).toBe(runnerKey.id)
+  const clair = JSON.parse(privateDecrypt({ key: privateKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha256' }, Buffer.from(envoye.secret_chiffre, 'base64')).toString())
+  expect(clair).toEqual({ mot_de_passe: motDePasse })
+  await expect(page.getByRole('link', { name: /Préparer un test/ })).toHaveAttribute('href', `/app/nouveau?volet=qa&cible=${APP_AJOUTEE.id}`)
+})
+
+test('Studio : une application ajoutée se teste avec son compte enregistré, sans rien retaper', async ({ page }) => {
+  avecAjoutees = true
+  await loginCookie(page)
+  const calls = await fixtures(page)
+  await page.goto(`/app/nouveau?volet=qa&cible=${APP_AJOUTEE.id}`)
+  await page.getByRole('button', { name: /Paramétrer manuellement/ }).first().click()
+  await expect(page.getByRole('combobox', { name: 'Application' })).toHaveValue(APP_AJOUTEE.id)
+  await expect(page.getByRole('option', { name: /Ardoise · votre application · compte requis/ })).toBeAttached()
+  await expect(page.getByRole('radio', { name: /Compte A · gérante/ })).toBeChecked()
+  await expect(page.getByLabel('Mot de passe du compte de test')).toHaveCount(0) // aucun mot de passe à retaper
+  await page.getByRole('button', { name: 'Exploration' }).click()
+  await page.getByRole('button', { name: /Lancer la mission/ }).click()
+  await expect.poll(() => calls.starts.length).toBe(1)
+  expect(calls.starts[0]).toMatchObject({ mode: 'qa', target_id: APP_AJOUTEE.id, pilotage: 'exploration', compte_id: COMPTE_AJOUTE })
+  expect(calls.starts[0].compte).toBeUndefined()
+})
+
+test('Applications : la liste « Vos applications » dit ce qu’il reste à faire', async ({ page }) => {
+  avecAjoutees = true
+  await loginCookie(page)
+  await page.goto('/app/applications')
+  const ligne = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Ardoise' }) })
+  await expect(ligne.getByText('Vérifiée')).toBeVisible()
+  await expect(ligne.getByText('1 compte de test')).toBeVisible()
+  await expect(ligne.getByRole('link', { name: /Préparer un test/ })).toHaveAttribute('href', `/app/nouveau?volet=qa&cible=${APP_AJOUTEE.id}`)
+  // Les exemples phares ne se mêlent pas aux applications ajoutées.
+  await expect(page.getByRole('region', { name: 'Exemples phares' }).getByRole('heading', { name: 'Ardoise' })).toHaveCount(0)
+})
+
+test('L’expert oriente au lieu de bloquer : son bouton mène à l’ajout, adresse pré-remplie', async ({ page }) => {
+  await loginCookie(page)
+  const calls = await fixtures(page)
+  calls.reponseExpert = 'Vous pouvez l’ajouter vous-même en trois gestes : son adresse et l’attestation, le jeton de vérification, puis un compte de test.'
+  calls.actionExpert = { type: 'ajouter_application', libelle: 'Ajouter cette application', adresse: 'https://app.facturo.io',
+    href: '/app/applications/nouvelle?adresse=https%3A%2F%2Fapp.facturo.io' }
+  await page.goto('/app/nouveau?volet=qa')
+  await page.getByRole('button', { name: /Écrire à l’expert/ }).click()
+  await page.getByPlaceholder('Ou écrivez votre objectif…').fill('Je voudrais tester mon SaaS, app.facturo.io')
+  await page.getByRole('button', { name: /Demander/ }).click()
+  const bouton = page.getByRole('link', { name: 'Ajouter cette application' })
+  await expect(bouton).toBeVisible()
+  await bouton.click()
+  await expect(page).toHaveURL(/\/app\/applications\/nouvelle\?adresse=/)
+  await expect(page.getByLabel('Adresse du site')).toHaveValue('https://app.facturo.io')
 })

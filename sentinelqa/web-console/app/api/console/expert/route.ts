@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   const question = typeof corps.question === 'string' ? corps.question.trim() : ''
   const consigne = typeof corps.consigne === 'string' ? corps.consigne.slice(0, 2000) : ''
   if (!volet || !question || question.length > 1000) return json({ erreur: 'Posez une question de 1 000 caractères au plus.' }, 400)
-  if (!cibleConnue(volet, cible)) return json({ erreur: 'Choisissez une application autorisée.' }, 400)
+  if (!(await cibleConnue(volet, cible))) return json({ erreur: 'Choisissez une application autorisée.' }, 400)
   const historique = (Array.isArray(corps.historique) ? corps.historique : []).slice(-6).flatMap((t): Tour[] =>
     t && typeof t === 'object' && typeof (t as Tour).texte === 'string' && ['utilisateur', 'expert'].includes((t as Tour).role)
       ? [{ role: (t as Tour).role, texte: (t as Tour).texte.slice(0, 600) }] : [])

@@ -16,8 +16,10 @@ export function catalog() {
     }),
   }
 }
-export function validateStart(body) {
-  if (body?.mode === 'qa') return { module: 'qa', data: validerMissionQa(body) }
+// `cible` : une application ajoutée par le client (D-56), déjà lue dans Supabase et vérifiée par l'appelant.
+/** @param {any} body @param {Record<string, any> | null} [cible] */
+export function validateStart(body, cible = null) {
+  if (body?.mode === 'qa') return { module: 'qa', data: validerMissionQa(body, cible) }
   if (body?.mode !== 'security') throw new Error('Choisissez le volet QA ou Pentest.')
   const scenario = CATALOGUE.scenarios.find(s => s.id === body.scenario_id && s.mode === 'security')
   if (!scenario || scenario.available !== true) throw new Error('Ce scénario n’est pas encore disponible depuis la console.')

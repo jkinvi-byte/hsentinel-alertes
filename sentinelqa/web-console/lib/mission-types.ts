@@ -2,7 +2,7 @@ import type { RoleMatrix } from './audit-types'
 
 export type Module = 'qa' | 'pentest'
 export type ResultStatus = 'passed' | 'failed' | 'inconclusive' | 'skipped'
-export type Result = { id: string; type: string; title: string; expected: string; observed: string; status: ResultStatus; reason: string; evidence: string[]; classification: string }
+export type Result = { id: string; type: string; title: string; expected: string; observed: string; status: ResultStatus; reason: string; evidence: string[]; classification: string; page?: string }
 export type Mission = {
   id: string; module: Module; title: string; target: string; createdAt: string; status: string;
   error: string | null; interruption: string; stopRequested: boolean; canStop: boolean; duration: number | null; costH: number | null; costHf: number | null;
@@ -18,7 +18,9 @@ export type Mission = {
 export type Event = { id: number; quand: string; type: string; message: string }
 export type Plan = { titre: string; etapes: string[]; criteres: { id: string; type: string; description: string; valeur: string }[]; hors_perimetre: string[]; inconnues: string[] }
 export type Catalog = {
-  qa: { id: string; name: string; url: string; available: boolean; connexion: boolean; modes: string[]; limits: Record<string, { max_steps: number; max_time_s: number; max_pages?: number }> }[];
+  qa: { id: string; name: string; url: string; available: boolean; connexion: boolean; modes: string[]; limits: Record<string, { max_steps: number; max_time_s: number; max_pages?: number }>;
+    /** D-56 : une application ajoutée par le client, avec ses comptes de test enregistrés (sans secret). */
+    ajoutee?: boolean; comptes?: { id: string; libelle: string; identifiant: string }[] }[];
   pentest: { id: string; targetId: string; targetIds: string[]; targets: { id: string; name: string; url: string; maxSteps: number; maxTime: number }[]; name: string; target: string; url: string; available: boolean; writes?: boolean; expected: string; limitations: string; maxSteps: number; maxTime: number }[];
 }
 export type RunnerKey = { id: string | number; jwk: JsonWebKey }

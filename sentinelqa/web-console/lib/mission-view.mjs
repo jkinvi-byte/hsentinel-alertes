@@ -32,6 +32,7 @@ export function normaliseMission(row, module) {
     expected: text(r.attendu) || text(r.expected), observed: text(r.observe) || text(r.observed),
     status: statuses.has(r.status) ? r.status : 'inconclusive', reason: text(r.reason_code), classification: text(r.classification),
     evidence: array(r.preuves ?? r.evidence_references).filter(v => typeof v === 'string'),
+    page: text(r.chemin),
   }) })
   if (legacy) results = array(report.preuves).map((value, i) => { const r = object(value); return ({
     id: `H${i + 1}`, type: '', title: text(r.type) || text(r.chemin) || `Constat ${i + 1}`, expected: '',
@@ -57,7 +58,7 @@ export function normaliseMission(row, module) {
   const inference = object(report.inference)
   return {
     id: text(row.id), module, title: text(report?.titre) || text(report?.scenario_title) || text(request.plan?.titre) || text(row.application) || (module === 'qa' ? 'Mission QA' : 'Contrôle d’accès'),
-    target: text(row.cible) || text(request.target_id), createdAt: text(row.cree_le), status: text(row.statut) || 'inconnu',
+    target: text(object(report.scope_snapshot).nom) || text(row.cible) || text(request.target_id), createdAt: text(row.cree_le), status: text(row.statut) || 'inconnu',
     error: row.erreur ? text(row.erreur) : null, interruption: text(report.interruption), stopRequested: row.arret_demande === true,
     canStop: ['en_attente', 'en_cours'].includes(row.statut) && (module === 'qa' || report?.schema_version === 2),
     duration: number(report?.duration_s ?? report?.duree_totale_s), costH: number(report?.cost_h ?? report?.cout_dollars), costHf: number(report?.cost_hf ?? report?.cout_hf_dollars),

@@ -1,6 +1,7 @@
 'use client'
 
-import { Check, CornerDownLeft, Keyboard, Mic, Square, Volume2, X } from 'lucide-react'
+import { Check, CornerDownLeft, KeyRound, Keyboard, Mic, Plus, Square, Volume2, X } from 'lucide-react'
+import Link from 'next/link'
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { creerDictee as creerDicteeJs } from '../../../web/lib/qa-dictee.mjs'
 import { mots as decouperMots, motsDits, planMots, typographie } from '@/lib/expert/conversation.mjs'
@@ -17,8 +18,10 @@ import { cn } from '@/lib/utils'
 type Dictee = { etat: string; commencer(): Promise<void>; arreter(): void; annuler(): void; disposer(): void }
 const creerDictee = creerDicteeJs as unknown as (options: Record<string, unknown>) => Dictee
 
-export type ReponseExpert = { reponse: string; consigne_proposee: string | null }
-export type TourFil = { role: 'utilisateur' | 'expert'; texte: string; consigne?: string | null }
+// D-56 : l'expert oriente au lieu de bloquer. Sous sa réponse, un bouton mène à l'ajout de l'application ou d'un compte de test.
+export type ActionProposee = { type: 'ajouter_application' | 'ajouter_compte'; libelle: string; href: string }
+export type ReponseExpert = { reponse: string; consigne_proposee: string | null; action?: ActionProposee | null }
+export type TourFil = { role: 'utilisateur' | 'expert'; texte: string; consigne?: string | null; action?: ActionProposee | null }
 type Tour = TourFil & { id: number; direct: boolean; phrases: string[] }
 type Etat = 'arrivee' | 'ouverture' | 'ecoute' | 'transcription' | 'reflexion' | 'formulation' | 'reponse' | 'attente'
 type Props = {
@@ -210,7 +213,7 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
     motsRef.current = []
     allumes.current = 0
     setFil((f) => [...f.map((t) => (t.direct ? { ...t, direct: false } : t)),
-      { id, role: 'expert', texte: r.reponse, consigne: r.consigne_proposee, direct: true, phrases: suite }])
+      { id, role: 'expert', texte: r.reponse, consigne: r.consigne_proposee, action: r.action ?? null, direct: true, phrases: suite }])
     setModeVoix('flux')
     setEtat('formulation')
     const apres = () => {
@@ -518,6 +521,14 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
                       {reprises.includes(t.id) ? <Check className="size-4" aria-hidden="true" /> : <CornerDownLeft className="size-4" aria-hidden="true" />}
                       {reprises.includes(t.id) ? 'Reprise dans la consigne' : 'Reprendre dans la consigne'}
                     </button>
+                  </div>
+                ) : null}
+                {t.role === 'expert' && t.action && !t.direct ? (
+                  <div className="expert-proposition">
+                    <Link href={t.action.href} className="expert-action">
+                      {t.action.type === 'ajouter_compte' ? <KeyRound className="size-4" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />}
+                      {t.action.libelle}
+                    </Link>
                   </div>
                 ) : null}
               </li>

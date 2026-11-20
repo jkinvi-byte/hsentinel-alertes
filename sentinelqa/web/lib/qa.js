@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { requete } from './supabase';
 import { CATALOGUE_QA, cibleQa, sansSecret, validerPlan, validerMissionQa } from './qa-contrat.mjs';
+import { lireSite } from './applications.js';
 
 export { CATALOGUE_QA, cibleQa, validerMissionQa };
 
@@ -27,10 +28,12 @@ const cleH = () => cle('HAI_API_KEY', '.config/hai/.env');
 
 // Les liens de la page d'entrée, avec leur libellé : la carte du site donnée au modèle de préparation.
 async function liensConnus(cible) {
-  const reponse = await fetch(cible.entree, {
-    headers: { 'User-Agent': 'HSentinel-QA/0.3 (authorized read-only QA check)' }, signal: AbortSignal.timeout(10000), redirect: 'follow',
-  });
-  const html = (await reponse.text()).slice(0, cible.limites.octets_par_lecture);
+  // Une application ajoutée par un client (D-56) passe par la lecture gardée : jamais d'adresse privée, jamais hors origine.
+  const html = cible.client
+    ? (await lireSite(cible.origine, new URL(cible.entree).pathname, { maxOctets: cible.limites.octets_par_lecture })).texte
+    : (await (await fetch(cible.entree, {
+      headers: { 'User-Agent': 'HSentinel-QA/0.3 (authorized read-only QA check)' }, signal: AbortSignal.timeout(10000), redirect: 'follow',
+    })).text()).slice(0, cible.limites.octets_par_lecture);
   const liens = new Map();
   for (const [, href, libelle] of html.matchAll(/<a[^>]+href="([^"#]+)"[^>]*>([\s\S]*?)<\/a>/g)) {
     let chemin;
@@ -44,8 +47,9 @@ async function liensConnus(cible) {
 }
 
 // Le plan : Hugging Face découpe la consigne en étapes et en critères. Il reste hors du verdict.
-export async function preparerPlan(targetId, instruction) {
-  const cible = cibleQa(targetId);
+/** @param {string} targetId @param {string} instruction @param {Record<string, any> | null} [cibleResolue] */
+export async function preparerPlan(targetId, instruction, cibleResolue = null) {
+  const cible = cibleResolue ?? cibleQa(targetId);
   const regles = CATALOGUE_QA.preparation;
   const jeton = jetonHf();
   if (!jeton) throw new Error('Le jeton Hugging Face n’est pas configuré sur ce serveur.');

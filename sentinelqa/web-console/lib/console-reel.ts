@@ -60,7 +60,7 @@ export const chargerConsole = cache(async () => {
     requete('qa_missions?select=id,cree_le,statut,cible,demande,rapport,erreur,arret_demande&order=cree_le.desc&limit=100'),
     requete('audits?select=id,cree_le,statut,application,cible,rapport,erreur&order=cree_le.desc&limit=100'),
     requete(`constats?select=${COLONNES_CONSTATS}&order=cree_le.asc&limit=1000`),
-    requete('applications?select=id,nom,origine,observation_active,observee_le,mise_a_jour_le&order=id.asc'),
+    requete('applications?select=id,nom,origine,observation_active,observee_le,mise_a_jour_le,ajoutee_console&retiree_le=is.null&order=id.asc'),
   ])
   const missionsQa = qa.map((ligne) => ({ ligne, app: String(ligne.cible ?? ''), vue: normaliseMission(ligne, 'qa') as Ligne }))
   const missionsPentest = audits.filter((l) => l.rapport?.request?.mode !== 'qa')
@@ -160,6 +160,7 @@ export function applications(d: DonneesConsole): Application[] {
       watch: { active: a.observation_active === true, seenAt: a.observee_le ?? undefined, updatedAt: a.mise_a_jour_le ?? undefined },
       scenarios,
       qa: cibleQa ? { connexion: Boolean(cibleQa.connexion), modes: Object.keys(cibleQa.limites ?? {}).filter((m) => ['guide', 'exploration'].includes(m)) } : undefined,
+      ajoutee: a.ajoutee_console === true,
     }
   })
 }

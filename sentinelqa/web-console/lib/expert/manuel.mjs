@@ -11,8 +11,14 @@ export const MANUEL = [
     'L’agent montre, le code décide : un verdict ne repose jamais sur la seule parole de l’agent.',
   ] },
   { id: 'autorisation', volet: 'commun', aliases: ['autorisation', 'autorise', 'legal', '323', 'droit de tester', 'permission', 'quel site', 'n importe quel site', 'ajouter un site', 'ajouter une application', 'nouvelle cible'], faits: [
-    'On ne teste que des cibles que l’équipe contrôle, ou pour lesquelles elle a une autorisation écrite (article 323-1 du Code pénal).',
-    'Les cibles autorisées sont au catalogue. Une nouvelle cible passe par l’équipe et une autorisation écrite, jamais par une demande à l’expert.',
+    'On ne teste que des sites que l’on contrôle, ou pour lesquels on a une autorisation écrite de leur responsable (article 323-1 du Code pénal).',
+    'Votre propre site s’ajoute vous-même, dans la console : Applications, puis « Ajouter une application ». Vous donnez son adresse et cochez l’attestation, vous publiez sur le site un jeton de vérification (un fichier ou une balise), puis vous ajoutez un compte de test si le site a une connexion. Aucune mission ne part avant que HSentinel ait relu le jeton.',
+    'Une application ajoutée s’ouvre au QA fonctionnel, en consultation seule ; le Pentest d’une application ajoutée n’est pas encore ouvert. Les exemples phares du catalogue restent disponibles à côté.',
+  ] },
+  { id: 'ajouter_application', volet: 'commun', aliases: ['mon site', 'mon application', 'mon saas', 'mon app', 'notre site', 'notre application', 'autre site', 'un autre site', 'nouveau site', 'ajouter', 'tester mon', 'pas dans la liste', 'adresse', 'url', 'jeton', 'verification', 'verifier mon site', 'propriete'], faits: [
+    'Ajouter une application prend trois gestes : l’adresse et l’attestation ; le jeton de vérification publié à /.well-known/hsentinel-verification.txt ou dans une balise meta de la page d’accueil ; les comptes de test si le site a une connexion.',
+    'Le jeton reste le même pour une adresse : on le publie une fois. HSentinel le relit depuis Internet, sans rien écrire sur le site, et refuse toute adresse privée ou locale.',
+    'Une fois vérifiée, l’application apparaît dans la liste Application du studio : l’expert prépare la consigne, et vous lancez la mission.',
   ] },
   { id: 'preuves', volet: 'commun', aliases: ['preuve', 'preuves', 'replay', 'capture', 'captures', 'session h', 'video', 'rapport'], faits: [
     'Chaque mission garde ses preuves : les captures de l’agent et sa session H, rejouable étape par étape (un replay, pas une vidéo). En Pentest s’y ajoute la réponse HTTP du rejeu.',
@@ -59,6 +65,7 @@ export const MANUEL = [
   ] },
   { id: 'compte_test', volet: 'qa', aliases: ['compte', 'connexion', 'connecte', 'mot de passe', 'identifiant', 'login', 'se connecter', 'coffre'], faits: [
     'Sur une cible qui demande une connexion, le QA utilise un compte de test : le mot de passe est chiffré dans le navigateur, rangé dans un coffre H le temps de la mission, puis supprimé. L’agent ne le voit jamais.',
+    'Sur une application ajoutée, les comptes de test s’enregistrent une fois, sur sa page (Applications) : libellé, identifiant, mot de passe et nom affiché une fois connecté. Le mot de passe reste chiffré pour le runner ; dans le studio, on choisit simplement le compte.',
     'La connexion et l’identité du compte sont vérifiées par le code avant le reste du parcours.',
   ] },
   { id: 'consultation', volet: 'qa', aliases: ['formulaire', 'envoyer', 'modifier', 'supprimer', 'acheter', 'payer', 'noter', 'evaluer', 'inscrire', 'commander'], faits: [

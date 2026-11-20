@@ -24,6 +24,14 @@ const accord = (n: number, un: string, plusieurs: string) => `${nombre(n)} ${n >
 type Ton = 'sur' | 'alerte' | 'attente' | 'bleu' | 'neutre'
 
 /** Ce que dit l'expert du rapport, en deux phrases : le verdict, puis ce qu'il faut en faire. Rien au-delà du rapport. */
+// D-56 : plusieurs preuves peuvent viser la même page (la réponse HTTP, puis le texte affiché). Le verdict compte les pages
+// en écart, et dit le nombre de preuves : jamais un chiffre gonflé.
+function ecartsQa(m: Mission) {
+  const echecs = m.results.filter((r) => r.status === 'failed')
+  const pages = new Set(echecs.map((r) => r.page || r.id)).size
+  return pages < echecs.length ? `Écarts constatés sur ${accord(pages, 'page', 'pages')}, ${accord(echecs.length, 'preuve', 'preuves')} à l’appui.` : `${accord(echecs.length, 'écart constaté', 'écarts constatés')}.`
+}
+
 function parole(m: Mission): { verdict: string; suite: string; ton: Ton } {
   if (m.status === 'en_attente') return { verdict: 'Votre mission attend un agent.', suite: 'Elle partira dès qu’un agent sera libre ; aucune progression n’est encore annoncée.', ton: 'neutre' }
   if (m.status === 'en_cours') return { verdict: 'L’agent est au travail.', suite: 'Ses étapes s’affichent au fil de l’eau ; le verdict viendra du code, pas de l’agent.', ton: 'bleu' }
@@ -32,7 +40,10 @@ function parole(m: Mission): { verdict: string; suite: string; ton: Ton } {
   if (m.interruption) return { verdict: `${interruptionLabel(m.interruption)}.`, suite: 'Les résultats déjà recueillis restent consultables ci-dessous.', ton: 'attente' }
   if (b.failed) return { verdict: m.module === 'pentest'
       ? (m.securityFindings && !m.securityFindings.demonstrated ? `${overallLabel(m)}.` : `${accord(m.securityFindings?.demonstrated ?? b.failed, 'faille prouvée', 'failles prouvées')}.`)
-      : `${accord(b.failed, 'écart constaté', 'écarts constatés')}.`, suite: m.module === 'pentest' ? 'Examinez chaque preuve avant de corriger : chacune se rejoue.' : 'Chaque écart est prouvé par le code ; la capture montre ce que l’agent a vu.', ton: 'alerte' }
+      : ecartsQa(m), suite: m.module === 'pentest' ? 'Examinez chaque preuve avant de corriger : chacune se rejoue.' : 'Chaque écart est prouvé par le code ; la capture montre ce que l’agent a vu.', ton: 'alerte' }
+  // D-56 : un écart que l'agent signale et cite, retrouvé à l'écran par le code, se dit tel quel : jamais caché derrière « à confirmer ».
+  const signales = m.results.filter((r) => r.status === 'inconclusive' && r.reason === 'agent_reported_gap').length
+  if (signales) return { verdict: `${accord(signales, 'écart signalé', 'écarts signalés')} par l’agent, à confirmer.`, suite: 'Sa citation est retrouvée à l’écran ; sur une page privée, le code ne peut pas prouver une absence. Voyez la capture.', ton: 'attente' }
   if (b.inconclusive) return { verdict: `${accord(b.inconclusive, 'contrôle reste', 'contrôles restent')} à confirmer.`, suite: 'Le code n’a pas pu trancher : revoyez la capture ou précisez le critère.', ton: 'attente' }
   if (b.passed) return { verdict: m.module === 'pentest' ? 'Aucune faille prouvée sur les contrôles menés.' : 'Tout est conforme.', suite: `${accord(b.passed, 'contrôle vérifié', 'contrôles vérifiés')} par le code, preuves à l’appui.`, ton: 'sur' }
   return { verdict: 'Aucun verdict disponible.', suite: 'Ce rapport ne contient aucun contrôle exploitable.', ton: 'neutre' }

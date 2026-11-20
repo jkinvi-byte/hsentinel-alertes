@@ -833,7 +833,7 @@ body:has(.theme-console[data-theme='dark']) { background-color: #0b0e14; }
   padding: 0 38px;
 }
 .lv-ariane { display: flex; min-width: 0; align-items: center; gap: 10px; font-size: 11.5px; color: var(--subtle); }
-.lv-ariane a { transition: color 0.15s ease; }
+.lv-ariane a { white-space: nowrap; transition: color 0.15s ease; }
 .lv-ariane a:hover { color: var(--foreground); }
 .lv-ariane svg { width: 12px; height: 12px; flex-shrink: 0; }
 .lv-ariane [aria-current='page'] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--muted-foreground); }
@@ -1291,4 +1291,103 @@ body:has(.theme-console[data-theme='dark']) { background-color: #0b0e14; }
 @media (prefers-reduced-motion: reduce) {
   .lv-sidebar { transition: none; }
   .lv-apercu-curseur, .lv-apercu-verdict, .lv-pulsation, .lv-mascotte span, .lv-bulle, .lv-bulle-verdict span, .lv-bulle-suite { animation: none; }
+}
+
+/* D-56 : « Ajouter une application ». Trois gestes en cartes mates ; l'étape en cours entre une fois (opacité, translation),
+   jamais en boucle. Un état se dit par le texte et une bordure, jamais par une pastille de couleur (MARQUE.md). */
+.lv-assistant { display: grid; max-width: 880px; gap: 20px; }
+.lv-etapes[data-n='3'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.lv-carte {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 26px 28px;
+  box-shadow: 0 1px 2px rgb(16 20 27 / 0.04);
+  animation: lv-carte-entree 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes lv-carte-entree { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.lv-carte h2 { margin: 6px 0 8px; font-family: var(--font-heading); font-size: 19px; font-weight: 600; letter-spacing: -0.012em; color: var(--foreground); outline: none; text-wrap: balance; }
+.lv-carte-surtitre { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--steel); }
+.lv-carte-texte { max-width: 640px; font-size: 12.5px; line-height: 1.65; color: var(--muted-foreground); text-wrap: pretty; }
+.lv-carte-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-top: 22px; }
+.lv-carte-aide { font-size: 11px; line-height: 1.5; color: var(--subtle); }
+.lv-champs { display: grid; gap: 18px; margin-top: 22px; }
+.lv-champs-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; margin-top: 0; }
+.lv-champ { display: grid; gap: 7px; font-size: 12.5px; font-weight: 500; color: var(--foreground); }
+.lv-champ em { margin-left: 4px; font-style: normal; font-weight: 400; color: var(--subtle); }
+.lv-champ > small { font-size: 11px; font-weight: 400; color: var(--subtle); }
+.lv-champ-retrait { margin: 10px 0 0 26px; max-width: 320px; }
+.lv-case { display: flex; align-items: flex-start; gap: 10px; font-size: 12.5px; font-weight: 500; line-height: 1.55; color: var(--foreground); cursor: pointer; }
+.lv-case input { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; accent-color: var(--steel); }
+.lv-case small { display: block; margin-top: 2px; font-size: 11px; font-weight: 400; color: var(--subtle); }
+.lv-attestation { border-top: 1px solid var(--border); padding-top: 18px; font-weight: 400; color: var(--muted-foreground); }
+.lv-onglets { display: inline-flex; gap: 2px; margin-top: 20px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); padding: 3px; }
+.lv-onglets button { display: inline-flex; align-items: center; gap: 7px; border-radius: 6px; padding: 7px 13px; font-size: 12px; font-weight: 500; color: var(--muted-foreground); }
+.lv-onglets button svg { width: 14px; height: 14px; }
+.lv-onglets button[aria-selected='true'] { background: var(--card); color: var(--foreground); box-shadow: 0 1px 2px rgb(16 20 27 / 0.1); }
+.lv-publier { display: grid; gap: 9px; margin-top: 16px; max-width: 680px; }
+.lv-publier > p { font-size: 12px; color: var(--muted-foreground); }
+.lv-publier code, .lv-mono { font-family: var(--font-mono); font-size: 11.5px; }
+.lv-copie { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); padding: 7px 7px 7px 13px; }
+.lv-copie code { min-width: 0; flex: 1; color: var(--foreground); overflow-wrap: anywhere; }
+.lv-bouton-petit { height: 30px; flex-shrink: 0; padding: 0 10px; font-size: 11.5px; }
+.lv-bouton-petit svg { width: 13px; height: 13px; }
+.lv-bouton-danger { color: var(--danger); }
+.lv-bouton-danger:hover { border-color: var(--danger); }
+.lv-note { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 10px; margin-top: 18px; border-radius: 8px; padding: 11px 14px; font-size: 12px; line-height: 1.55; }
+.lv-note > span { min-width: 0; flex: 1; }
+.lv-note svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+.lv-note[data-ton='alerte'] { background: var(--warn-soft); color: var(--warn); }
+.lv-note[data-ton='bleu'] { background: var(--blue-soft); color: var(--steel); }
+.lv-note .lv-bouton { height: 26px; color: inherit; }
+.lv-comptes { display: grid; gap: 8px; margin-top: 20px; }
+.lv-compte { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); padding: 10px 12px; }
+.lv-compte .lv-ligne-icone { width: 34px; height: 34px; }
+.lv-compte-texte { display: flex; min-width: 160px; flex: 1; flex-direction: column; gap: 3px; }
+.lv-compte-texte strong { font-size: 13px; font-weight: 550; color: var(--foreground); }
+.lv-compte-texte span { font-size: 11.5px; color: var(--muted-foreground); overflow-wrap: anywhere; }
+.lv-compte-form { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 20px; }
+.lv-compte-form .lv-carte-aide { margin-top: 10px; }
+.lv-prete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--safe) 28%, var(--border));
+  border-radius: 10px;
+  background: var(--card);
+  padding: 20px 22px;
+  animation: lv-carte-entree 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.lv-prete-symbole { display: grid; width: 42px; height: 42px; flex-shrink: 0; place-items: center; border-radius: 8px; background: var(--safe-soft); color: var(--safe); }
+.lv-prete-symbole svg { width: 20px; height: 20px; }
+.lv-prete-texte { min-width: 220px; flex: 1; }
+.lv-prete-texte h2 { font-family: var(--font-heading); font-size: 17px; font-weight: 600; letter-spacing: -0.01em; color: var(--foreground); outline: none; }
+.lv-prete-texte p { margin-top: 3px; font-size: 12px; line-height: 1.55; color: var(--muted-foreground); }
+.lv-prete-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lv-retirer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 4px 2px; font-size: 11.5px; color: var(--subtle); }
+.lv-retirer > svg { width: 14px; height: 14px; }
+.lv-retirer .lv-bouton { height: 30px; }
+.lv-vos-apps-vide .lv-bouton { margin-left: auto; }
+
+@media (max-width: 899px) {
+  .lv-etapes[data-n='3'] > li:nth-child(3) { border-top: 0; border-left: 1px solid var(--border); padding-left: 14px; }
+  .lv-carte { padding: 22px 18px; }
+  .lv-prete-actions { width: 100%; }
+}
+@media (max-width: 639px) {
+  /* Trois niveaux de fil d'Ariane ne tiennent pas sur un téléphone : le premier et la page en cours suffisent (D-56). */
+  .lv-ariane > li:not(:first-child):not(:last-child) { display: none; }
+  .lv-etapes[data-n='3'] { grid-template-columns: 1fr; }
+  .lv-etapes[data-n='3'] > li + li, .lv-etapes[data-n='3'] > li:nth-child(3) { border-left: 0; padding-left: 0; border-top: 1px solid var(--border); }
+  .lv-etapes[data-n='3'] > li { padding: 12px 0; }
+  .lv-champs-2 { grid-template-columns: 1fr; }
+  .lv-champ-retrait { margin-left: 0; max-width: none; }
+  .lv-carte h2 { font-size: 18px; }
+  .lv-carte-actions .lv-bouton, .lv-prete-actions .lv-bouton { width: 100%; }
+  .lv-copie { flex-wrap: wrap; }
+  .lv-copie .lv-bouton { margin-left: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lv-carte, .lv-prete { animation: none; }
 }

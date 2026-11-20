@@ -16,6 +16,8 @@ export type Application = {
   watch?: { active: boolean; seenAt?: string; updatedAt?: string }
   scenarios?: { id: string; name: string; module: 'QA' | 'Pentest'; available: boolean }[]
   qa?: { connexion: boolean; modes: string[] }
+  /** D-56 : ajoutée dans la console par son responsable (sinon, un exemple phare du catalogue). */
+  ajoutee?: boolean
 }
 
 export type BrowserAction = {

@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { ApplicationsManager } from '@/components/console/applications/applications-manager'
 import { PageHeader, primaryButton } from '@/components/console/page-header'
 import { applications, chargerConsole } from '@/lib/console-reel'
+import { listerAjoutees } from '@/lib/applications-reel'
+import { secondaryButton } from '@/components/console/page-header'
 
 export const metadata: Metadata = {
   title: 'Applications — HSentinel',
@@ -11,7 +13,8 @@ export const metadata: Metadata = {
 }
 
 export default async function ApplicationsPage() {
-  const apps = applications(await chargerConsole())
+  // Une lecture des applications ajoutées qui échoue n'empêche pas d'afficher les exemples phares.
+  const [apps, ajoutees] = await Promise.all([chargerConsole().then(applications), listerAjoutees().catch(() => null)])
   return (
     <>
       <PageHeader
@@ -19,14 +22,17 @@ export default async function ApplicationsPage() {
         title="Vos applications"
         description="Un périmètre autorisé, des contrôles adaptés à chaque site. La veille relève leur version toutes les 15 minutes et lance une exploration QA quand elle change."
         actions={
-          <Link href="/app/nouveau" className={primaryButton}>
-            <Plus aria-hidden="true" />
-            Nouvelle mission
-          </Link>
+          <>
+            <Link href="/app/nouveau" className={secondaryButton}>Nouvelle mission</Link>
+            <Link href="/app/applications/nouvelle" className={primaryButton}>
+              <Plus aria-hidden="true" />
+              Ajouter une application
+            </Link>
+          </>
         }
       />
       <main className="lv-contenu">
-        <ApplicationsManager initialApps={apps} />
+        <ApplicationsManager initialApps={apps.filter((a) => !a.ajoutee)} ajoutees={ajoutees} />
       </main>
     </>
   )

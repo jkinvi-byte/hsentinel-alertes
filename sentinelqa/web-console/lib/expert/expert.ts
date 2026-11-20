@@ -3,6 +3,9 @@ import { CATALOGUE_QA as CATALOGUE_QA_JS } from '../../../web/lib/qa-contrat.mjs
 import { requete as requeteJs } from '../../../web/lib/supabase.js'
 import { catalog } from '../console-contract.mjs'
 import { blocFiches, IDS } from './manuel.mjs'
+import { actionExpert, historiqueSurLaCible } from './actions.mjs'
+import { listerAjoutees } from '../applications-reel'
+import type { ApplicationAjoutee } from '../applications-types'
 
 // D-51 : l'expert du studio, QA ou Pentest selon le volet choisi. Mécanique du RAG de LEVELS : les fiches du Manuel
 // HSentinel (manuel.mjs) + un digest de la mission en préparation + une persona aux garde-fous durs.
@@ -16,7 +19,8 @@ const ROUTEUR = 'https://router.huggingface.co/v1/chat/completions'
 export type Volet = 'qa' | 'pentest'
 export type Tour = { role: 'utilisateur' | 'expert'; texte: string }
 export type Demande = { volet: Volet; cible: string; consigne: string; question: string; historique: Tour[] }
-export type Reponse = { reponse: string; consigne_proposee: string | null; fiches: string[]; modele: string; fournisseur: string; latence_s: number }
+export type ActionExpert = { type: 'ajouter_application' | 'ajouter_compte'; libelle: string; href: string; adresse?: string | null }
+export type Reponse = { reponse: string; consigne_proposee: string | null; action: ActionExpert | null; fiches: string[]; modele: string; fournisseur: string; latence_s: number }
 
 const COMMUN = [
   'Tu parles directement à l’utilisateur et tu le vouvoies. Ta réponse est lue à voix haute : 2 à 4 phrases courtes, en français, sans liste, sans markdown, sans emoji. Les nombres s’écrivent en chiffres, avec leur unité.',
@@ -26,7 +30,7 @@ const COMMUN = [
   'Tu n’inventes aucun résultat, aucune page, aucun chiffre, aucune fonctionnalité.',
   'Tu ne lances rien et tu ne dis jamais que tu vas lancer : l’utilisateur relit puis appuie lui-même sur « Lancer la mission ».',
   'Tu ne te présentes ni comme ChatGPT ni comme un modèle d’un autre éditeur.',
-  'Réponds uniquement en JSON : {"reponse": "...", "consigne_proposee": "..." ou null, "fiches": ["id des fiches utilisées"]}.',
+  'Réponds uniquement en JSON : {"reponse": "...", "consigne_proposee": "..." ou null, "action": null ou {"type": "ajouter_application"}, "fiches": ["id des fiches utilisées"]}.',
 ]
 
 const PERSONAS: Record<Volet, string[]> = {
@@ -35,6 +39,11 @@ const PERSONAS: Record<Volet, string[]> = {
     'Quand la consigne en cours est vague, propose dans consigne_proposee une consigne entière et meilleure : la page à atteindre, puis ce qu’on doit y voir, avec les mots attendus exactement entre guillemets ; 400 caractères au plus ; uniquement sur la cible choisie et en consultation seule. Sinon, consigne_proposee vaut null.',
     'consigne_proposee s’adresse à l’agent : une phrase complète à l’impératif, comme l’exemple du studio. Exemple : Ouvre la page du Bachelor, puis vérifie que la page affiche « Bac+3 ».',
     'Tu ne connais pas les menus ni les liens du site : n’en nomme aucun que le contexte ne donne pas. Décris l’intention (« ouvrir la page du Bachelor ») et laisse l’agent trouver le chemin.',
+    // D-56 : orienter, jamais bloquer.
+    'La cible est celle du CONTEXTE DE LA MISSION : une question qui ne cite pas d’autre adresse porte sur elle, même si un autre site a été évoqué plus tôt dans la conversation. N’en reparle pas.',
+    'Si l’utilisateur veut tester un autre site que la cible choisie, ou son propre site, ne refuse jamais : dis-lui qu’il peut l’ajouter lui-même en trois gestes (son adresse et l’attestation, puis un jeton de vérification publié sur le site, puis un compte de test si le site a une connexion), que cela prend deux minutes et que rien ne part avant la vérification. Mets alors action = {"type": "ajouter_application"} et consigne_proposee = null. Si le site figure déjà dans ses applications ajoutées, dis-lui de le choisir dans la liste Application.',
+    'Si la cible demande une connexion et qu’aucun compte de test n’est enregistré, dis-le simplement et propose d’en ajouter un : un bouton s’affichera sous ta réponse.',
+    'Sinon, action vaut null.',
   ],
   pentest: [
     'Tu es l’expert Pentest de HSentinel. Tu expliques la méthode, les contrôles du catalogue disponibles sur la cible choisie et leurs limites, pour que l’utilisateur choisisse le bon contrôle et ses précisions.',
@@ -43,12 +52,16 @@ const PERSONAS: Record<Volet, string[]> = {
   ],
 }
 
-/** Le contexte de la mission en préparation : la cible du catalogue, la consigne et les dernières missions mesurées. */
-export async function digest(volet: Volet, cible: string, consigne: string) {
+/** Le contexte de la mission en préparation : la cible (exemple du catalogue ou application ajoutée), la consigne et les dernières missions mesurées. */
+export async function digest(volet: Volet, cible: string, consigne: string, ajoutees: ApplicationAjoutee[] = []) {
   const c = catalog() as { qa: Ligne[]; pentest: Ligne[] }
   const lignes: string[] = [`Volet : ${volet === 'qa' ? 'QA fonctionnel' : 'Pentest'}.`]
   if (volet === 'qa') {
     const t = c.qa.find((x) => x.id === cible)
+    const a = ajoutees.find((x) => x.id === cible)
+    if (a) lignes.push(`Cible : ${a.nom} (${a.origine}), l’application de l’utilisateur, ajoutée dans la console ; ${a.verifiee_le ? `vérifiée le ${a.verifiee_le.slice(0, 10)}` : 'vérification à faire'}. Connexion avec un compte de test : ${a.profil_qa?.connexion ? 'oui' : 'non'}.`
+      + (a.profil_qa?.connexion ? ` Comptes de test enregistrés : ${a.comptes.length ? a.comptes.map((x) => x.libelle).join(', ') : 'aucun'}.` : '') + ' Modes : guide, exploration (6 pages au plus).')
+    lignes.push(`Applications ajoutées par l’utilisateur : ${ajoutees.length ? ajoutees.map((x) => `${x.nom} (${x.origine}, ${x.verifiee_le ? 'vérifiée' : 'vérification à faire'})`).join(' ; ') : 'aucune'}. Exemples du catalogue : ${c.qa.map((x) => x.name).join(', ')}.`)
     if (t) lignes.push(`Cible : ${t.name} (${t.url}). Connexion avec un compte de test : ${t.connexion ? 'oui' : 'non'}. Modes : ${(t.modes ?? []).join(', ')}.`
       + (t.limits?.exploration?.max_pages ? ` Exploration : ${t.limits.exploration.max_pages} pages au plus.` : ''))
   } else {
@@ -78,20 +91,29 @@ export async function digest(volet: Volet, cible: string, consigne: string) {
   return lignes.join('\n')
 }
 
-/** La cible demandée existe-t-elle au catalogue pour ce volet ? Rien d'autre n'entre dans une requête. */
-export function cibleConnue(volet: Volet, cible: string) {
+/** La cible demandée existe-t-elle pour ce volet (catalogue, ou application ajoutée en QA) ? Rien d'autre n'entre dans une requête. */
+export async function cibleConnue(volet: Volet, cible: string) {
   const c = catalog() as { qa: Ligne[]; pentest: Ligne[] }
-  return volet === 'qa' ? c.qa.some((t) => t.id === cible) : c.pentest.some((s) => (s.targetIds ?? [s.targetId]).includes(cible))
+  if (volet === 'pentest') return c.pentest.some((s) => (s.targetIds ?? [s.targetId]).includes(cible))
+  return c.qa.some((t) => t.id === cible) || (await ajouteesLisibles()).some((a) => a.id === cible)
 }
+
+// Une lecture des applications ajoutées qui échoue ne fait pas taire l'expert : il répond sans elles.
+const ajouteesLisibles = () => listerAjoutees().catch(() => [] as ApplicationAjoutee[])
 
 export async function repondre(d: Demande, jeton = process.env.HF_TOKEN): Promise<Reponse> {
   if (!jeton) throw new Error('Le jeton Hugging Face n’est pas configuré sur ce serveur.')
   const fiches = blocFiches(`${d.question} ${d.historique.at(-1)?.texte ?? ''}`, d.volet)
   const systeme = [...PERSONAS[d.volet], ...COMMUN].join('\n')
-  const contexte = `${fiches.texte}\n\nCONTEXTE DE LA MISSION :\n${await digest(d.volet, d.cible, d.consigne)}`
+  const ajoutees = d.volet === 'qa' ? await ajouteesLisibles() : []
+  const contexte = `${fiches.texte}\n\nCONTEXTE DE LA MISSION :\n${await digest(d.volet, d.cible, d.consigne, ajoutees)}`
+  const c = catalog() as { qa: Ligne[]; pentest: Ligne[] }
+  const connues = [...c.qa.map((t) => new URL(t.url).origin), ...c.pentest.flatMap((x) => (x.targets ?? []).map((t: Ligne) => new URL(t.url).origin)),
+    ...ajoutees.map((a) => a.origine)]
+  const historique = historiqueSurLaCible(d.historique.slice(-6), connues) as Tour[]
   const messages = [
     { role: 'system', content: `${systeme}\n\n${contexte}` },
-    ...d.historique.slice(-6).map((t) => ({ role: t.role === 'expert' ? 'assistant' : 'user', content: t.texte.slice(0, 600) })),
+    ...historique.map((t) => ({ role: t.role === 'expert' ? 'assistant' : 'user', content: t.texte.slice(0, 600) })),
     { role: 'user', content: d.question.slice(0, 1000) },
   ]
   const debut = performance.now()
@@ -122,8 +144,12 @@ export async function repondre(d: Demande, jeton = process.env.HF_TOKEN): Promis
   const brute = typeof lu.consigne_proposee === 'string' ? lu.consigne_proposee.trim() : ''
   // Une consigne est une phrase : majuscule au début, point à la fin (le modèle oublie souvent le point final).
   const proposee = brute ? `${brute.charAt(0).toUpperCase()}${brute.slice(1)}${/[.!?…]$/.test(brute) ? '' : '.'}`.slice(0, 2000) : null
+  // Le bouton proposé : une règle écrite (actions.mjs), que l'avis du modèle ne fait que compléter. Pas de bouton en Pentest.
+  const cibleAjoutee = ajoutees.find((a) => a.id === d.cible)
+  const action = d.volet === 'qa' ? actionExpert({ question: d.question, connues, proposee: lu.action,
+    cible: cibleAjoutee ? { id: cibleAjoutee.id, ajoutee: true, connexion: Boolean(cibleAjoutee.profil_qa?.connexion), comptes: cibleAjoutee.comptes.length } : null }) as ActionExpert | null : null
   return {
-    reponse, consigne_proposee: proposee,
+    reponse, consigne_proposee: action?.type === 'ajouter_application' ? null : proposee, action,
     fiches: (Array.isArray(lu.fiches) ? lu.fiches : fiches.ids).map(String).filter((id: string) => IDS.has(id)),
     modele, fournisseur: r.headers.get('x-inference-provider') ?? modele.split(':')[1] ?? '',
     latence_s: Math.round((performance.now() - debut) / 10) / 100,

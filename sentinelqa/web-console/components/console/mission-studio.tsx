@@ -3,10 +3,12 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { ArrowRight, Check, ChevronDown, Monitor, PencilLine, Smartphone, Sparkles, X } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, Monitor, PencilLine, Plus, Smartphone, Sparkles, X } from 'lucide-react'
 import { ConsoleHeader } from './console-header'
 import { MissionExpert } from './mission-expert'
 import { MissionAccount } from './mission-account'
+import { MissionComptes } from './mission-comptes'
+import Link from 'next/link'
 import { consoleRequest, postJson } from '@/lib/console-client'
 import { encryptQaAccount } from '@/lib/qa-account.mjs'
 import type { Catalog, Module, Plan, RunnerKey, TestAccount } from '@/lib/mission-types'
@@ -33,20 +35,23 @@ export function MissionStudio({ catalog, initialModule, initialTarget, initialVo
   const [manuel, setManuel] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [account, setAccount] = useState<TestAccount>(emptyAccount)
+  // D-56 : sur une application ajoutée, un compte enregistré, choisi sans rien retaper.
+  const [compteId, setCompteId] = useState(() => catalog.qa.find(t => t.id === target)?.comptes?.[0]?.id ?? '')
   const locked = useRef(false)
   const began = useRef<number | null>(null)
   const selected = catalog.qa.find(t => t.id === target)
   const selectedScenario = catalog.pentest.find(s => s.id === scenario)
   const selectedPentestTarget = selectedScenario?.targets.find(t => t.id === targetPentest)
   const connected = module === 'qa' && selected?.connexion === true
+  const ajoutee = module === 'qa' && selected?.ajoutee === true
   const { data: runnerKey, error: keyError, isLoading: keyLoading, mutate: refreshKey } = useSWR(
-    connected ? 'cle-runner' : null, (path: string) => consoleRequest<RunnerKey | null>(path),
+    connected && !ajoutee ? 'cle-runner' : null, (path: string) => consoleRequest<RunnerKey | null>(path),
     { shouldRetryOnError: false, revalidateOnFocus: true },
   )
   const keyAvailable = Boolean(runnerKey && !keyError && !keyLoading)
   const busy = !!pending
   const stale = planFor !== `${target}:${instruction.trim()}`
-  const ready = !busy && (!connected || (keyAvailable && account.identifiant.trim() && account.motDePasse.length > 0))
+  const ready = !busy && (!connected || (ajoutee ? Boolean(compteId) : keyAvailable && account.identifiant.trim() && account.motDePasse.length > 0))
     && (module === 'pentest' ? selectedScenario?.available && selectedPentestTarget : selected?.available && (mode === 'exploration' || (plan && !stale && plan.criteres.length > 0)))
   const limit = module === 'qa' ? selected?.limits[mode] : { max_steps: selectedPentestTarget?.maxSteps, max_time_s: selectedPentestTarget?.maxTime }
   const begin = () => { began.current ??= Date.now() }
@@ -72,13 +77,13 @@ export function MissionStudio({ catalog, initialModule, initialTarget, initialVo
     locked.current = true; setPending('launch'); setError(null)
     try {
       // Relire la clé au lancement : elle peut avoir changé pendant la préparation du plan.
-      const compte = connected ? await encryptQaAccount(await refreshKey(), account) : null
+      const compte = connected && !ajoutee ? await encryptQaAccount(await refreshKey(), account) : null
       if (compte) setAccount(current => ({ ...current, motDePasse: '' }))
       const body = module === 'qa' ? {
         schema_version: 3, mode: 'qa', target_id: target, pilotage: mode, appareil: screen, modele_h: 'holo4-35b-a3b',
         instruction: mode === 'guide' ? instruction.trim() : '', source: mode === 'guide' && voiceUsed ? 'voix' : 'texte',
         plan: mode === 'guide' ? plan : null, preparation_humaine_s: began.current ? Math.round((Date.now() - began.current) / 1000) : null,
-        ...(compte ? { compte } : {}),
+        ...(compte ? { compte } : {}), ...(connected && ajoutee ? { compte_id: compteId } : {}),
       } : { schema_version: 2, mode: 'security', target_id: targetPentest, scenario_id: scenario, instruction: instruction.trim() }
       const data = await postJson<{ id: string; module: Module }>('missions', body)
       router.push(`/app/missions/${data.module}/${data.id}`)
@@ -100,10 +105,11 @@ export function MissionStudio({ catalog, initialModule, initialTarget, initialVo
               {(['qa', 'pentest'] as const).map(m => <button type="button" key={m} disabled={busy} aria-pressed={module === m} className={`console-button ${module === m ? 'border-steel bg-steel/10 text-foreground' : 'text-muted-foreground'}`} onClick={() => { if (m === module) return; setModule(m); setError(null); setInstruction(''); setPlan(null); setVoiceUsed(false); setAccount(emptyAccount()); begin() }}>{m === 'qa' ? 'QA fonctionnel' : 'Pentest'}</button>)}
             </div>
             {module === 'qa' ? <>
-              <label className="block space-y-2 text-sm"><span>Application</span><select className="console-field" disabled={busy} value={target} onChange={e => { setTarget(e.target.value); setPlan(null); setMode('guide'); setAccount(emptyAccount()); setError(null); begin() }}>{catalog.qa.map(t => <option key={t.id} value={t.id} disabled={!t.available}>{t.name}{t.connexion ? ' · compte requis' : ''}</option>)}</select></label>
-              <p className="break-all text-xs text-muted-foreground">{selected?.url}</p>
+              <label className="block space-y-2 text-sm"><span>Application</span><select className="console-field" disabled={busy} value={target} onChange={e => { setTarget(e.target.value); setPlan(null); setMode('guide'); setAccount(emptyAccount()); setCompteId(catalog.qa.find(t => t.id === e.target.value)?.comptes?.[0]?.id ?? ''); setError(null); begin() }}>{catalog.qa.map(t => <option key={t.id} value={t.id} disabled={!t.available}>{t.name}{t.ajoutee ? ' · votre application' : ''}{t.connexion ? ' · compte requis' : ''}{t.ajoutee && !t.available ? ' · vérification à faire' : ''}</option>)}</select></label>
+              <p className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground"><span className="break-all">{selected?.url}</span><Link href="/app/applications/nouvelle" className="inline-flex items-center gap-1 text-steel underline-offset-2 hover:underline"><Plus className="size-3.5" aria-hidden="true" />Ajouter votre application</Link></p>
               <div className="flex flex-wrap gap-2" role="group" aria-label="Écran testé">{[{ id: 'ordinateur', label: 'Ordinateur', Icon: Monitor }, { id: 'mobile', label: 'Mobile', Icon: Smartphone }].map(({ id, label, Icon }) => <button key={id} type="button" disabled={busy} aria-pressed={screen === id} onClick={() => setScreen(id)} className={`console-button ${screen === id ? 'border-steel text-foreground' : 'text-muted-foreground'}`}><Icon className="size-4" aria-hidden="true" />{label}</button>)}</div>
-              {connected && <MissionAccount value={account} onChange={value => { setAccount(value); begin() }} disabled={busy}
+              {connected && ajoutee && selected && <MissionComptes appId={selected.id} appNom={selected.name} comptes={selected.comptes ?? []} value={compteId} onChange={id => { setCompteId(id); begin() }} disabled={busy} />}
+              {connected && !ajoutee && <MissionAccount value={account} onChange={value => { setAccount(value); begin() }} disabled={busy}
                 keyLoading={keyLoading} keyAvailable={keyAvailable} keyError={keyError?.message}
                 onRefresh={() => { void refreshKey().catch(() => undefined) }} />}
             </> : <>
