@@ -37,6 +37,7 @@ Les tests IDOR, c'est-à-dire un compte qui lit ou modifie l'objet d'un autre en
 | QA en exploration bornée, 10 répétitions | 10 sur 10 | 103 s et 0,051 $ en moyenne |
 | QA connecté sur Peer Review, 10 répétitions | Connexion et identité prouvées 10 sur 10, aucune écriture | 40 s et 0,015 $ en moyenne |
 | Barrière d'accès de Peer Review (S-PEER-01) | Conforme : 307 vers `/connexion` | 24 s, 0,004 $ |
+| Isolation entre deux comptes de Peer Review (S-PEER-02, 19/11) : A, B et un visiteur anonyme, consultation seule | Aucune faille prouvée : A voit sa page, l'anonyme est redirigé, B reçoit la page sans les données de A mais le refus n'est pas confirmé à l'écran (1 non concluant) ; aucune écriture | 106 s, 0,035 $ |
 | Veille : la console est redéployée | Mise à jour détectée en 56 s, exploration faite 30 s plus tard | 0,010 $ |
 | Un SaaS jamais vu, ajouté dans la console (Ardoise, 20/11) : vérifié par jeton, deux comptes de test, exploration connectée | Connexion et identité prouvées ; les 2 défauts plantés que le code peut prouver sur une page privée le sont (« undefined » à l'écran, aide en 404) | 73 s, 0,028 $ |
 | Le même SaaS, parcours guidé proposé par l'expert (« 3 factures en retard ») | Le 3e défaut (la page en annonce 2) signalé et cité par l'agent, retrouvé à l'écran : à confirmer, jamais prouvé sur une page privée | 51 s, 0,012 $ |
@@ -87,7 +88,7 @@ Tests : `.venv/bin/python -m unittest discover -s sentinelqa/runner/tests`, puis
 - HSentinel **complète** un audit humain : il ne remplace ni un pentest qualifié, ni un TLPT, ni un audit PCI.
 - Il ne teste que des sites contrôlés par l'équipe ou autorisés par écrit : eugeniaschool.com et Peer Review, en consultation seule, et notre propre console. Les tests d'écriture se font uniquement sur le banc Paie Express.
 - La veille voit ce qui change dans la page d'entrée : un changement purement côté serveur peut lui échapper.
-- Le test IDOR entre deux comptes de Peer Review (S-PEER-02) attend un second compte qui se connecte. Le webhook instantané des alertes reste à réaligner : en attendant, un ticket part en 15 minutes au plus.
+- Sur Peer Review, le test IDOR entre deux comptes (S-PEER-02) a été exécuté une fois, le 19/11 : aucune faille prouvée, et un contrôle reste non concluant faute de refus visible à l'écran. Le webhook instantané des alertes reste à réaligner : en attendant, un ticket part en 15 minutes au plus.
 
 ## Règles
 
