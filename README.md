@@ -61,6 +61,7 @@ Le principe : **l'agent montre, le code décide.** Hugging Face prépare le plan
 
 ## Tester
 
+- **Prise en main** : chaque page importante a un « ? » en haut à droite, qui lance sa visite guidée (un curseur montre chaque élément).
 - **Votre propre site** : Applications, « Ajouter une application ». Le SaaS de démonstration [Ardoise](https://ardoise-demo-ruddy.vercel.app) (`sentinelqa/ardoise`, défauts plantés dans `DEFAUTS.md`) y est déjà ajouté et vérifié.
 - **En ligne** : https://hsentinel-console.vercel.app, avec le code de l'équipe. Lancez un QA (consigne tapée ou dictée, puis « Préparer le plan » et « Lancer la mission »), le pentest « Vérifier la barrière d'accès sans connexion » ou « Tests IDOR sur le banc », qui prouve en direct les 6 failles du banc en 5 minutes environ, puis ouvrez la page Alertes. Les missions sont exécutées par les workers de l'équipe : s'ils sont arrêtés, une mission reste en attente. Le banc IDOR est en ligne lui aussi : https://hsentinel-banc.vercel.app, avec des comptes et des données fictifs (`sentinelqa/runner/comptes-demo.json`).
 - **En local** : il faut Python 3.12, Node 20 ou plus, une clé H (`pbpaste | holo login --key --force`), et les clés Supabase et `HF_TOKEN` dans `~/.config/sentinelqa/.env`, sur le modèle de [`sentinelqa/.env.example`](sentinelqa/.env.example). Les clés ne vont jamais dans le dépôt.
