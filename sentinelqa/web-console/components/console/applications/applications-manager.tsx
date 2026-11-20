@@ -1,149 +1,135 @@
 'use client'
 
-import { Building2, KeyRound, Play } from 'lucide-react'
+import { ArrowRight, Building2, ChevronDown, Globe, KeyRound, Plus, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
-import { StatusBadge } from '@/components/console/status-badge'
-import { secondaryButton } from '@/components/console/page-header'
 import { type Application, formatAge, formatDateTime } from '@/lib/console-data'
-import { cn } from '@/lib/utils'
 
-// D-49 : les applications autorisées, en lecture seule. Ajouter une cible passe par le catalogue et une autorisation écrite (D-24),
-// pas par un formulaire : rien n'est modifiable ici, donc rien ne fait semblant d'être enregistré.
+// D-55 : les applications de la référence Lovable. Les cibles du catalogue sont les exemples phares, chacune avec son
+// autorisation écrite (D-24) ; votre propre site entre de la même façon, par une demande d'ajout, jamais par une URL tapée
+// au hasard (art. 323-1 du Code pénal). Le détail (comptes de test, scénarios, veille) se déplie sous chaque ligne.
 export function ApplicationsManager({ initialApps }: { initialApps: Application[] }) {
-  const [selectedId, setSelectedId] = useState(initialApps[0]?.id)
-  const selected = initialApps.find((a) => a.id === selectedId) ?? initialApps[0]
-
-  if (!selected) {
-    return (
-      <div className="panel flex flex-col items-center gap-2 px-4 py-12 text-center">
-        <p className="text-[13px] font-medium text-foreground">Aucune application autorisée</p>
-        <p className="text-[12px] text-muted-foreground">Une cible entre dans le catalogue avec son autorisation écrite.</p>
-      </div>
-    )
-  }
-
-  const watch = selected.watch
-  const facts = [
-    ['Environnement', selected.environment],
-    ['Autorisation', selected.authorization ?? '—'],
-    ['Dernier audit', selected.lastAuditAt ? formatDateTime(selected.lastAuditAt) : 'aucun'],
-    [
-      'Veille des mises à jour',
-      watch?.active ? (watch.seenAt ? `active · vue il y a ${formatAge(watch.seenAt)}` : 'active') : 'inactive',
-    ],
-  ]
+  const [ouverte, setOuverte] = useState<string | null>(null)
 
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-      <nav aria-label="Applications" className="panel flex flex-col p-1.5">
-        {initialApps.map((app) => (
-          <button
-            key={app.id}
-            type="button"
-            onClick={() => setSelectedId(app.id)}
-            aria-current={app.id === selected.id ? 'true' : undefined}
-            className={cn(
-              'flex flex-col items-start gap-1 rounded-md px-3 py-2.5 text-left transition-colors',
-              app.id === selected.id ? 'bg-foreground/[0.06]' : 'hover:bg-foreground/[0.03]',
-            )}
-          >
-            <span className="flex w-full items-center justify-between gap-2">
-              <span className="text-[13px] font-medium text-foreground">{app.name}</span>
-              <StatusBadge status={app.status} count={app.openFindings} />
-            </span>
-            <span className="max-w-full truncate font-mono text-[10.5px] text-subtle">{app.url.replace(/^https?:\/\//, '')}</span>
-          </button>
-        ))}
-      </nav>
-
-      <div className="flex min-w-0 flex-col gap-5">
-        <section className="panel grid grid-cols-2 gap-px overflow-hidden bg-border sm:grid-cols-4">
-          {facts.map(([label, value]) => (
-            <div key={label} className="flex flex-col gap-1 bg-card px-4 py-3">
-              <span className="text-[11.5px] text-muted-foreground">{label}</span>
-              <span className="text-[13px] font-medium break-words text-foreground">{value}</span>
-            </div>
-          ))}
-        </section>
-
-        <section aria-labelledby="companies-title" className="panel flex flex-col">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-            <div>
-              <h2 id="companies-title" className="text-[13px] font-semibold text-foreground">
-                Comptes de test · {selected.name}
-              </h2>
-              <p className="text-[12px] text-muted-foreground">
-                {selected.writes
-                  ? 'Banc construit par l’équipe : comptes et données fictifs, écritures permises puis remises en état.'
-                  : 'Consultation seule : aucune écriture métier ni changement de droits.'}
-              </p>
-            </div>
+    <div className="flex flex-col gap-10">
+      <section aria-labelledby="exemples-titre">
+        <div className="lv-titre-section">
+          <div>
+            <h2 id="exemples-titre">Exemples phares</h2>
+            <p>Des sites réels et notre banc, autorisés par écrit : ce que vos agents y mènent, ils le mèneront chez vous.</p>
           </div>
+        </div>
+        {initialApps.length ? (
+          <ul className="lv-lignes">
+            {initialApps.map((app) => {
+              const deplie = ouverte === app.id
+              const volet = app.qa ? 'qa' : 'pentest'
+              return (
+                <li key={app.id} className="lv-app">
+                  <div className="lv-app-ligne">
+                    <span className="lv-ligne-icone"><Globe aria-hidden="true" /></span>
+                    <div className="lv-app-texte">
+                      <h3>{app.name}</h3>
+                      <p>{app.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}</p>
+                      <ul className="lv-app-puces" aria-label={`Ce que permet ${app.name}`}>
+                        <li className="lv-pill">{app.writes ? 'Écritures de test remises en état' : 'Consultation seule'}</li>
+                        {app.qa ? <li className="lv-pill">{app.qa.connexion ? 'QA · compte de test requis' : 'QA · pages publiques'}</li> : null}
+                        {app.scenarios?.some((s) => s.module === 'Pentest' && s.available) ? <li className="lv-pill">Pentest disponible</li> : null}
+                        {app.openFindings
+                          ? <li className="lv-pill" data-ton="alerte">{app.openFindings} faille{app.openFindings > 1 ? 's' : ''} ouverte{app.openFindings > 1 ? 's' : ''}</li>
+                          : app.lastAuditAt ? <li className="lv-pill" data-ton="sur">Aucune faille prouvée</li> : null}
+                        {app.watch?.active ? <li className="lv-pill" data-ton="bleu">Veille active</li> : null}
+                      </ul>
+                    </div>
+                    <div className="lv-app-actions">
+                      <Link href={`/app/nouveau?volet=${volet}&cible=${encodeURIComponent(app.id)}`} className="lv-bouton lv-bouton-trait">
+                        Préparer un test <ArrowRight aria-hidden="true" />
+                      </Link>
+                      <button type="button" className="lv-bouton lv-bouton-discret" aria-expanded={deplie} aria-controls={`detail-${app.id}`}
+                        onClick={() => setOuverte(deplie ? null : app.id)}>
+                        Détails <ChevronDown aria-hidden="true" className={deplie ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                      </button>
+                    </div>
+                  </div>
+                  {deplie ? <Detail app={app} /> : null}
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <div className="lv-vide">
+            <span className="lv-vide-icone"><Globe aria-hidden="true" /></span>
+            <div><strong>Aucune application autorisée</strong><p>Une cible entre au catalogue avec son autorisation écrite.</p></div>
+          </div>
+        )}
+      </section>
 
-          <ul className="flex flex-col">
-            {selected.companies.map((company) => (
-              <li key={company.id} className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3 last:border-0">
-                <span className="flex size-8 items-center justify-center rounded-md border border-border bg-foreground/[0.03]">
-                  <Building2 className="size-4 text-muted-foreground" aria-hidden="true" />
-                </span>
-                <span className="min-w-[140px] text-[13px] font-medium text-foreground">{company.name}</span>
-                <ul aria-label={`Rôles de ${company.name}`} className="flex flex-1 flex-wrap items-center gap-1.5">
-                  {company.roles.map((role) => (
-                    <li key={role} className="rounded-full border border-border bg-foreground/[0.03] px-2.5 py-0.5 text-[11.5px] text-foreground">
-                      {role}
-                    </li>
-                  ))}
-                </ul>
+      <section aria-labelledby="vos-applications-titre">
+        <div className="lv-titre-section">
+          <div>
+            <h2 id="vos-applications-titre">Vos applications</h2>
+            <p>Votre préproduction, testée comme les exemples : même agents, mêmes preuves.</p>
+          </div>
+        </div>
+        <div className="lv-vide">
+          <span className="lv-vide-icone"><ShieldCheck aria-hidden="true" /></span>
+          <div>
+            <strong>Testez votre propre site.</strong>
+            <p>Chaque cible entre au catalogue avec une autorisation écrite de son responsable. Demandez l’ajout : l’équipe vérifie l’autorisation, puis vos missions QA et pentest s’y lancent.</p>
+          </div>
+          <Link href="/signup" className="lv-bouton lv-bouton-trait"><Plus aria-hidden="true" />Demander l’ajout</Link>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function Detail({ app }: { app: Application }) {
+  const faits = [
+    ['Environnement', app.environment],
+    ['Autorisation', app.authorization ?? '—'],
+    ['Dernier audit', app.lastAuditAt ? formatDateTime(app.lastAuditAt) : 'aucun'],
+    ['Veille des mises à jour', app.watch?.active ? (app.watch.seenAt ? `active · vue il y a ${formatAge(app.watch.seenAt)}` : 'active') : 'inactive'],
+  ]
+  return (
+    <div id={`detail-${app.id}`} className="lv-app-detail">
+      <dl className="lv-faits">
+        {faits.map(([t, v]) => <div key={t}><dt>{t}</dt><dd>{v}</dd></div>)}
+      </dl>
+      {app.companies.length ? (
+        <div>
+          <p className="lv-detail-titre">Comptes de test</p>
+          <ul className="flex flex-col gap-2">
+            {app.companies.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-center gap-2 text-[12.5px] text-foreground">
+                <Building2 className="size-4 text-subtle" aria-hidden="true" />
+                <span className="font-medium">{c.name}</span>
+                {c.roles.map((r) => <span key={r} className="lv-pill">{r}</span>)}
               </li>
             ))}
           </ul>
-          <p className="flex items-center gap-2 border-t border-border px-4 py-3 text-[12px] text-muted-foreground">
+          <p className="mt-3 flex items-center gap-2 text-[11.5px] text-muted-foreground">
             <KeyRound className="size-3.5 shrink-0" aria-hidden="true" />
             Les mots de passe ne sont jamais enregistrés ici : ils passent par un coffre H, le temps d’une mission.
           </p>
-        </section>
-
-        <section aria-labelledby="scenarios-title" className="panel flex flex-col">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-            <div>
-              <h2 id="scenarios-title" className="text-[13px] font-semibold text-foreground">
-                Ce que les agents savent y tester
-              </h2>
-              <p className="text-[12px] text-muted-foreground">
-                {selected.qa
-                  ? `QA ${selected.qa.connexion ? 'connecté' : 'sans compte'}${selected.qa.modes.length ? ` · ${selected.qa.modes.map((m) => (m === 'guide' ? 'parcours dicté' : 'exploration')).join(', ')}` : ''}`
-                  : 'Pas de QA sur cette cible.'}
-              </p>
-            </div>
-            <Link href={`/app/nouveau?volet=${selected.qa ? 'qa' : 'pentest'}&cible=${encodeURIComponent(selected.id)}`} className={secondaryButton}>
-              <Play className="size-3.5" aria-hidden="true" />
-              Lancer un audit
-            </Link>
-          </div>
-          {selected.scenarios?.length ? (
-            <ul className="flex flex-col">
-              {selected.scenarios.map((s) => (
-                <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-2.5 last:border-0">
-                  <span className="w-20 font-mono text-[11px] text-subtle">{s.id}</span>
-                  <span className="min-w-0 flex-1 text-[12.5px] text-foreground">{s.name}</span>
-                  <span className="text-[11.5px] text-muted-foreground">{s.module}</span>
-                  <span
-                    className={cn(
-                      'rounded-full border px-2 py-0.5 text-[11px]',
-                      s.available ? 'border-safe/40 bg-safe/10 text-safe' : 'border-border text-muted-foreground',
-                    )}
-                  >
-                    {s.available ? 'disponible' : 'pas encore'}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="px-4 py-3 text-[12px] text-muted-foreground">Aucun scénario écrit pour cette cible : seul le QA s’y lance.</p>
-          )}
-        </section>
-      </div>
+        </div>
+      ) : null}
+      {app.scenarios?.length ? (
+        <div>
+          <p className="lv-detail-titre">Ce que les agents savent y tester</p>
+          <ul className="flex flex-col">
+            {app.scenarios.map((s) => (
+              <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border py-2.5 text-[12.5px] last:border-0">
+                <span className="w-24 font-mono text-[10.5px] text-subtle">{s.id}</span>
+                <span className="min-w-0 flex-1 text-foreground">{s.name}</span>
+                <span className="text-muted-foreground">{s.module}</span>
+                <span className="lv-pill" data-ton={s.available ? 'sur' : undefined}>{s.available ? 'Disponible' : 'Pas encore'}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   )
 }

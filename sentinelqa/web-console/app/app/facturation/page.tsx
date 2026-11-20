@@ -29,7 +29,7 @@ export default async function BillingPage() {
         title="Crédits et facturation"
         description="Le modèle de prix prévu au lancement, et ce que coûte vraiment chaque audit aujourd’hui. Aucun paiement n’est branché."
       />
-      <main className="grid items-start gap-5 px-5 py-6 lg:grid-cols-2 lg:px-8">
+      <main className="lv-contenu grid items-start gap-5 lg:grid-cols-2">
         <Card title="Coût mesuré">
           <div className="flex flex-col gap-4 px-4 py-4">
             <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">

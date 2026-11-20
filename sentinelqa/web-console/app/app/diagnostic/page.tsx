@@ -1,4 +1,4 @@
-import { ArrowRight, Search, X } from 'lucide-react'
+import { Check, ChevronRight, Search, TriangleAlert, X } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { PageHeader } from '@/components/console/page-header'
@@ -7,7 +7,7 @@ import { chargerConsole, failles } from '@/lib/console-reel'
 import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = {
-  title: 'Diagnostics — HSentinel',
+  title: 'Résultats — HSentinel',
   description: 'Toutes les failles prouvées par vos agents, avec rejeu, détails et chronologie.',
 }
 
@@ -88,15 +88,15 @@ export default async function DiagnosticsPage({ searchParams }: { searchParams: 
   return (
     <>
       <PageHeader
-        crumbs={[{ label: 'Console', href: '/app' }, { label: 'Diagnostics' }]}
-        title="Diagnostics"
+        crumbs={[{ label: 'Résultats' }]}
+        title="Vos résultats"
         description="Chaque faille prouvée, avec le rejeu de ce que l’agent a vu, les actions menées et son ticket."
       />
-      <main className="flex flex-col gap-4 px-5 py-6 lg:px-8">
-        <section aria-label="Filtres" className="panel flex flex-col gap-3 px-4 py-3.5">
+      <main className="lv-contenu flex flex-col gap-4">
+        <section aria-label="Filtres" className="flex flex-col gap-4 border-b border-border pb-5">
           <form action="/app/diagnostic" className="flex items-center gap-2">
             {groups.map((g) => (filters[g.key] ? <input key={g.key} type="hidden" name={g.key} value={filters[g.key]} /> : null))}
-            <label className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border border-border bg-background px-2.5 focus-within:border-steel">
+            <label className="flex h-10 min-w-0 max-w-[460px] flex-1 items-center gap-2 rounded-md border border-border bg-card px-3 focus-within:border-steel">
               <Search className="size-3.5 text-subtle" aria-hidden="true" />
               <span className="sr-only">Rechercher une faille</span>
               <input
@@ -107,7 +107,7 @@ export default async function DiagnosticsPage({ searchParams }: { searchParams: 
                 className="h-full w-full min-w-0 flex-1 bg-transparent text-[12.5px] text-foreground outline-none placeholder:text-subtle"
               />
             </label>
-            <button type="submit" className="h-8 shrink-0 rounded-md border border-border px-3 text-[12px] font-medium text-foreground hover:bg-foreground/[0.04]">
+            <button type="submit" className="lv-bouton lv-bouton-trait">
               Rechercher
             </button>
           </form>
@@ -126,10 +126,10 @@ export default async function DiagnosticsPage({ searchParams }: { searchParams: 
                       aria-current={selected ? 'true' : undefined}
                       scroll={false}
                       className={cn(
-                        'inline-flex h-6 items-center gap-1.5 rounded-md border px-2 text-[11.5px] transition-colors',
+                        'inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-[11.5px] transition-colors',
                         selected
-                          ? 'border-steel/50 bg-steel/10 font-medium text-steel'
-                          : 'border-border text-muted-foreground hover:border-foreground/20 hover:text-foreground',
+                          ? 'border-blue-soft bg-blue-soft font-medium text-steel'
+                          : 'border-border bg-card text-muted-foreground hover:border-foreground/20 hover:text-foreground',
                         count === 0 && !selected && 'opacity-50',
                       )}
                     >
@@ -156,35 +156,29 @@ export default async function DiagnosticsPage({ searchParams }: { searchParams: 
         </div>
 
         {results.length === 0 ? (
-          <div className="panel flex flex-col items-center gap-2 px-4 py-12 text-center">
-            <p className="text-[13px] font-medium text-foreground">{findings.length ? 'Aucune faille ne correspond à ces filtres' : 'Aucune faille prouvée pour l’instant'}</p>
-            <p className="text-[12px] text-muted-foreground">
-              {findings.length ? 'Élargissez la recherche ou réinitialisez les filtres.' : 'Chaque faille prouvée par un audit apparaîtra ici, avec ses preuves et son ticket.'}
-            </p>
+          <div className="lv-vide">
+            <span className="lv-vide-icone"><Search aria-hidden="true" /></span>
+            <div>
+              <strong>{findings.length ? 'Aucune faille ne correspond à ces filtres' : 'Aucune faille prouvée pour l’instant'}</strong>
+              <p>{findings.length ? 'Élargissez la recherche ou réinitialisez les filtres.' : 'Chaque faille prouvée par un audit apparaîtra ici, avec ses preuves et son ticket.'}</p>
+            </div>
           </div>
         ) : (
-          <ul className="panel flex flex-col">
+          <ul className="lv-lignes">
             {results.map((f) => (
-              <li key={f.id} className="border-b border-border last:border-0">
-                <Link href={`/app/diagnostic/${f.id}`} className="group flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5 transition-colors hover:bg-foreground/[0.03]">
-                  <span
-                    className={cn(
-                      'min-w-[76px] shrink-0 rounded border px-1.5 text-center font-mono text-[10px] leading-[18px] font-semibold uppercase tracking-wider',
-                      f.status === 'ouverte' ? 'border-danger/50 bg-danger/10 text-danger' : 'border-safe/40 bg-safe/10 text-safe',
-                    )}
-                  >
-                    {f.status === 'ouverte' ? f.severity : 'corrigée'}
+              <li key={f.id}>
+                <Link href={`/app/diagnostic/${f.id}`} className="lv-ligne">
+                  <span className="lv-ligne-icone" data-ton={f.status === 'ouverte' ? 'alerte' : 'sur'}>
+                    {f.status === 'ouverte' ? <TriangleAlert aria-hidden="true" /> : <Check aria-hidden="true" />}
                   </span>
-                  <span className="flex min-w-0 flex-1 basis-[220px] flex-col">
-                    <span className="text-[13px] font-medium text-foreground">{f.title}</span>
-                    <span className="text-[11.5px] text-subtle">
-                      {f.id.slice(0, 8)} · {f.app} · {f.module} · détectée le {formatDateTime(f.detectedAt)}
-                    </span>
+                  <span className="lv-ligne-texte">
+                    <strong>{f.title}</strong>
+                    <small>{f.app} · {f.module} · détectée le {formatDateTime(f.detectedAt)} · <span className="font-mono">{f.id.slice(0, 8)}</span></small>
                   </span>
-                  <span className="text-[11.5px] whitespace-nowrap text-muted-foreground">
-                    {f.status === 'ouverte' ? `ouverte depuis ${formatAge(f.detectedAt)}` : `corrigée en ${formatAge(f.detectedAt, f.resolvedAt)}`}
+                  <span className="lv-pill" data-ton={f.status === 'ouverte' ? 'alerte' : 'sur'}>
+                    {f.status === 'ouverte' ? `${f.severity} · ouverte depuis ${formatAge(f.detectedAt)}` : `corrigée en ${formatAge(f.detectedAt, f.resolvedAt)}`}
                   </span>
-                  <ArrowRight className="size-4 text-subtle transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                  <ChevronRight className="lv-ligne-chevron" aria-hidden="true" />
                 </Link>
               </li>
             ))}

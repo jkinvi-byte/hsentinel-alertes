@@ -170,8 +170,10 @@ test.beforeEach(() => { modeBase = 'donnees'; for (const t of Object.keys(recues
 test('Console v0 : chaque page montre les données de la base, sans chiffre inventé', async ({ page }) => {
   await loginCookie(page)
   await page.goto('/app')
-  await expect(page.getByRole('heading', { name: 'Vue d’ensemble' })).toBeVisible()
-  await expect(page.getByRole('link', { name: /Diagnostics\s*2/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Un regard neuf sur vos applications.' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Résultats\s*2/ })).toBeVisible()
+  // D-55 : plus aucun dollar dans les indicateurs ni dans la barre latérale ; ils restent dans « Offre et utilisation ».
+  await expect(page.locator('.lv-indicateurs, #app-sidebar').getByText(/\$/)).toHaveCount(0)
   await expect(page.getByText('Exploration synthétique').first()).toBeVisible()
 
   await page.goto('/app/audits')
@@ -196,8 +198,9 @@ test('Console v0 : chaque page montre les données de la base, sans chiffre inve
   await expect(page.getByRole('link', { name: /Ticket GitHub/ })).toHaveCount(0)
 
   await page.goto('/app/applications')
-  await expect(page.getByRole('button', { name: /Paie Express/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Paie Express' })).toBeVisible()
   await expect(page.getByText('Banc local')).toHaveCount(0)
+  await page.locator('li.lv-app', { has: page.getByRole('heading', { name: 'Paie Express' }) }).getByRole('button', { name: 'Détails' }).click()
   await expect(page.getByText('S-BANC-01')).toBeVisible()
 
   await page.goto('/app/facturation')
@@ -210,8 +213,8 @@ test('Console v0 : chaque page montre les données de la base, sans chiffre inve
   await mkdir('test-results/apercus', { recursive: true })
   for (const chemin of ['/app', '/app/audits', '/app/diagnostic', `/app/diagnostic/${CONSTAT_LECTURE}`, '/app/applications', '/app/facturation', '/app/compte']) {
     await page.goto(chemin)
-    // Le navigateur de test se dit « ordinateur » : on attend que la barre latérale ait fini de se replier avant de mesurer.
-    await expect(page.locator('#app-sidebar')).toHaveCSS('width', '48px')
+    // Sur téléphone, la navigation est un tiroir fermé, hors de l'écran (D-55).
+    await expect(page.locator('#app-sidebar')).toHaveAttribute('data-ouverte', 'false')
     // En cas d'échec, le message nomme les éléments qui dépassent : la page et sa cause d'un coup d'œil.
     const debordent = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth ? [] : [...document.querySelectorAll('body *')]
       .filter((e) => {
@@ -301,6 +304,7 @@ test('Les anciennes adresses mènent aux pages de la console v0', async ({ page 
 test('Parcours QA : plan périmé bloqué, lancement unique et résultats non concluants', async ({ page }) => {
   await loginCookie(page); const calls = await fixtures(page)
   await page.goto('/app/nouveau')
+  await page.getByRole('button', { name: 'Paramétrer manuellement' }).click()
   const instruction = page.getByLabel('Votre consigne')
   await instruction.fill('Vérifie le Bachelor.')
   await expect(page.getByRole('button', { name: 'Lancer la mission' })).toBeDisabled()
@@ -333,25 +337,7 @@ test('Pentest : scénarios disponibles, contrôles actifs réservés au laborato
   expect(calls.starts[0].scenario_id).toBe('S-PEER-01')
 })
 
-test('Dictée sur microphone synthétique : bloque le lancement et ajoute du texte relisible', async ({ page, context }) => {
-  await context.grantPermissions(['microphone'])
-  await loginCookie(page); const calls = await fixtures(page)
-  await page.goto('/app/nouveau')
-  await page.getByRole('button', { name: 'Dicter la consigne' }).click()
-  await expect(page.getByText('Le micro enregistre votre consigne.')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Lancer la mission' })).toBeDisabled()
-  await page.waitForTimeout(300)
-  await page.getByRole('button', { name: /Arrêter et transcrire/ }).click()
-  await expect(page.getByLabel('Votre consigne')).toHaveValue('Vérifie le Bachelor et son diplôme.')
-  expect(calls.transcriptions).toBe(1)
-  await page.getByRole('button', { name: 'Préparer le plan' }).click()
-  await expect(page.getByRole('button', { name: 'Lancer la mission' })).toBeEnabled()
-  await page.getByRole('button', { name: 'Lancer la mission' }).click()
-  await expect(page).toHaveURL(new RegExp(`/app/missions/qa/${id}`))
-  expect(calls.starts[0].source).toBe('voix')
-})
-
-test('Expert du studio : question écrite ou dite, réponse lue, consigne reprise sur demande, Entrée ne lance rien', async ({ page }) => {
+test('Expert du studio : la voix d’abord, l’écrit à côté, consigne reprise sur demande, Entrée ne lance rien, un seul micro', async ({ page }) => {
   await page.addInitScript(() => {
     const w = window as unknown as { __lu: string[] }
     w.__lu = []
@@ -359,7 +345,13 @@ test('Expert du studio : question écrite ou dite, réponse lue, consigne repris
   })
   await loginCookie(page); const calls = await fixtures(page)
   await page.goto('/app/nouveau')
-  await expect(page.getByRole('heading', { name: 'L’expert QA' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Que souhaitez-vous vérifier/ })).toBeVisible()
+  // D-55 : une seule entrée micro, la conversation ; ni dictée ni second micro dans le panneau.
+  await expect(page.getByRole('button', { name: 'Parler à l’expert' })).toHaveCount(1)
+  await expect(page.getByRole('button', { name: 'Dicter la consigne' })).toHaveCount(0)
+  // Les paramètres manuels restent fermés tant qu'on ne les demande pas.
+  await expect(page.getByLabel('Votre consigne')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Écrire à l’expert' }).click()
   await page.getByLabel('Votre question à l’expert').fill('Comment formuler ma consigne ?')
   await page.getByLabel('Votre question à l’expert').press('Enter')
   await expect(page.getByText('Réponse synthétique de l’expert.')).toBeVisible()
@@ -369,29 +361,27 @@ test('Expert du studio : question écrite ou dite, réponse lue, consigne repris
   await expect.poll(() => calls.voix.length).toBe(1)
   expect(calls.voix[0]).toEqual({ texte: 'Réponse synthétique de l’expert.' })
   expect(await page.evaluate(() => (window as unknown as { __lu: string[] }).__lu)).toEqual([])
-  await expect(page.getByLabel('Votre consigne')).toHaveValue('')
+  // La consigne proposée ouvre les paramètres manuels, déjà remplis.
   await page.getByRole('button', { name: 'Reprendre dans la consigne' }).click()
   await expect(page.getByLabel('Votre consigne')).toHaveValue('Ouvrir le menu « Programmes », puis vérifier le texte « Bac+3 ».')
 
-  // À la voix : le micro synthétique, la même transcription que la dictée, puis la question part seule.
-  // Cette fois la voix Hugging Face est en panne : la voix du système, réglée comme celle de LEVELS, prend le relais.
+  // Voix Hugging Face en panne : la voix du système, réglée comme celle de LEVELS, lit la réponse.
   calls.voixEnPanne = true
-  await page.getByRole('button', { name: 'Parler à l’expert' }).click()
-  await page.getByRole('button', { name: 'Arrêter et envoyer' }).click()
+  await page.getByLabel('Votre question à l’expert').fill('Et pour le diplôme ?')
+  await page.getByLabel('Votre question à l’expert').press('Enter')
   await expect.poll(() => calls.expert.length).toBe(2)
-  expect(calls.expert[1]).toMatchObject({ question: 'Vérifie le Bachelor et son diplôme.', historique: [{ role: 'utilisateur', texte: 'Comment formuler ma consigne ?' }, { role: 'expert', texte: 'Réponse synthétique de l’expert.' }] })
   await expect.poll(() => page.evaluate(() => (window as unknown as { __lu: string[] }).__lu)).toEqual(['Réponse synthétique de l’expert.'])
   expect(calls.starts).toHaveLength(0)
 
   await page.goto('/app/nouveau?volet=pentest')
-  await expect(page.getByRole('heading', { name: 'L’expert Pentest' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Que souhaitez-vous contrôler/ })).toBeVisible()
 })
 
 test('Mode conversation : l’expert parle le premier, puis répond à la phrase dite, mot à mot en voix Hugging Face, et l’écoute reprend seule', async ({ page }) => {
   await loginCookie(page); const calls = await fixtures(page)
   calls.reponseExpert = 'Première phrase de l’expert. Seconde phrase, avec « Bac+3 ».'
   await page.goto('/app/nouveau')
-  await page.getByRole('button', { name: 'Converser à la voix' }).click()
+  await page.getByRole('button', { name: 'Parler à l’expert' }).click()
   const dialogue = page.getByRole('dialog', { name: /Conversation/ })
   await expect(dialogue).toBeVisible()
   await expect(dialogue.getByText('Eugenia School', { exact: true })).toBeVisible()
@@ -437,7 +427,7 @@ test('Mode conversation : la voix Hugging Face en panne, la voix du système par
   await loginCookie(page); const calls = await fixtures(page)
   calls.voixEnPanne = true
   await page.goto('/app/nouveau')
-  await page.getByRole('button', { name: 'Converser à la voix' }).click()
+  await page.getByRole('button', { name: 'Parler à l’expert' }).click()
   const dialogue = page.getByRole('dialog', { name: /Conversation/ })
   await expect(dialogue.getByRole('status')).toHaveText('L’expert QA vous écoute', { timeout: 10_000 })
   await expect(dialogue.getByText(/voix du système/)).toBeVisible()
@@ -455,7 +445,7 @@ test('Mode conversation : une transcription fantôme de Whisper ne déclenche au
   await loginCookie(page); const calls = await fixtures(page)
   calls.transcription = 'Thank you.'
   await page.goto('/app/nouveau')
-  await page.getByRole('button', { name: 'Converser à la voix' }).click()
+  await page.getByRole('button', { name: 'Parler à l’expert' }).click()
   const dialogue = page.getByRole('dialog', { name: /Conversation/ })
   await expect(dialogue.getByRole('status')).toHaveText('L’expert QA vous écoute', { timeout: 10_000 })
   await dialogue.getByRole('button', { name: 'J’ai fini' }).click({ timeout: 3000 }).catch(() => {})
@@ -464,10 +454,37 @@ test('Mode conversation : une transcription fantôme de Whisper ne déclenche au
   expect(calls.expert).toHaveLength(0)
 })
 
+test('Conversation : maintenir « Parler » ouvre le micro pendant l’appui, et le relâché envoie la phrase', async ({ page }) => {
+  await loginCookie(page); const calls = await fixtures(page)
+  await page.goto('/app/nouveau')
+  await page.getByRole('button', { name: 'Parler à l’expert' }).click()
+  const dialogue = page.getByRole('dialog', { name: /Conversation/ })
+  await dialogue.getByRole('button', { name: /Mains libres/ }).click()
+  // Selon le moment du clic, l'écoute a pu reprendre seule après l'accueil : on la clôt d'abord d'un appui bref.
+  const statut = dialogue.getByRole('status')
+  await expect(statut).toHaveText(/À vous|vous écoute/, { timeout: 10_000 })
+  if ((await statut.textContent())?.includes('vous écoute')) await dialogue.getByRole('button', { name: 'J’ai fini' }).click()
+  await expect(statut).toHaveText('À vous', { timeout: 10_000 })
+  const avant = calls.transcriptions
+  const parler = dialogue.getByRole('button', { name: 'Parler', exact: true })
+  const boite = await parler.boundingBox()
+  await page.mouse.move(boite!.x + boite!.width / 2, boite!.y + boite!.height / 2)
+  await page.mouse.down()
+  // Avant le correctif, rien ne se passait pendant l'appui : l'écoute ne partait qu'au relâché.
+  await expect(dialogue.getByRole('status')).toHaveText('L’expert QA vous écoute')
+  await expect(dialogue.getByRole('button', { name: 'Relâchez pour envoyer' })).toBeVisible()
+  await page.waitForTimeout(700)
+  await page.mouse.up()
+  await expect.poll(() => calls.transcriptions).toBe(avant + 1)
+  await expect(dialogue.getByText('« Vérifie le Bachelor et son diplôme. »').last()).toBeVisible()
+  await expect(dialogue.locator('.expert-tour-expert').last()).toContainText('Réponse synthétique de l’expert.')
+})
+
 test('Le studio reste utilisable à 390 pixels', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await loginCookie(page); await fixtures(page)
   await page.goto('/app/nouveau')
+  await page.getByRole('button', { name: 'Paramétrer manuellement' }).click()
   await page.getByLabel('Votre consigne').fill('Vérifie le diplôme du Bachelor.')
   await page.getByRole('button', { name: 'Préparer le plan' }).click()
   await expect(page.getByRole('heading', { name: plan.titre })).toBeVisible()
@@ -497,6 +514,7 @@ test('QA connecté : mot de passe chiffré, trois noms au plus, K1/K2 et motif d
   await page.getByRole('button', { name: 'Ajouter un nom attendu' }).click()
   await page.getByRole('button', { name: 'Ajouter un nom attendu' }).click()
   await expect(page.getByRole('button', { name: 'Ajouter un nom attendu' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Paramétrer manuellement' }).click()
   await page.getByLabel('Votre consigne').fill('Ouvre Mon parcours.')
   await page.getByRole('button', { name: 'Préparer le plan' }).click()
   await expect(page.getByRole('button', { name: 'Lancer la mission' })).toBeEnabled()
@@ -521,6 +539,7 @@ test('Une clé absente au chargement ou au lancement empêche toute mise en file
   await page.goto('/app/nouveau?cible=peer-review')
   await page.getByLabel('Adresse du compte de test').fill('test@example.invalid')
   await page.getByLabel('Mot de passe du compte de test').fill('synthetic-password')
+  await page.getByRole('button', { name: 'Paramétrer manuellement' }).click()
   await page.getByLabel('Votre consigne').fill('Ouvre Mon parcours.')
   await page.getByRole('button', { name: 'Préparer le plan' }).click()
   await expect(page.getByRole('button', { name: 'Lancer la mission' })).toBeDisabled()
@@ -543,6 +562,7 @@ test('Changer de cible efface le compte et ne le joint jamais à un QA public', 
   await expect(page.getByLabel('Mot de passe du compte de test')).toHaveValue('')
   await expect(page.getByLabel('Adresse du compte de test')).toHaveValue('')
   await page.getByRole('combobox', { name: 'Application' }).selectOption('eugenia-public')
+  await page.getByRole('button', { name: 'Paramétrer manuellement' }).click()
   await page.getByRole('button', { name: 'Exploration', exact: true }).click()
   await page.getByRole('button', { name: 'Lancer la mission' }).click()
   await expect(page).toHaveURL(new RegExp(`/app/missions/qa/${id}`))

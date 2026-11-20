@@ -4,7 +4,7 @@ import { LivePipeline } from '@/components/landing/live-visuals'
 import { LeakBrowser, Row } from '@/components/site/story'
 import { Container, SectionHeading } from '../ui'
 
-const SECTORS = ['SaaS RH et paie', 'Fintech', 'Santé', 'LegalTech', 'Assurance', 'Immobilier', 'Éducation', 'Marketplaces B2B']
+const SECTORS = ['SaaS RH et paie', 'Santé', 'LegalTech', 'Assurance', 'Immobilier', 'Éducation', 'Marketplaces B2B']
 
 export function SectorStrip() {
   return (
@@ -244,12 +244,6 @@ const USE_CASES = [
     tone: 'bg-[#e8eefc]',
   },
   {
-    id: 'fintech',
-    sector: 'Fintech',
-    title: 'Aucun client ne modifie l’IBAN d’un autre.',
-    tone: 'bg-[#e9f5ee]',
-  },
-  {
     id: 'sante',
     sector: 'Santé',
     title: 'Un cabinet ne lit jamais les dossiers d’un autre.',
@@ -270,7 +264,7 @@ export function UseCases() {
             Toutes les solutions <span aria-hidden="true">→</span>
           </Link>
         </div>
-        <ul className="grid gap-5 md:grid-cols-3">
+        <ul className="grid gap-5 md:grid-cols-2">
           {USE_CASES.map((u) => (
             <li key={u.id} className="h-reveal">
               <Link

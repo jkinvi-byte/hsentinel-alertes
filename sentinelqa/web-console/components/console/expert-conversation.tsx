@@ -4,7 +4,7 @@ import { Check, CornerDownLeft, Keyboard, Mic, Square, Volume2, X } from 'lucide
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { creerDictee as creerDicteeJs } from '../../../web/lib/qa-dictee.mjs'
 import { mots as decouperMots, motsDits, planMots, typographie } from '@/lib/expert/conversation.mjs'
-import { parler, phrases as decouper, taire, transcriptionUtile } from '@/lib/expert/voix.mjs'
+import { parler, phrases as decouper, questionTranscrite, taire } from '@/lib/expert/voix.mjs'
 import { cn } from '@/lib/utils'
 
 // D-51 : le mode conversation de l'expert, sur le modèle de la Voix de LEVELS (/Users/aurian/Desktop/levels:/app.js,
@@ -41,6 +41,8 @@ const SANS_PAROLE_MS = 8000
 const PAROLE_MAX_MS = 25000
 // La voix Hugging Face varie (0,6 s le matin du 19/11, 1,2 à 5,3 s l'après-midi) : au-delà, la voix de LEVELS prend le relais.
 const VOIX_MAX_MS = 6000
+// Au-delà de cette durée, un appui sur « Parler » est un maintien : le relâché envoie la phrase.
+const MAINTIEN_MS = 350
 // Le temps que l'écran se déplie depuis le bouton, avant que l'expert ne prenne la parole.
 const ARRIVEE_MS = 520
 
@@ -97,6 +99,9 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
   // Une remarque (rien entendu, micro en pause) reste lisible pendant la nouvelle écoute : seule une question l'efface.
   const [remarque, setRemarque] = useState<string | null>(null)
   const [fermeture, setFermeture] = useState(false)
+  const [maintenu, setMaintenu] = useState(false)
+  const maintien = useRef<{ id: number; debut: number; ecoutait: boolean } | null>(null)
+  const maintienActif = useRef(false)
 
   const dictee = useRef<Dictee | null>(null)
   const ctx = useRef<AudioContext | null>(null)
@@ -299,13 +304,17 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
       const seuil = Math.max(0.02, (fond / Math.max(1, mesures)) * 2.5)
       if (rms > seuil) { suites++; if (suites >= 3) { parole = true; dernier = t } } else suites = 0
       const d = dictee.current
-      if (!d || d.etat !== 'enregistrement' || !mainsLibresRef.current) return
+      if (!d || d.etat !== 'enregistrement') return
+      // La limite de 25 s vaut toujours, mains libres ou non : le 20/11, sans elle, une écoute a couru plus de 30 s
+      // et Whisper a complété le silence par « you you ».
+      if (t - debut > PAROLE_MAX_MS) { arreterBoucle(); source.disconnect(); d.arreter(); return }
+      // Pendant un appui maintenu, c'est le relâché qui envoie : ni le silence ni l'attente ne coupent la parole.
+      if (!mainsLibresRef.current || maintienActif.current) return
       if (parole && t - dernier > SILENCE_FIN_MS) { arreterBoucle(); source.disconnect(); d.arreter() }
       else if (!parole && t - debut > SANS_PAROLE_MS) {
         arreterBoucle(); source.disconnect(); d.annuler(); setEtat('attente')
         setRemarque('Micro en pause après 8 s de silence. Appuyez sur « Parler » pour reprendre.')
       }
-      else if (t - debut > PAROLE_MAX_MS) { arreterBoucle(); source.disconnect(); d.arreter() }
     })
   }, [animer, arreterBoucle])
 
@@ -347,7 +356,8 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
       // Le contrôleur efface son erreur (null) à chaque nouvelle écoute : ce n'est pas un passage à « À vous ».
       surErreur: (m: string | null) => { if (!ouvert.current) return; setErreur(m); if (m) setEtat('attente') },
       surTranscription: (data: { texte: string }) => {
-        if (transcriptionUtile(data.texte)) { void demanderRef.current(data.texte); return }
+        const question = questionTranscrite(data.texte)
+        if (question) { void demanderRef.current(question); return }
         // Rien de clair (bruit, ou phrase fantôme de Whisper) : on réécoute, sans déranger l'expert.
         setRemarque('Je n’ai rien entendu de clair. Reparlez, ou écrivez votre question.')
         if (mainsLibresRef.current) setTimeout(() => { if (ouvert.current) void ecouterRef.current() }, 300)
@@ -408,6 +418,31 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
     void ecouter()
   }
 
+  // « Parler » se touche ou se maintient (comme « Maintiens pour parler » de LEVELS). L'appui ouvre le micro tout de
+  // suite ; relâché après MAINTIEN_MS, il envoie la phrase ; un appui bref garde l'écoute ouverte (le silence clôt la
+  // phrase en mains libres). Le relâché est capturé : un doigt qui glisse hors du bouton n'oublie jamais d'envoyer.
+  // Avant le 20/11, l'appui ne faisait rien et l'écoute ne partait qu'au relâché (bug signalé par Aurian).
+  function appui(e: React.PointerEvent<HTMLButtonElement>) {
+    if (e.button !== 0 || !e.isPrimary || maintien.current) return
+    e.preventDefault()
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* le relâché arrivera quand même au bouton */ }
+    const ecoutait = etat === 'ecoute'
+    maintien.current = { id: e.pointerId, debut: performance.now(), ecoutait }
+    if (ecoutait) return
+    maintienActif.current = true
+    setMaintenu(true)
+    setRemarque(null)
+    void ecouter()
+  }
+  function relache(e: React.PointerEvent<HTMLButtonElement>) {
+    const m = maintien.current
+    if (!m || m.id !== e.pointerId) return
+    maintien.current = null
+    maintienActif.current = false
+    setMaintenu(false)
+    if (m.ecoutait || performance.now() - m.debut >= MAINTIEN_MS) dictee.current?.arreter()
+  }
+
   function envoyer() {
     const q = saisie.trim()
     if (!q || enCours.current) return
@@ -420,7 +455,7 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
   const animation = etat === 'arrivee' ? 'arrivee'
     : etat === 'reflexion' || etat === 'transcription' || etat === 'formulation' ? 'reflexion'
     : etat === 'reponse' && modeVoix === 'phrase' ? 'parole' : 'mesure'
-  const bouton = etat === 'ecoute' ? 'J’ai fini' : etat === 'reponse' || etat === 'formulation' ? 'Couper et parler' : 'Parler'
+  const bouton = maintenu ? 'Relâchez pour envoyer' : etat === 'ecoute' ? 'J’ai fini' : etat === 'reponse' || etat === 'formulation' ? 'Couper et parler' : 'Parler'
   // L'échange en cours reste net ; les tours plus anciens s'effacent à moitié.
   const recent = fil.findLastIndex((t) => t.role === 'utilisateur')
 
@@ -505,8 +540,9 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
             </div>
           ) : null}
           <div className="flex gap-2">
-            <button type="button" onClick={parlerMaintenant} disabled={occupe}
-              className={cn('expert-bouton', etat === 'ecoute' || occupe ? 'expert-bouton-trait' : 'expert-bouton-plein')}>
+            <button type="button" disabled={occupe} onPointerDown={appui} onPointerUp={relache} onPointerCancel={relache} onLostPointerCapture={relache}
+              onClick={(e) => { if (e.detail === 0) parlerMaintenant() }} onContextMenu={(e) => e.preventDefault()}
+              className={cn('expert-bouton expert-bouton-parler', etat === 'ecoute' || occupe ? 'expert-bouton-trait' : 'expert-bouton-plein')}>
               {etat === 'ecoute' ? <Square className="size-4" aria-hidden="true" /> : etat === 'reponse' || etat === 'formulation' ? <Volume2 className="size-4" aria-hidden="true" /> : <Mic className="size-4" aria-hidden="true" />}
               {bouton}
             </button>

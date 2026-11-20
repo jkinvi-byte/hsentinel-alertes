@@ -41,7 +41,7 @@ export default async function AccountPage() {
         }
       />
 
-      <main className="grid items-start gap-5 px-5 py-6 lg:grid-cols-2 lg:px-8">
+      <main className="lv-contenu grid items-start gap-5 lg:grid-cols-2">
         <Card title="Profil">
           <dl className="flex flex-col">
             {[

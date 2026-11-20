@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 export const metadata: Metadata = {
   title: 'Solutions — HSentinel',
   description:
-    'SaaS RH et paie, fintech, santé, conformité B2B : HSentinel prouve qu’aucun client ne voit les données d’un autre.',
+    'SaaS RH et paie, santé, conformité B2B : HSentinel prouve qu’aucun client ne voit les données d’un autre.',
 }
 
 const SOLUTIONS = [
@@ -19,15 +19,6 @@ const SOLUTIONS = [
     tests: ['Accès aux bulletins par identifiant d’entreprise', 'Exports CSV et PDF filtrés par client', 'Rôles salarié, manager, gestionnaire paie'],
     tone: 'bg-[#e8eefc]',
     quote: { k: 'GET /companies/alpha/payslips', v: 'session Bêta → refusé' },
-  },
-  {
-    id: 'fintech',
-    eyebrow: 'Fintech',
-    title: 'Aucun client ne modifie l’IBAN d’un autre.',
-    body: 'Comptes, bénéficiaires et virements : nous vérifions que chaque action sensible reste confinée au bon titulaire.',
-    tests: ['Modification de bénéficiaires et d’IBAN', 'Lecture des relevés et transactions', 'Validation à plusieurs niveaux de droits'],
-    tone: 'bg-[#e9f5ee]',
-    quote: { k: 'PATCH /accounts/812/iban', v: 'session d’un autre client → refusé' },
   },
   {
     id: 'sante',

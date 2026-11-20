@@ -20,7 +20,6 @@ export const NAV: NavItem[] = [
     href: '/solutions',
     children: [
       { label: 'SaaS RH et paie', href: '/solutions#rh', description: 'Bulletins, salaires, données sociales.' },
-      { label: 'Fintech', href: '/solutions#fintech', description: 'IBAN, virements, comptes clients.' },
       { label: 'Santé', href: '/solutions#sante', description: 'Dossiers patients et données sensibles.' },
       { label: 'Conformité B2B', href: '/solutions#conformite', description: 'Preuves pour vos questionnaires sécurité.' },
     ],

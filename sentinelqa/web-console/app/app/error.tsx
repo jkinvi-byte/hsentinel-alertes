@@ -11,7 +11,7 @@ export default function ConsoleError({ reset }: { error: Error & { digest?: stri
   return (
     <>
       <PageHeader crumbs={[{ label: 'Console', href: '/app' }]} title="Données indisponibles" />
-      <main className="px-5 py-6 lg:px-8">
+      <main className="lv-contenu">
         <div role="alert" className="panel flex flex-col items-start gap-3 px-5 py-5">
           <p className="text-[13px] font-medium text-foreground">La base de la console ne répond pas pour l’instant.</p>
           <p className="text-[12.5px] text-muted-foreground">Aucune donnée n’est affichée plutôt que des chiffres faux. Les missions en cours continuent côté agents.</p>

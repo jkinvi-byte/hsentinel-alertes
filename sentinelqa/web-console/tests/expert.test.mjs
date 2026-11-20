@@ -97,3 +97,22 @@ test('l’expert ouvre la conversation d’après la cible à l’écran, et rep
   // Chaque phrase de l'accueil se lit seule (une phrase par énoncé) et se termine par sa ponctuation.
   for (const v of ['qa', 'pentest']) for (const p of phrases(accueilExpert({ volet: v, cible: 'X' }))) assert.match(p, /[.?!]$/)
 })
+
+import { nettoyerTranscription, questionTranscrite } from '../lib/expert/voix.mjs'
+test('la queue fantôme de Whisper (« you you », « Merci. ») est retirée, la phrase reste', () => {
+  // Le 20/11, une écoute trop longue a donné « …Bac plus 3? you you » : l'expert recevait ces mots fantômes.
+  assert.equal(nettoyerTranscription('Comment je vérifie que la page affiche Bac plus 3? you you'), 'Comment je vérifie que la page affiche Bac plus 3?')
+  assert.equal(nettoyerTranscription('Vérifie la page du Bachelor. Merci.'), 'Vérifie la page du Bachelor.')
+  assert.equal(nettoyerTranscription('Vérifie la page du Bachelor, thank you.'), 'Vérifie la page du Bachelor')
+  assert.equal(nettoyerTranscription('Vérifie le menu « Youpi ».'), 'Vérifie le menu « Youpi ».')
+  assert.equal(nettoyerTranscription(''), '')
+})
+
+test('la question transcrite : un fantôme entier reste un fantôme, une queue fantôme est retirée', () => {
+  // Le 20/11, nettoyer d'abord changeait « Thank you. » en « Thank », que l'expert prenait pour une question.
+  assert.equal(questionTranscrite('Thank you.'), null)
+  assert.equal(questionTranscrite('you you'), null)
+  assert.equal(questionTranscrite('Merci.'), null)
+  assert.equal(questionTranscrite('Comment je vérifie Bac plus 3? you you'), 'Comment je vérifie Bac plus 3?')
+  assert.equal(questionTranscrite('Vérifie le Bachelor et son diplôme.'), 'Vérifie le Bachelor et son diplôme.')
+})

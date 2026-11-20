@@ -1,43 +1,45 @@
 'use client'
 
-import { AudioLines, BookOpen, CornerDownLeft, Mic, Square, Volume2, VolumeX, X } from 'lucide-react'
+import { ArrowRight, CornerDownLeft, Keyboard, Mic, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { creerDictee as creerDicteeJs } from '../../../web/lib/qa-dictee.mjs'
 import { parler, taire } from '@/lib/expert/voix.mjs'
 import { accueilExpert, typographie } from '@/lib/expert/conversation.mjs'
 import { amorcerAudio, ExpertConversation, prechargerAccueil, type ReponseExpert } from './expert-conversation'
 
-// D-51 : l'expert QA ou Pentest du studio. On lui parle (micro, même transcription que la dictée) ou on lui écrit ;
-// il répond d'après le Manuel HSentinel et le contexte de la mission, et sa réponse est lue à voix haute,
-// par Kokoro sur Hugging Face, avec la voix du système réglée comme celle de LEVELS en secours.
-// Il ne lance rien : une consigne proposée ne remplace la vôtre que sur « Reprendre dans la consigne ».
-
-// Le contrôleur de la dictée est en JavaScript : ses rappels prennent bien un argument, ce que l'inférence ne voit pas.
-type Dictee = { etat: string; commencer(): Promise<void>; arreter(): void; annuler(): void; disposer(): void }
-const creerDictee = creerDicteeJs as unknown as (options: Record<string, unknown>) => Dictee
+// D-51 puis D-55 : l'expert QA ou Pentest, porte d'entrée de la nouvelle mission. On commence par la voix : le grand
+// bouton ouvre la conversation (le seul micro du studio, D-55 : « parler avec l'IA en plus de la reconnaissance vocale,
+// c'est trop »). On peut aussi lui écrire, ou passer aux paramètres manuels. Il ne lance rien : une consigne proposée
+// ne remplace la vôtre que sur « Reprendre dans la consigne ».
 
 type Volet = 'qa' | 'pentest'
 type Message = { role: 'utilisateur' | 'expert'; texte: string; consigne?: string | null; fiches?: string[] }
-type Props = { volet: Volet; cible: string; cibleNom?: string | null; consigne: string; disabled?: boolean; onApply: (texte: string) => void }
-
-const NOM: Record<Volet, string> = { qa: 'L’expert QA', pentest: 'L’expert Pentest' }
-const AIDE: Record<Volet, string> = {
-  qa: 'Demandez-lui comment formuler votre parcours, ce que l’agent sait vérifier, ou pourquoi un critère reste à confirmer.',
-  pentest: 'Demandez-lui ce que vérifie un contrôle, comment une faille est prouvée, ou ce que la cible permet.',
+type Props = {
+  volet: Volet
+  cible: string
+  cibleNom?: string | null
+  consigne: string
+  disabled?: boolean
+  onApply: (texte: string) => void
+  onManuel?: () => void
+  /** Arrivée par « Parler à l'expert » : la conversation s'ouvre seule si le geste de l'utilisateur est encore actif. */
+  ouvrirAuDepart?: boolean
 }
 
-export function MissionExpert({ volet, cible, cibleNom = null, consigne, disabled = false, onApply }: Props) {
+const NOM: Record<Volet, string> = { qa: 'L’expert QA', pentest: 'L’expert Pentest' }
+const QUESTION: Record<Volet, string> = { qa: 'Que souhaitez-vous vérifier\u202f?', pentest: 'Que souhaitez-vous contrôler\u202f?' }
+
+export function MissionExpert({ volet, cible, cibleNom = null, consigne, disabled = false, onApply, onManuel, ouvrirAuDepart = false }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [question, setQuestion] = useState('')
-  const [dictee, setDictee] = useState('repos')
   const [attente, setAttente] = useState(false)
   const [voix, setVoix] = useState(true)
   const [parle, setParle] = useState(false)
+  const [ecrire, setEcrire] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const [conversation, setConversation] = useState(false)
   const [origine, setOrigine] = useState<{ x: number; y: number } | null>(null)
-  const controleur = useRef<Dictee | null>(null)
   const fil = useRef<HTMLOListElement>(null)
+  const bouton = useRef<HTMLButtonElement>(null)
   const etat = useRef({ volet, cible, consigne, messages, voix })
   etat.current = { volet, cible, consigne, messages, voix }
 
@@ -113,18 +115,15 @@ export function MissionExpert({ volet, cible, cibleNom = null, consigne, disable
 
   // La conversation naît du bouton touché (comme la Voix de LEVELS) : son centre devient l'origine du dépliage,
   // et le son s'ouvre dans le geste même.
-  function ouvrirConversation(bouton: HTMLElement) {
+  function ouvrirConversation(depuis: HTMLElement) {
     arreterVoix()
-    if (controleur.current?.etat !== 'repos') controleur.current?.annuler()
     amorcerAudio()
     prechargerAccueil(accueil)
-    const r = bouton.getBoundingClientRect()
+    const r = depuis.getBoundingClientRect()
     setOrigine({ x: r.left + r.width / 2, y: r.top + r.height / 2 })
     setErreur(null)
     setConversation(true)
   }
-  const demanderRef = useRef(demander)
-  demanderRef.current = demander
 
   // Changer de volet, c'est changer d'expert : la conversation repart de zéro.
   useEffect(() => {
@@ -137,152 +136,102 @@ export function MissionExpert({ volet, cible, cibleNom = null, consigne, disable
     fil.current?.lastElementChild?.scrollIntoView({ block: 'nearest' })
   }, [messages])
 
+  useEffect(() => () => arreterVoix(), [])
+
+  // Venue de « Parler à l'expert » (vue d'ensemble) par la navigation de l'application : le geste est encore actif,
+  // la voix peut partir. Sans geste (adresse tapée, rechargement), on attend le clic : jamais d'expert muet.
   useEffect(() => {
-    const c = creerDictee({
-      obtenirFlux: () => navigator.mediaDevices.getUserMedia({ audio: true }),
-      creerEnregistreur: (stream: MediaStream) => {
-        const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find((t) => MediaRecorder.isTypeSupported?.(t))
-        return new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
-      },
-      transcrire: async (audio: Blob, signal: AbortSignal) => {
-        const res = await fetch('/api/console/transcription', { method: 'POST', body: audio, signal, headers: { 'Content-Type': audio.type } })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.erreur || 'La transcription a échoué.')
-        return data
-      },
-      surEtat: setDictee,
-      surErreur: setErreur,
-      surTranscription: (data: { texte: string }) => { void demanderRef.current(data.texte) },
-    })
-    controleur.current = c
-    return () => {
-      c.disposer()
-      controleur.current = null
-      arreterVoix()
-    }
+    if (!ouvrirAuDepart || !cible || !bouton.current) return
+    const actif = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation?.isActive
+    if (actif) ouvrirConversation(bouton.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function ecouter() {
-    if (disabled || attente || controleur.current?.etat !== 'repos') return
-    arreterVoix()
-    setErreur(null)
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      setErreur('Le micro n’est pas disponible ici. Vous pouvez écrire votre question.')
-      return
-    }
-    void controleur.current.commencer()
-  }
-
-  const occupe = disabled || attente || dictee !== 'repos'
-  const statut = dictee === 'enregistrement' ? 'Le micro écoute votre question.'
-    : dictee === 'permission' ? 'Autorisez le micro.'
-    : dictee === 'transcription' ? 'Micro fermé. Transcription de votre question…'
-    : attente ? `${NOM[volet]} réfléchit…`
-    : parle ? `${NOM[volet]} parle.` : null
+  const statut = attente ? `${NOM[volet]} réfléchit…` : parle ? `${NOM[volet]} parle.` : null
 
   return (
-    <section className="panel space-y-4 p-5" aria-labelledby="expert-titre">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 basis-[220px]">
-          <h2 id="expert-titre" className="text-base font-medium">
-            <BookOpen className="mr-2 inline size-4 align-[-2px] text-steel" aria-hidden="true" />
-            {NOM[volet]}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">{AIDE[volet]} Il ne lance rien.</p>
-          <button type="button" className="console-button primary mt-3" disabled={disabled || !cible}
-            onPointerEnter={() => prechargerAccueil(accueil)} onFocus={() => prechargerAccueil(accueil)}
-            onClick={(e) => ouvrirConversation(e.currentTarget)}>
-            <AudioLines className="size-4" aria-hidden="true" />
-            Converser à la voix
-          </button>
-        </div>
-        <button
-          type="button"
-          className="console-button"
-          aria-pressed={voix}
-          onClick={() => { if (voix) arreterVoix(); setVoix(!voix) }}
-        >
-          {voix ? <Volume2 className="size-4" aria-hidden="true" /> : <VolumeX className="size-4" aria-hidden="true" />}
-          {voix ? 'Réponses lues' : 'Réponses muettes'}
+    <section className="lv-expert" aria-labelledby="expert-titre">
+      <div className="lv-expert-barres" aria-hidden="true">
+        {Array.from({ length: 23 }, (_, i) => <span key={i} style={{ ['--i' as string]: Math.abs(i - 11) }} />)}
+      </div>
+      <p className="lv-expert-surtitre">{NOM[volet]} · votre mission commence ici</p>
+      <h2 id="expert-titre">Bonjour.<br />{QUESTION[volet]}</h2>
+      <p className="lv-expert-chapo">
+        Décrivez votre objectif{cibleNom ? ` sur ${cibleNom}` : ''}. {NOM[volet]} prépare le test avec vous, puis vous décidez de le lancer.
+      </p>
+      <div className="lv-expert-actions">
+        <button ref={bouton} type="button" className="lv-bouton lv-bouton-encre lv-bouton-grand" disabled={disabled || !cible}
+          onPointerEnter={() => prechargerAccueil(accueil)} onFocus={() => prechargerAccueil(accueil)}
+          onClick={(e) => ouvrirConversation(e.currentTarget)}>
+          <Mic aria-hidden="true" />
+          Parler à l’expert
         </button>
+        <button type="button" className="lv-bouton lv-bouton-trait" aria-pressed={ecrire} onClick={() => setEcrire(!ecrire)}>
+          <Keyboard aria-hidden="true" />
+          Écrire à l’expert
+        </button>
+        {onManuel ? (
+          <button type="button" className="lv-bouton lv-bouton-discret" onClick={onManuel}>
+            <SlidersHorizontal aria-hidden="true" />
+            Paramétrer manuellement
+          </button>
+        ) : null}
       </div>
 
       {messages.length ? (
-        <ol ref={fil} className="max-h-[min(28rem,60vh)] space-y-3 overflow-y-auto pr-1" aria-label={`Conversation avec ${NOM[volet].toLowerCase()}`}>
+        <ol ref={fil} className="lv-expert-fil" aria-label={`Conversation avec ${NOM[volet].toLowerCase()}`}>
           {messages.map((m, i) => (
-            <li key={i} className={m.role === 'utilisateur' ? 'flex justify-end' : 'flex'}>
-              {m.role === 'utilisateur' ? (
-                <p className="max-w-[85%] rounded-lg bg-foreground/[0.05] px-3 py-2 text-sm">{typographie(m.texte)}</p>
-              ) : (
-                <div className="max-w-[92%] space-y-2 rounded-lg border border-steel/30 bg-steel/[0.04] px-3 py-2">
-                  <p className="text-sm leading-relaxed">{typographie(m.texte)}</p>
-                  {m.consigne ? (
-                    <div className="space-y-2 rounded-md border border-border bg-background p-2.5">
-                      <p className="label-mono">{volet === 'qa' ? 'Consigne proposée' : 'Précisions proposées'}</p>
-                      <p className="text-sm">{typographie(m.consigne)}</p>
-                      <button type="button" className="console-button" disabled={disabled} onClick={() => onApply(m.consigne!)}>
-                        <CornerDownLeft className="size-4" aria-hidden="true" />
-                        Reprendre dans la consigne
-                      </button>
-                    </div>
-                  ) : null}
-                  {m.fiches?.length ? <p className="font-mono text-[10.5px] text-subtle">fiches : {m.fiches.join(', ')}</p> : null}
+            <li key={i} data-role={m.role}>
+              <p className="lv-expert-qui">{m.role === 'utilisateur' ? 'Vous' : NOM[volet]}</p>
+              <p className="lv-expert-texte">{typographie(m.texte)}</p>
+              {m.consigne ? (
+                <div className="lv-expert-proposition">
+                  <p className="lv-expert-qui">{volet === 'qa' ? 'Consigne proposée' : 'Précisions proposées'}</p>
+                  <p>{typographie(m.consigne)}</p>
+                  <button type="button" className="lv-bouton lv-bouton-bleu" disabled={disabled} onClick={() => onApply(m.consigne!)}>
+                    <CornerDownLeft aria-hidden="true" />
+                    Reprendre dans la consigne
+                  </button>
                 </div>
-              )}
+              ) : null}
             </li>
           ))}
         </ol>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
-        {dictee === 'enregistrement' ? (
-          <button type="button" className="console-button border-danger/40 text-danger" onClick={() => controleur.current?.arreter()}>
-            <Square className="size-3.5" aria-hidden="true" />
-            Arrêter et envoyer
+      {ecrire || messages.length ? (
+        <div className="lv-expert-saisie">
+          <label className="min-w-0 flex-1">
+            <span className="sr-only">Votre question à l’expert</span>
+            <input
+              value={question}
+              maxLength={1000}
+              disabled={disabled || attente || !cible}
+              placeholder="Ou écrivez votre objectif…"
+              onChange={(e) => setQuestion(e.target.value)}
+              // Entrée ne doit jamais envoyer le formulaire du studio (qui lance la mission) : elle pose la question.
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void demander(question) } }}
+            />
+          </label>
+          <button type="button" className="lv-bouton lv-bouton-bleu" disabled={disabled || attente || !question.trim() || !cible} onClick={() => void demander(question)}>
+            Demander <ArrowRight aria-hidden="true" />
           </button>
-        ) : (
-          <button type="button" className="console-button" onClick={ecouter} disabled={occupe || !cible}>
-            <Mic className="size-4" aria-hidden="true" />
-            Parler à l’expert
+          <button type="button" className="lv-bouton lv-bouton-discret" aria-pressed={voix} onClick={() => { if (voix) arreterVoix(); setVoix(!voix) }}>
+            {voix ? <Volume2 aria-hidden="true" /> : <VolumeX aria-hidden="true" />}
+            {voix ? 'Réponses lues' : 'Réponses muettes'}
           </button>
-        )}
-        {dictee !== 'repos' ? (
-          <button type="button" className="console-button" onClick={() => controleur.current?.annuler()}>
-            <X className="size-4" aria-hidden="true" />
-            Annuler
-          </button>
-        ) : null}
-        {parle ? (
-          <button type="button" className="console-button" onClick={arreterVoix}>
-            <VolumeX className="size-4" aria-hidden="true" />
-            Couper la voix
-          </button>
-        ) : null}
-        <label className="flex min-w-0 flex-1 basis-[220px] items-center gap-2">
-          <span className="sr-only">Votre question à l’expert</span>
-          <input
-            className="console-field min-w-0 flex-1"
-            value={question}
-            maxLength={1000}
-            disabled={occupe || !cible}
-            placeholder="Votre question…"
-            onChange={(e) => setQuestion(e.target.value)}
-            // Entrée ne doit jamais envoyer le formulaire du studio (qui lance la mission) : elle pose la question.
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void demander(question) } }}
-          />
-          <button type="button" className="console-button" disabled={occupe || !question.trim() || !cible} onClick={() => void demander(question)}>
-            Demander
-          </button>
-        </label>
-      </div>
+        </div>
+      ) : null}
 
-      {statut ? <p className="text-xs text-muted-foreground" role="status">{statut}</p> : null}
+      {statut ? <p className="lv-expert-statut" role="status">{statut}</p> : null}
+      {erreur ? <p className="text-[13px] text-danger" role="alert">{erreur}</p> : null}
+      <p className="lv-expert-note">Whisper écoute · Llama répond · Kokoro parle, sur Hugging Face. L’expert ne lance rien : vous gardez la main.</p>
+
       {conversation ? (
         <ExpertConversation nom={NOM[volet]} volet={volet} cibleNom={cibleNom} accueil={accueil} fil={messages} origine={origine}
           poser={poser} annoncer={(texte) => setMessages((m) => [...m, { role: 'expert', texte }])}
           onApply={onApply} onClose={() => setConversation(false)} />
       ) : null}
-      {erreur ? <p className="text-sm text-danger" role="alert">{erreur}</p> : null}
     </section>
   )
 }

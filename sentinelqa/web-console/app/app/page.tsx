@@ -1,160 +1,199 @@
-import { ArrowRight, Plus } from 'lucide-react'
+import { Activity, ArrowRight, Check, ChevronRight, CircleHelp, FileCheck2, FolderOpen, Globe, Lock, Mic, Search, ShieldCheck, SlidersHorizontal, Sparkles, TriangleAlert } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ActivityFeed } from '@/components/console/overview/activity-feed'
 import { LiveBrowser } from '@/components/console/overview/live-browser'
-import { Card, PageHeader, primaryButton, secondaryButton } from '@/components/console/page-header'
-import { StatusBadge } from '@/components/console/status-badge'
+import { PageHeader } from '@/components/console/page-header'
 import { formatAge, formatDateTime } from '@/lib/console-data'
-import { activite, applications, chargerConsole, failles, indicateurs, sessionsNavigateur } from '@/lib/console-reel'
+import { chargerConsole, failles, indicateurs, missions, sessionsNavigateur } from '@/lib/console-reel'
 
 export const metadata: Metadata = {
   title: 'Vue d’ensemble — HSentinel',
-  description: 'Toute l’activité de vos agents HSentinel : sessions navigateur, audits, failles et alertes.',
+  description: 'Votre espace HSentinel : missions, contrôles conformes, anomalies à examiner et preuves.',
 }
 
-
 const nombre = (n: number) => n.toLocaleString('fr-FR')
-const pluriel = (n: number, mot: string) => `${nombre(n)} ${mot}${n > 1 ? 's' : ''}`
+/** « 1 faille prouvée », « 3 failles prouvées » : l'accord se donne en entier, jamais par un « s » ajouté au dernier mot. */
+const accord = (n: number, un: string, plusieurs: string) => `${nombre(n)} ${n > 1 ? plusieurs : un}`
 
-// D-49 : les indicateurs se calculent sur nos missions et nos constats des 7 derniers jours ; aucun chiffre n'est écrit en dur.
+type Ligne = ReturnType<typeof missions>['qa'][number]
+
+type Ton = 'sur' | 'alerte' | 'attente' | 'bleu' | 'neutre'
+/** Le verdict d'une mission, dans les mots de la marque : faille prouvée, écart constaté, conforme, contrôle à confirmer. */
+function verdict(m: Ligne): { texte: string; ton: Ton } {
+  if (m.status === 'en_attente') return { texte: 'En attente d’un agent', ton: 'neutre' }
+  if (m.status === 'en_cours') return { texte: 'Agent au travail', ton: 'bleu' }
+  if (m.status === 'echec') return { texte: 'Panne technique', ton: 'attente' }
+  const b = m.summary
+  if (b.failed) return m.module === 'pentest'
+    ? { texte: accord(b.failed, 'faille prouvée', 'failles prouvées'), ton: 'alerte' }
+    : { texte: accord(b.failed, 'écart constaté', 'écarts constatés'), ton: 'alerte' }
+  if (b.inconclusive) return { texte: accord(b.inconclusive, 'contrôle à confirmer', 'contrôles à confirmer'), ton: 'attente' }
+  if (b.passed) return { texte: m.module === 'pentest' ? 'Aucune faille prouvée' : 'Conforme', ton: 'sur' }
+  return { texte: 'Rapport disponible', ton: 'neutre' }
+}
+
+// D-55 : la vue d'ensemble de la référence Lovable, sur nos missions réelles. Les dollars ont quitté les indicateurs
+// (brief) : on y lit des contrôles, des anomalies et des missions. L'aperçu de droite est illustré, et le dit.
 export default async function OverviewPage() {
   const d = await chargerConsole()
   const k = indicateurs(d)
-  const FINDINGS = failles(d)
-  const APPLICATIONS = applications(d)
-  const BROWSER_SESSIONS = sessionsNavigateur(d)
-  const ACTIVITY = activite(d)
-  const KPIS = [
-    { label: 'Sessions navigateur', value: nombre(k.sessions), hint: '7 derniers jours', delta: `+${nombre(k.sessionsJour)} aujourd’hui`, href: '#sessions', action: 'Voir les sessions des agents' },
-    { label: 'Pages explorées', value: nombre(k.pages), hint: 'par les agents', delta: `+${nombre(k.pagesJour)} aujourd’hui`, href: '/app/applications', action: 'Voir la couverture par application' },
-    { label: 'Audits terminés', value: nombre(k.audits), hint: pluriel(k.applicationsAuditees, 'application'), delta: `+${nombre(k.auditsJour)} aujourd’hui`, href: '/app/audits', action: 'Voir les audits' },
-    { label: 'Failles ouvertes', value: nombre(k.failles), hint: pluriel(k.critiques, 'critique'), delta: k.failles ? 'à traiter' : 'aucune', danger: k.failles > 0, href: '/app/diagnostic?statut=ouverte', action: 'Voir les failles ouvertes' },
-  ]
-  const open = FINDINGS.find((f) => f.status === 'ouverte')
+  const ouvertes = failles(d).filter((f) => f.status === 'ouverte')
+  const principale = ouvertes[0]
+  const tout = missions(d)
+  const liste = [...tout.qa, ...tout.pentest].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+  const semaine = Date.now() - 7 * 86400000
+  const recentes = liste.filter((m) => Date.parse(m.createdAt) >= semaine && m.status === 'termine')
+  const conformes = recentes.reduce((n, m) => n + (m.summary.passed ?? 0), 0)
+  const verifies = recentes.reduce((n, m) => n + (m.summary.passed ?? 0) + (m.summary.failed ?? 0), 0)
+  const ecartsQa = recentes.filter((m) => m.module === 'qa').reduce((n, m) => n + (m.summary.failed ?? 0), 0)
+  const enCours = liste.filter((m) => m.status === 'en_cours' || m.status === 'en_attente')
+  const derniere = liste.find((m) => m.status === 'termine')
+  const dernierVerdict = derniere ? verdict(derniere) : null
 
   return (
     <>
-      <PageHeader
-        crumbs={[{ label: 'Console' }, { label: 'Vue d’ensemble' }]}
-        title="Vue d’ensemble"
-        description="Tout ce que vos agents ont fait dans le navigateur : sessions, audits, failles prouvées et alertes envoyées."
-        actions={
-          <>
-            <Link href="/app/nouveau" className={secondaryButton}>
-              <Plus className="size-3.5" aria-hidden="true" />
-              Lancer un audit
-            </Link>
-            <Link href="/app/audits" className={primaryButton}>
-              Voir les audits
-              <ArrowRight className="size-3.5" aria-hidden="true" />
-            </Link>
-          </>
-        }
-      />
+      <PageHeader crumbs={[{ label: 'Vue d’ensemble' }]} title="Un regard neuf sur vos applications."
+        description="Des parcours vérifiés. Des anomalies comprises. Des preuves, toujours." />
 
-      <main className="flex flex-col gap-5 px-5 py-6 lg:px-8">
-        <ul className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border lg:grid-cols-4">
-          {KPIS.map((kpi) => (
-            <li key={kpi.label} className="flex">
-              <Link
-                href={kpi.href}
-                className="group flex flex-1 flex-col gap-1 bg-card px-4 py-4 transition-colors hover:bg-foreground/[0.03] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-steel"
-              >
-                <span className="flex items-center justify-between gap-2 text-[12px] text-muted-foreground">
-                  {kpi.label}
-                  <ArrowRight
-                    className="size-3.5 text-subtle opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100 group-focus-visible:opacity-100"
-                    aria-hidden="true"
-                  />
-                </span>
-                {/* Sur téléphone, « +30 aujourd’hui » passe sous le chiffre au lieu d'être rogné (relevé par notre agent QA, D-53). */}
-                <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <span className={`font-heading text-[26px] leading-none font-bold tabular-nums ${kpi.danger ? 'text-danger' : 'text-foreground'}`}>
-                    {kpi.value}
-                  </span>
-                  <span className={`font-mono text-[10.5px] whitespace-nowrap ${kpi.danger ? 'text-danger' : 'text-safe'}`}>{kpi.delta}</span>
-                </span>
-                <span className="font-mono text-[10.5px] text-subtle">{kpi.hint}</span>
-                <span className="sr-only">{kpi.action}</span>
+      <main className="lv-contenu">
+        <section className="lv-accueil" aria-labelledby="accueil-titre">
+          <div className="lv-accueil-texte">
+            <p className="lv-accueil-surtitre"><Sparkles aria-hidden="true" />Bienvenue dans HSentinel</p>
+            <h2 id="accueil-titre">Votre site.<br />Un objectif.<span>On s’occupe du regard.</span></h2>
+            <p className="lv-accueil-chapo">Commencez par une conversation. Votre expert prépare le test, vous gardez la main.</p>
+            <div className="lv-accueil-actions">
+              <Link href="/app/nouveau?voix=1" className="lv-bouton lv-bouton-encre lv-bouton-grand">
+                <Mic aria-hidden="true" />Parler à l’expert<ArrowRight aria-hidden="true" />
               </Link>
-            </li>
-          ))}
+              <Link href="/app/nouveau" className="lv-bouton lv-bouton-discret">
+                <SlidersHorizontal aria-hidden="true" />Paramétrer manuellement<ChevronRight aria-hidden="true" />
+              </Link>
+            </div>
+            <p className="lv-accueil-note"><ShieldCheck aria-hidden="true" />Rien n’est lancé sans votre validation.</p>
+          </div>
+
+          {/* L'aperçu illustré : un agent qui parcourt une application, puis le code qui rend son verdict. Rien n'y est mesuré. */}
+          <figure className="lv-apercu" aria-label="Aperçu illustré : un agent parcourt une application, le code vérifie le résultat">
+            <div className="lv-apercu-fenetre">
+              <div className="lv-apercu-haut">
+                <span className="lv-apercu-points" aria-hidden="true"><i /><i /><i /></span>
+                <span className="lv-apercu-adresse"><Lock aria-hidden="true" />votre-application.fr</span>
+              </div>
+              <div className="lv-apercu-corps">
+                <div className="lv-apercu-nav" aria-hidden="true">
+                  <span className="lv-apercu-marque"><Globe />Votre application</span>
+                  <span className="lv-apercu-nav-actif" /><span /><span />
+                </div>
+                <div className="lv-apercu-page">
+                  <span className="lv-apercu-surtitre">Espace client</span>
+                  <h3>Tout commence par un parcours.</h3>
+                  <span className="lv-apercu-recherche"><Search aria-hidden="true" />Rechercher un document</span>
+                  <span className="lv-apercu-document">
+                    <span className="lv-apercu-document-icone"><FileCheck2 aria-hidden="true" /></span>
+                    <span><strong>Votre document</strong><small>Prêt à être consulté</small></span>
+                  </span>
+                </div>
+              </div>
+              <svg className="lv-apercu-curseur" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l14 8.5-6.2 1.3L9.6 19z" /></svg>
+            </div>
+            <div className="lv-apercu-verdict" aria-hidden="true">
+              <span><Check /></span>
+              <div><strong>Le bon résultat, au bon endroit.</strong><small>Contrôle conforme · preuve disponible</small></div>
+            </div>
+            <figcaption>Aperçu illustré</figcaption>
+          </figure>
+        </section>
+
+        <ul className="lv-indicateurs" aria-label="Vos indicateurs des 7 derniers jours">
+          <li>
+            <span><Check aria-hidden="true" />Contrôles conformes</span>
+            <strong>{verifies ? nombre(conformes) : '—'}</strong>
+            <small>{verifies ? `sur ${accord(verifies, 'contrôle vérifié', 'contrôles vérifiés')} en 7 jours` : 'Votre premier test vous attend'}</small>
+          </li>
+          <li>
+            <span><TriangleAlert aria-hidden="true" />Anomalies à examiner</span>
+            <strong className={ouvertes.length + ecartsQa ? 'lv-texte-alerte' : undefined}>{nombre(ouvertes.length + ecartsQa)}</strong>
+            <small>{accord(ouvertes.length, 'faille ouverte', 'failles ouvertes')} · {accord(ecartsQa, 'écart QA', 'écarts QA')} en 7 jours</small>
+          </li>
+          <li>
+            <span><Activity aria-hidden="true" />Missions en cours</span>
+            <strong>{nombre(enCours.length)}</strong>
+            <small>{enCours.length ? `dont ${nombre(enCours.filter((m) => m.status === 'en_attente').length)} en attente d’un agent` : `${accord(k.audits, 'mission terminée', 'missions terminées')} en 7 jours`}</small>
+          </li>
+          <li>
+            <span><FileCheck2 aria-hidden="true" />Dernier résultat</span>
+            <strong className={`lv-indicateur-texte ${dernierVerdict?.ton === 'alerte' ? 'lv-texte-alerte' : dernierVerdict?.ton === 'sur' ? 'lv-texte-sur' : ''}`}>{dernierVerdict?.texte ?? 'À venir'}</strong>
+            <small>{derniere ? `${derniere.app} · ${formatDateTime(derniere.createdAt)}` : 'Vos preuves apparaîtront ici'}</small>
+          </li>
         </ul>
 
-        {open ? (
-          <Link
-            href={`/app/diagnostic/${open.id}`}
-className="group flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg border border-danger/30 border-l-[3px] border-l-danger bg-danger-soft px-4 py-3 transition-colors hover:border-danger/50"
-  >
-  <span className="flex min-w-0 flex-1 basis-[260px] flex-col gap-1.5">
-  <span className="flex flex-wrap items-center gap-2">
-  <span className="rounded border border-danger/50 bg-danger/10 px-1.5 font-mono text-[10px] leading-[18px] font-semibold uppercase tracking-wider text-danger">
-  Faille principale · {open.severity}
-  </span>
-  <span className="text-[12px] text-muted-foreground">
-  {open.app} · ouverte depuis {formatAge(open.detectedAt)}
-  </span>
-  </span>
-  <span className="text-[14px] font-semibold text-pretty text-foreground">{open.title}</span>
-  </span>
-  <span className="inline-flex shrink-0 items-center gap-1 text-[12.5px] font-medium text-danger">
-              Voir le diagnostic
-              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        {principale ? (
+          <Link href={`/app/diagnostic/${principale.id}`} className="lv-alerte">
+            <span className="lv-alerte-icone"><TriangleAlert aria-hidden="true" /></span>
+            <span className="lv-alerte-texte">
+              <span className="lv-alerte-surtitre">Faille principale · {principale.severity}</span>
+              <strong>{principale.title}</strong>
+              <small>{principale.app} · ouverte depuis {formatAge(principale.detectedAt)}</small>
             </span>
+            <span className="lv-lien">Voir le diagnostic <ArrowRight aria-hidden="true" /></span>
           </Link>
         ) : null}
 
-        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="flex min-w-0 flex-col gap-5">
-            <div id="sessions" className="scroll-mt-6">
-              <LiveBrowser sessions={BROWSER_SESSIONS} />
+        <section className="lv-bloc" aria-labelledby="activite-titre">
+          <div className="lv-titre-section">
+            <div>
+              <h2 id="activite-titre">Votre activité récente</h2>
+              <p>Le fil de vos missions, de la première action au dernier contrôle.</p>
             </div>
-
-            <Card
-              title="Applications surveillées"
-              action={
-                <Link href="/app/applications" className="text-[12px] text-steel hover:underline">
-                  Gérer
-                </Link>
-              }
-            >
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[560px] text-left text-[12.5px]">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th scope="col" className="px-4 py-2 label-mono font-normal">Application</th>
-                      <th scope="col" className="px-4 py-2 label-mono font-normal">Comptes testés</th>
-                      <th scope="col" className="px-4 py-2 label-mono font-normal">Dernier audit</th>
-                      <th scope="col" className="px-4 py-2 label-mono font-normal">Statut</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {APPLICATIONS.map((app) => (
-                      <tr key={app.id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-2.5">
-                          <span className="block font-medium text-foreground">{app.name}</span>
-                          <span className="font-mono text-[10.5px] text-subtle">{app.url}</span>
-                        </td>
-                        <td className="px-4 py-2.5 text-muted-foreground">{app.companies.map((c) => c.name).join(', ') || '—'}</td>
-                        <td className="px-4 py-2.5 font-mono text-[11px] text-muted-foreground">{formatDateTime(app.lastAuditAt)}</td>
-                        <td className="px-4 py-2.5">
-                          <StatusBadge status={app.status} count={app.openFindings} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+            <Link href="/app/audits" className="lv-lien">Toutes les missions <ArrowRight aria-hidden="true" /></Link>
           </div>
-
-          <Card title="Activité récente">
-            <div className="px-4 pt-2 pb-1">
-              <ActivityFeed events={ACTIVITY} />
+          {liste.length ? (
+            <ul className="lv-lignes">
+              {liste.slice(0, 6).map((m) => {
+                const v = verdict(m)
+                return (
+                  <li key={`${m.module}-${m.id}`}>
+                    <Link href={`/app/missions/${m.module}/${m.id}`} className="lv-ligne">
+                      <span className="lv-ligne-icone">{m.module === 'qa' ? <FileCheck2 aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}</span>
+                      <span className="lv-ligne-texte">
+                        <strong>{m.title || (m.module === 'qa' ? 'Mission QA' : 'Mission Pentest')}</strong>
+                        <small>{m.app} · {m.module === 'qa' ? 'QA fonctionnel' : 'Pentest'} · {formatDateTime(m.createdAt)}</small>
+                      </span>
+                      <span className="lv-pill" data-ton={v.ton === 'neutre' ? undefined : v.ton}>{v.ton === 'bleu' ? <span className="lv-pulsation" aria-hidden="true" /> : null}{v.texte}</span>
+                      <ChevronRight className="lv-ligne-chevron" aria-hidden="true" />
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            <div className="lv-vide">
+              <span className="lv-vide-icone"><FolderOpen aria-hidden="true" /></span>
+              <div><strong>Le début d’une application mieux vérifiée.</strong><p>Votre première mission et ses résultats trouveront leur place ici.</p></div>
+              <Link href="/app/nouveau?voix=1" className="lv-bouton lv-bouton-trait">Préparer mon premier test <ArrowRight aria-hidden="true" /></Link>
             </div>
-          </Card>
+          )}
+        </section>
+
+        <section className="lv-bloc" aria-labelledby="sessions-titre">
+          <div className="lv-titre-section">
+            <div>
+              <h2 id="sessions-titre">Ce que vos agents ont vu</h2>
+              <p>Les dernières sessions, rejouées pas à pas depuis leurs captures réelles.</p>
+            </div>
+          </div>
+          <div id="sessions" className="scroll-mt-24"><LiveBrowser sessions={sessionsNavigateur(d)} /></div>
+        </section>
+
+        <div className="lv-bandes">
+          <div><span className="lv-bande-icone"><ShieldCheck aria-hidden="true" /></span><div><strong>L’agent montre. Le code décide.</strong><p>Un contrôle conforme s’appuie sur une preuve vérifiable.</p></div></div>
+          <div><span className="lv-bande-icone"><CircleHelp aria-hidden="true" /></span><div><strong>Un périmètre clair, dès le départ.</strong><p>Uniquement les sites autorisés, avec des limites explicites.</p></div></div>
         </div>
+
+        <footer className="lv-pied">
+          <span><ShieldCheck aria-hidden="true" />HSentinel · Votre IA code vite. Notre agent prouve ce qui fuit.</span>
+          <span>QA fonctionnel et pentest, preuves à l’appui</span>
+        </footer>
       </main>
     </>
   )

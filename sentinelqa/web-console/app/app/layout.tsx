@@ -4,7 +4,7 @@ import { getConsoleTheme } from '@/lib/session'
 
 export async function generateViewport(): Promise<Viewport> {
   const theme = await getConsoleTheme()
-  return theme === 'dark' ? { colorScheme: 'dark', themeColor: '#0b0e14' } : { colorScheme: 'light', themeColor: '#f7f7f5' }
+  return theme === 'dark' ? { colorScheme: 'dark', themeColor: '#0b0e14' } : { colorScheme: 'light', themeColor: '#f8f9f6' }
 }
 
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {

@@ -44,12 +44,12 @@ const OFFERS: Offer[] = [
     intro: 'Évaluez la vérification automatisée sur votre environnement de préproduction.',
     cta: 'Démarrer l’essai de 7 jours',
     points: [
-      { strong: '7 jours d’accès complet', rest: ' sur préproduction, coordonnées bancaires enregistrées dès l’ouverture.' },
-      { strong: 'Passage automatique en abonnement', rest: ' à J+7, avec rappel préalable et annulation libre avant échéance.' },
+      { strong: '7 jours d’accès accompagné', rest: ' sur votre préproduction, ouverts par l’équipe, sans carte bancaire.' },
+      { strong: 'Aucun passage automatique', rest: ' : à la fin de l’essai, vous choisissez votre offre, ou rien.' },
       { strong: 'Preuves reproductibles', rest: ' et diagnostic orienté, sans modification de votre code.' },
       creditsPoint('decouverte'),
     ],
-    footnote: 'Renouvellement automatique à J+7 · détection et preuve uniquement',
+    footnote: 'Sans engagement · détection et preuve uniquement',
     addonLabel: 'Option Code-Assisted (dès J+7)',
   },
   {
@@ -135,14 +135,15 @@ function Badge({ children, featured }: { children: React.ReactNode; featured?: b
 export function PricingSection({ signedIn }: { signedIn: boolean }) {
   const [view, setView] = useState<View>('offres')
   const [annual, setAnnual] = useState(false)
-  const [addon, setAddon] = useState(false)
+  // D-55 : l'option se rattache à une seule offre à la fois. Avant, un seul booléen partagé cochait les trois cartes ensemble.
+  const [addonPour, setAddonPour] = useState<string | null>(null)
 
   const price = (monthly: number) => (annual ? Math.round(monthly * ANNUAL_DISCOUNT) : monthly)
   const launch = price(PRICES.launch)
   const scale = price(PRICES.scale)
   const codeAssisted = price(PRICES.codeAssisted)
   const addonSuffix = ' / mois'
-  const ctaHref = (offer: string) => (signedIn ? '/app' : `/login?offre=${offer}${addon ? '&option=code-assisted' : ''}`)
+  const ctaHref = (offer: string) => (signedIn ? '/app' : `/login?offre=${offer}${addonPour === offer ? '&option=code-assisted' : ''}`)
 
   const priceBlock: Record<string, { amount: string; unit: string; note: React.ReactNode }> = {
     decouverte: {
@@ -150,9 +151,9 @@ export function PricingSection({ signedIn }: { signedIn: boolean }) {
       unit: 'pendant 7 jours',
       note: (
         <>
-          Carte bancaire requise au démarrage · passage automatique à{' '}
-          <strong className="font-semibold text-foreground">{formatEuro(launch + (addon ? codeAssisted : 0))} / mois</strong>
-          {annual ? ` (annuel -15 %, soit ${formatEuro(launch * 12)} / an)` : ''} après 7 jours, sauf annulation avant J+7.
+          Sans carte bancaire · l’équipe ouvre votre accès. Ensuite, Launch à{' '}
+          <strong className="font-semibold text-foreground">{formatEuro(launch + (addonPour === 'decouverte' ? codeAssisted : 0))} / mois</strong>
+          {annual ? ` (annuel -15 %, soit ${formatEuro(launch * 12)} / an)` : ''} si vous le choisissez.
         </>
       ),
     },
@@ -276,11 +277,12 @@ export function PricingSection({ signedIn }: { signedIn: boolean }) {
                         <label className="flex cursor-pointer items-center gap-2 text-[12.5px] font-medium text-foreground">
                           <input
                             type="checkbox"
-                            checked={addon}
-                            onChange={(e) => setAddon(e.target.checked)}
+                            checked={addonPour === offer.id}
+                            onChange={(e) => setAddonPour(e.target.checked ? offer.id : null)}
                             className="size-3.5 accent-[var(--color-steel)]"
                           />
                           {offer.addonLabel}
+                          <span className="rounded border border-border px-1.5 font-mono text-[9.5px] font-normal tracking-wide text-subtle uppercase">à venir</span>
                         </label>
                         <span
                           className={cn(
@@ -323,9 +325,12 @@ export function PricingSection({ signedIn }: { signedIn: boolean }) {
                   Aide au ciblage et au diagnostic uniquement : HSentinel ne modifie jamais votre code source.
                 </p>
               </div>
-              <CtaLink href={signedIn ? '/app' : '/login?option=code-assisted'} featured>
-                Activer Code-Assisted
-              </CtaLink>
+              {/* L'onglet décrit l'option et mène à la même sélection, sur l'offre Launch : un seul état de commande. */}
+              <button type="button" onClick={() => { setAddonPour('launch'); setView('offres') }}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-steel px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#154fc4]">
+                Ajouter à l’offre Launch
+              </button>
+              <p className="text-[11.5px] text-subtle">Option à venir : son analyse du dépôt n’est pas encore ouverte. Vous la réservez ; elle n’est pas facturée avant.</p>
               <PointList
                 points={[
                   { strong: 'Accès en lecture seule', rest: ' à votre dépôt, avec consentement explicite de votre équipe.' },

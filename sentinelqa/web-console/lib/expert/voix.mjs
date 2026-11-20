@@ -40,6 +40,26 @@ export function transcriptionUtile(texte) {
   return !FANTOMES.test(t)
 }
 
+// Whisper complète souvent un silence final par « you » ou « Merci » (20/11 : « …Bac plus 3? you you ») : on les retire.
+const QUEUE_FANTOME = /(?:[\s,]+(?:you|thank you|thanks|merci))+[\s.!?…]*$/i
+
+/** La transcription sans la queue fantôme que Whisper ajoute au silence final.
+ *  @param {string} texte
+ *  @returns {string} */
+export function nettoyerTranscription(texte) {
+  return String(texte ?? '').replace(QUEUE_FANTOME, '').trim()
+}
+
+/** La question à envoyer à l'expert, ou null : la phrase brute d'abord (« Thank you. » entier est un fantôme), puis
+ *  sa version sans queue fantôme. Dans l'autre ordre, « Thank you. » devenait « Thank », et l'expert y répondait (20/11).
+ *  @param {string} brut
+ *  @returns {string | null} */
+export function questionTranscrite(brut) {
+  if (!transcriptionUtile(brut)) return null
+  const texte = nettoyerTranscription(brut)
+  return transcriptionUtile(texte) ? texte : null
+}
+
 let cache = null
 let enCours = []
 let garde = null

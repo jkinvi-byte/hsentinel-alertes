@@ -71,7 +71,7 @@ export default async function DiagnosticPage({ params }: { params: Promise<{ id:
         </div>
       </PageHeader>
 
-      <main className="flex flex-col gap-5 px-5 py-6 lg:px-8">
+      <main className="lv-contenu flex flex-col gap-5">
         <dl className="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3">
           {dates.map((d) => (
             <div key={d.label} className="flex flex-col gap-1 bg-card px-4 py-3.5">

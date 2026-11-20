@@ -3,19 +3,17 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { ArrowRight, Check, Monitor, PencilLine, Smartphone, Sparkles, X } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, Monitor, PencilLine, Smartphone, Sparkles, X } from 'lucide-react'
 import { ConsoleHeader } from './console-header'
-import { MissionDictation } from './mission-dictation'
 import { MissionExpert } from './mission-expert'
 import { MissionAccount } from './mission-account'
 import { consoleRequest, postJson } from '@/lib/console-client'
 import { encryptQaAccount } from '@/lib/qa-account.mjs'
-import { ajouterTranscription } from '../../../web/lib/qa-dictee.mjs'
 import type { Catalog, Module, Plan, RunnerKey, TestAccount } from '@/lib/mission-types'
 
 const emptyAccount = (): TestAccount => ({ identifiant: '', motDePasse: '', identite: [''] })
 
-export function MissionStudio({ catalog, initialModule, initialTarget }: { catalog: Catalog; initialModule: Module; initialTarget?: string }) {
+export function MissionStudio({ catalog, initialModule, initialTarget, initialVoix = false }: { catalog: Catalog; initialModule: Module; initialTarget?: string; initialVoix?: boolean }) {
   const router = useRouter()
   const [module, setModule] = useState(initialModule)
   const [target, setTarget] = useState(catalog.qa.find(t => t.id === initialTarget && t.available)?.id ?? catalog.qa.find(t => t.available)?.id ?? '')
@@ -30,12 +28,12 @@ export function MissionStudio({ catalog, initialModule, initialTarget }: { catal
   const [plan, setPlan] = useState<Plan | null>(null)
   const [planFor, setPlanFor] = useState('')
   const [pending, setPending] = useState<'plan' | 'launch' | null>(null)
-  const [voiceBusy, setVoiceBusy] = useState(false)
   const [voiceUsed, setVoiceUsed] = useState(false)
+  // D-55 : la voix d'abord ; les paramètres manuels s'ouvrent à la demande, ou quand l'expert propose une consigne.
+  const [manuel, setManuel] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [account, setAccount] = useState<TestAccount>(emptyAccount)
   const locked = useRef(false)
-  const voiceLock = useRef(false)
   const began = useRef<number | null>(null)
   const selected = catalog.qa.find(t => t.id === target)
   const selectedScenario = catalog.pentest.find(s => s.id === scenario)
@@ -46,15 +44,20 @@ export function MissionStudio({ catalog, initialModule, initialTarget }: { catal
     { shouldRetryOnError: false, revalidateOnFocus: true },
   )
   const keyAvailable = Boolean(runnerKey && !keyError && !keyLoading)
-  const busy = !!pending || voiceBusy
+  const busy = !!pending
   const stale = planFor !== `${target}:${instruction.trim()}`
   const ready = !busy && (!connected || (keyAvailable && account.identifiant.trim() && account.motDePasse.length > 0))
     && (module === 'pentest' ? selectedScenario?.available && selectedPentestTarget : selected?.available && (mode === 'exploration' || (plan && !stale && plan.criteres.length > 0)))
   const limit = module === 'qa' ? selected?.limits[mode] : { max_steps: selectedPentestTarget?.maxSteps, max_time_s: selectedPentestTarget?.maxTime }
   const begin = () => { began.current ??= Date.now() }
+  function ouvrirManuel() {
+    setManuel(true)
+    begin()
+    requestAnimationFrame(() => document.getElementById('mission-parametres')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
 
   async function prepare() {
-    if (locked.current || voiceLock.current || !instruction.trim()) return
+    if (locked.current || !instruction.trim()) return
     locked.current = true; begin(); setPending('plan'); setError(null)
     const text = instruction.trim()
     try {
@@ -65,7 +68,7 @@ export function MissionStudio({ catalog, initialModule, initialTarget }: { catal
   }
   async function launch(e: React.FormEvent) {
     e.preventDefault()
-    if (!ready || locked.current || voiceLock.current) return
+    if (!ready || locked.current) return
     locked.current = true; setPending('launch'); setError(null)
     try {
       // Relire la clé au lancement : elle peut avoir changé pendant la préparation du plan.
@@ -82,11 +85,15 @@ export function MissionStudio({ catalog, initialModule, initialTarget }: { catal
     } catch (e) { setError(e instanceof Error ? e.message : 'La mission n’a pas pu être lancée.'); locked.current = false; setPending(null) }
   }
   return <>
-    <ConsoleHeader title="Préparer une mission" action={false} />
-    <main className="mx-auto w-full max-w-5xl p-5 lg:p-7">
-      <div className="mb-6"><p className="label-mono">Nouvelle mission</p><h1 className="mt-2 text-2xl font-semibold tracking-tight">Que voulez-vous vérifier ?</h1><p className="mt-2 text-sm text-muted-foreground">Choisissez le parcours, relisez les critères, puis lancez l’agent.</p></div>
+    <ConsoleHeader title="Nouvelle mission" />
+    <main className="lv-page pb-10">
+      <header className="lv-entete"><div className="lv-entete-texte"><p className="lv-surtitre">Nouvelle mission</p><h1>Votre site. Un objectif.</h1><p>Parlez à l’expert, ou paramétrez la mission vous-même. Rien n’est lancé sans votre validation.</p></div></header>
       <form onSubmit={launch} className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
         <div className="space-y-5">
+          {/* D-51 puis D-55 : l'expert QA ou Pentest, porte d'entrée vocale ; il ne lance rien, sa consigne ne remplace la vôtre que sur demande. */}
+          <MissionExpert volet={module} cible={module === 'qa' ? target : targetPentest} cibleNom={module === 'qa' ? selected?.name : selectedPentestTarget?.name} consigne={instruction} disabled={busy}
+            ouvrirAuDepart={initialVoix} onManuel={ouvrirManuel}
+            onApply={(texte: string) => { setInstruction(texte); setVoiceUsed(true); if (module === 'qa') setMode('guide'); begin(); ouvrirManuel() }} />
           <section className="panel space-y-5 p-5" aria-labelledby="mission-setup">
             <h2 id="mission-setup" className="text-base font-medium"><span className="mr-2 text-steel">01</span>Le test et l’application</h2>
             <div className="grid grid-cols-2 gap-2" role="group" aria-label="Volet">
@@ -105,20 +112,21 @@ export function MissionStudio({ catalog, initialModule, initialTarget }: { catal
               <p className="text-sm text-muted-foreground">{selectedPentestTarget?.name}</p><p className="break-all text-xs text-muted-foreground">{selectedPentestTarget?.url}</p>
             </>}
           </section>
-          <section className="panel space-y-4 p-5" aria-labelledby="mission-instruction">
+          {manuel ? <section id="mission-parametres" className="panel space-y-4 p-5 scroll-mt-24" aria-labelledby="mission-instruction">
             <h2 id="mission-instruction" className="text-base font-medium"><span className="mr-2 text-steel">02</span>{module === 'qa' ? 'Le parcours' : 'Le résultat attendu'}</h2>
             {module === 'qa' && <div className="flex flex-wrap gap-2" role="group" aria-label="Type de parcours">{selected?.modes.map(m => <button key={m} type="button" disabled={busy} aria-pressed={mode === m} className={`console-button ${mode === m ? 'border-steel text-foreground' : 'text-muted-foreground'}`} onClick={() => setMode(m)}>{m === 'guide' ? 'Consigne guidée' : 'Exploration'}</button>)}</div>}
             {module === 'pentest' && <p className="text-sm leading-relaxed">{selectedScenario?.expected}</p>}
             {module === 'qa' && mode === 'exploration' ? <p className="text-sm leading-relaxed text-muted-foreground">L’agent explore les menus et relève les problèmes visibles sur {selected?.limits.exploration?.max_pages ?? 6} pages au plus. Chaque constat garde son niveau de preuve.</p> : <>
               <label className="block space-y-2 text-sm"><span>{module === 'qa' ? 'Votre consigne' : 'Précisions facultatives'}</span><textarea rows={4} className="console-field resize-y" maxLength={2000} disabled={busy} value={instruction} onChange={e => { setInstruction(e.target.value); begin() }} placeholder={module === 'qa' ? connected ? 'Connecte-toi, puis ouvre Mon parcours et vérifie que la page s’affiche.' : 'Ouvre Programmes, puis le Bachelor, et vérifie que la page affiche « Bac+3 ».' : 'Précisez ce que l’agent doit observer dans ce scénario.'} /></label>
               <div className="flex justify-between text-xs text-muted-foreground"><span>{module === 'qa' ? 'Un texte attendu exactement se met entre guillemets.' : 'Les précisions restent dans le périmètre du contrôle choisi.'}</span><span className="ml-3 tabular-nums">{[...instruction].length}/2000</span></div>
-              <MissionDictation disabled={busy} onBusy={(value: boolean) => { voiceLock.current = value; setVoiceBusy(value); if (value) begin() }} onText={(text: string) => { setInstruction(ajouterTranscription(instruction, text)); setVoiceUsed(true) }} />
             </>}
             {module === 'qa' && mode === 'guide' && <button className="console-button" type="button" disabled={busy || !instruction.trim()} onClick={prepare}><Sparkles className="size-4" aria-hidden="true" />{pending === 'plan' ? 'Préparation du plan…' : plan ? 'Préparer de nouveau' : 'Préparer le plan'}</button>}
-          </section>
-          {/* D-51 : l'expert QA ou Pentest ; il ne lance rien, sa consigne ne remplace la vôtre que sur demande. */}
-          <MissionExpert volet={module} cible={module === 'qa' ? target : targetPentest} cibleNom={module === 'qa' ? selected?.name : selectedPentestTarget?.name} consigne={instruction} disabled={busy}
-            onApply={(texte: string) => { setInstruction(texte); if (module === 'qa') setMode('guide'); begin() }} />
+          </section> : (
+            <button type="button" className="lv-ouvrir-parametres" onClick={ouvrirManuel}>
+              <span><strong>Paramètres manuels</strong><small>{module === 'qa' ? 'Consigne, type de parcours et plan à relire' : 'Précisions facultatives pour ce contrôle'}</small></span>
+              <ChevronDown aria-hidden="true" />
+            </button>
+          )}
           {module === 'qa' && mode === 'guide' && plan && <section className="panel space-y-4 p-5" aria-labelledby="plan-title"><p className="label-mono">03 / Relecture</p><h2 id="plan-title" className="text-base font-medium">{plan.titre}</h2>
             {stale && <p role="status" className="text-sm text-warn">La consigne a changé. Préparez de nouveau le plan avant de lancer.</p>}
             <ol className="space-y-2">{plan.criteres.map((c, i) => <li key={c.id} className="flex gap-3 rounded-md border border-border p-3"><span className="font-mono text-xs text-steel">C{i + 1}</span><div className="min-w-0 flex-1"><p className="text-sm">{c.description}</p>{c.valeur && <p className="mt-1 break-words text-xs text-muted-foreground">{c.valeur}</p>}</div><button type="button" aria-label={`Retirer le critère C${i + 1}`} disabled={busy || plan.criteres.length <= 1} className="self-start rounded p-1 text-muted-foreground disabled:opacity-30" onClick={() => setPlan({ ...plan, criteres: plan.criteres.filter((_, index) => index !== i) })}><X className="size-4" /></button></li>)}</ol>
