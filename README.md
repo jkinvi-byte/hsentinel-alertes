@@ -4,7 +4,7 @@
 
 Des agents IA de H Company testent un site autorisé comme le ferait un humain : ils se connectent, naviguent, cliquent et observent l'écran. Le code tranche ensuite sur des preuves : l'avis de l'agent seul ne suffit jamais. Chaque faille prouvée et chaque écart constaté deviennent un ticket GitHub.
 
-**Démo en ligne : https://hsentinel-console.vercel.app** · accès par le code de l'équipe, communiqué sur demande · [Architecture](ARCHITECTURE.md) · [Suivi du projet](SUIVI.md)
+**Démo en ligne : https://hsentinel-console.vercel.app** · accès par le code de l'équipe, communiqué sur demande · [Business](BUSINESS.md) · [Architecture](ARCHITECTURE.md) · [Suivi du projet](SUIVI.md)
 
 ## Le problème
 
