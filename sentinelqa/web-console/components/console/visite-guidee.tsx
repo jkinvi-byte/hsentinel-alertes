@@ -62,6 +62,8 @@ function Parcours({ visite, depart, onFin }: { visite: Visite; depart: DOMRect |
   const [etapes] = useState(() => visite.etapes.filter((e) => cibleDe(e)))
   const [i, setI] = useState(0)
   const [boite, setBoite] = useState<DOMRect | null>(null)
+  // La bulle attend que le halo et le curseur soient arrivés : jamais l'explication d'une étape sous le halo de la précédente.
+  const [arrivee, setArrivee] = useState(false)
   const [appui, setAppui] = useState(0)
   const suivant = useRef<HTMLButtonElement>(null)
   const reduit = useRef(typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -78,16 +80,18 @@ function Parcours({ visite, depart, onFin }: { visite: Visite; depart: DOMRect |
     if (!etape) return
     const el = cibleDe(etape)
     if (!el) return
+    setArrivee(false)
     el.scrollIntoView({ block: 'center', behavior: reduit.current ? 'auto' : 'smooth' })
     let image = 0
     const mesurer = () => { cancelAnimationFrame(image); image = requestAnimationFrame(() => setBoite(el.getBoundingClientRect())) }
-    const attente = setTimeout(mesurer, reduit.current ? 0 : 420)
+    let arrivee: ReturnType<typeof setTimeout> | undefined
+    const attente = setTimeout(() => { mesurer(); arrivee = setTimeout(() => setArrivee(true), reduit.current ? 0 : 400) }, reduit.current ? 0 : 420)
     addEventListener('scroll', mesurer, true)
     addEventListener('resize', mesurer)
-    return () => { clearTimeout(attente); cancelAnimationFrame(image); removeEventListener('scroll', mesurer, true); removeEventListener('resize', mesurer) }
+    return () => { clearTimeout(attente); clearTimeout(arrivee); cancelAnimationFrame(image); removeEventListener('scroll', mesurer, true); removeEventListener('resize', mesurer) }
   }, [etape])
 
-  useEffect(() => { suivant.current?.focus({ preventScroll: true }) }, [i])
+  useEffect(() => { if (arrivee) suivant.current?.focus({ preventScroll: true }) }, [i, arrivee])
 
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
@@ -123,7 +127,7 @@ function Parcours({ visite, depart, onFin }: { visite: Visite; depart: DOMRect |
           <path d="M5 2.5v17.2l4.3-4.1 3.1 6.6 3-1.4-3.1-6.5h6.1z" />
         </svg>
       </div>
-      <div key={i} role="dialog" aria-modal="true" aria-labelledby="visite-titre" aria-describedby="visite-texte" className="lv-visite-bulle" style={style}>
+      {arrivee ? <div key={i} role="dialog" aria-modal="true" aria-labelledby="visite-titre" aria-describedby="visite-texte" className="lv-visite-bulle" style={style}>
         <div className="lv-visite-tete">
           <p className="lv-visite-compte">{visite.titre} · {i + 1} sur {etapes.length}</p>
           <button type="button" className="lv-visite-fermer" onClick={onFin} aria-label="Quitter la visite"><X aria-hidden="true" /></button>
@@ -137,7 +141,7 @@ function Parcours({ visite, depart, onFin }: { visite: Visite; depart: DOMRect |
             {derniere ? <>Terminer<Check aria-hidden="true" /></> : <>Suivant<ArrowRight aria-hidden="true" /></>}
           </button>
         </div>
-      </div>
+      </div> : null}
     </div>,
     // Dans la racine de la console, pas dans <body> : la bulle prend les couleurs de la console, claires ou sombres
     // (le 20/11, rendue dans <body>, elle prenait la palette sombre du site vitrine).

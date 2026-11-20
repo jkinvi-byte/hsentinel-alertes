@@ -1438,7 +1438,7 @@ body:has(.theme-console[data-theme='dark']) { background-color: #0b0e14; }
   background: var(--card);
   padding: 14px 16px 14px;
   box-shadow: 0 22px 60px rgb(10 13 19 / 0.28);
-  animation: lv-visite-bulle 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) 0.18s both;
+  animation: lv-visite-bulle 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 @keyframes lv-visite-bulle { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .lv-visite-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
