@@ -69,7 +69,7 @@ export default async function OverviewPage() {
                 <SlidersHorizontal aria-hidden="true" />Paramétrer manuellement<ChevronRight aria-hidden="true" />
               </Link>
             </div>
-            <p className="lv-accueil-note"><ShieldCheck aria-hidden="true" />Rien n’est lancé sans votre validation.</p>
+            <p className="lv-accueil-note"><ShieldCheck aria-hidden="true" />Rien n’est lancé sans vous : une mission prête s’annule pendant son compte à rebours.</p>
           </div>
 
           {/* L'aperçu illustré : un agent qui parcourt une application, puis le code qui rend son verdict. Rien n'y est mesuré. */}

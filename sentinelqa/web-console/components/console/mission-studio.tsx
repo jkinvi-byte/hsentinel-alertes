@@ -34,6 +34,8 @@ export function MissionStudio({ catalog, initialModule, initialTarget, initialVo
   // D-55 : la voix d'abord ; les paramètres manuels s'ouvrent à la demande, ou quand l'expert propose une consigne.
   const [manuel, setManuel] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // D-57 : l'expert a proposé une consigne et tout est prêt : le studio prépare le plan puis lance, sans autre clic.
+  const [direct, setDirect] = useState<string | null>(null)
   const [account, setAccount] = useState<TestAccount>(emptyAccount)
   // D-56 : sur une application ajoutée, un compte enregistré, choisi sans rien retaper.
   const [compteId, setCompteId] = useState(() => catalog.qa.find(t => t.id === target)?.comptes?.[0]?.id ?? '')
@@ -71,6 +73,29 @@ export function MissionStudio({ catalog, initialModule, initialTarget, initialVo
     } catch (e) { setError(e instanceof Error ? e.message : 'La préparation a échoué.') }
     finally { locked.current = false; setPending(null) }
   }
+  // Prêt à partir sans rien demander : QA, application disponible, et son compte de test s'il en faut un (enregistré).
+  const pretDirect = module === 'qa' && selected?.available === true && (!connected || (ajoutee && Boolean(compteId)))
+  async function lancerDirect(texte: string) {
+    if (locked.current) return
+    locked.current = true; begin(); setError(null)
+    setPending('plan'); setDirect('L’expert prépare le plan avec Hugging Face…')
+    try {
+      const data = await postJson<{ plan: Plan }>('plan', { target_id: target, instruction: texte })
+      setPlan(data.plan); setPlanFor(`${target}:${texte}`)
+      setPending('launch'); setDirect(`Plan prêt : ${data.plan.criteres.length} critère${data.plan.criteres.length > 1 ? 's' : ''}. Lancement de la mission…`)
+      const mission = await postJson<{ id: string; module: Module }>('missions', {
+        schema_version: 3, mode: 'qa', target_id: target, pilotage: 'guide', appareil: screen, modele_h: 'holo4-35b-a3b',
+        instruction: texte, source: 'voix', plan: data.plan, preparation_humaine_s: began.current ? Math.round((Date.now() - began.current) / 1000) : null,
+        ...(connected && ajoutee ? { compte_id: compteId } : {}),
+      })
+      router.push(`/app/missions/${mission.module}/${mission.id}`)
+    } catch (e) {
+      // Rien n'est perdu : la consigne est en place, les paramètres s'ouvrent pour relire et relancer.
+      setError(e instanceof Error ? e.message : 'Le lancement direct a échoué.')
+      setDirect(null); locked.current = false; setPending(null); ouvrirManuel()
+    }
+  }
+
   async function launch(e: React.FormEvent) {
     e.preventDefault()
     if (!ready || locked.current) return
@@ -92,13 +117,18 @@ export function MissionStudio({ catalog, initialModule, initialTarget, initialVo
   return <>
     <ConsoleHeader title="Nouvelle mission" />
     <main className="lv-page pb-10">
-      <header className="lv-entete"><div className="lv-entete-texte"><p className="lv-surtitre">Nouvelle mission</p><h1>Votre site. Un objectif.</h1><p>Parlez à l’expert, ou paramétrez la mission vous-même. Rien n’est lancé sans votre validation.</p></div></header>
+      <header className="lv-entete"><div className="lv-entete-texte"><p className="lv-surtitre">Nouvelle mission</p><h1>Votre site. Un objectif.</h1><p>Parlez à l’expert, ou paramétrez la mission vous-même. Quand tout est prêt, l’expert la lance ; vous pouvez toujours annuler.</p></div></header>
       <form onSubmit={launch} className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
         <div className="space-y-5">
-          {/* D-51 puis D-55 : l'expert QA ou Pentest, porte d'entrée vocale ; il ne lance rien, sa consigne ne remplace la vôtre que sur demande. */}
+          {/* D-51 puis D-55 et D-57 : l'expert QA ou Pentest, porte d'entrée vocale ; quand tout est prêt, sa consigne part après un compte à rebours ; sinon elle ne remplace la vôtre que sur demande. */}
           <MissionExpert volet={module} cible={module === 'qa' ? target : targetPentest} cibleNom={module === 'qa' ? selected?.name : selectedPentestTarget?.name} consigne={instruction} disabled={busy}
             ouvrirAuDepart={initialVoix} onManuel={ouvrirManuel}
-            onApply={(texte: string) => { setInstruction(texte); setVoiceUsed(true); if (module === 'qa') setMode('guide'); begin(); ouvrirManuel() }} />
+            onApply={(texte: string, lancer?: boolean) => {
+              setInstruction(texte); setVoiceUsed(true); if (module === 'qa') setMode('guide'); begin()
+              if (lancer && pretDirect) void lancerDirect(texte)
+              else ouvrirManuel()
+            }} />
+          {direct ? <p className="lv-note" data-ton="bleu" role="status"><Sparkles aria-hidden="true" /><span>{direct}</span></p> : null}
           <section className="panel space-y-5 p-5" aria-labelledby="mission-setup">
             <h2 id="mission-setup" className="text-base font-medium"><span className="mr-2 text-steel">01</span>Le test et l’application</h2>
             <div className="grid grid-cols-2 gap-2" role="group" aria-label="Volet">

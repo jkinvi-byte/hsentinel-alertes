@@ -37,7 +37,8 @@ export const MANUEL = [
     'La veille relève l’empreinte de chaque site autorisé toutes les 15 minutes ; quand elle change, une exploration QA part seule.',
   ] },
   { id: 'lancer', volet: 'commun', aliases: ['lancer', 'demarrer', 'tu peux lancer', 'lance', 'go', 'executer'], faits: [
-    'L’expert ne lance rien : c’est l’utilisateur qui relit puis appuie sur « Lancer la mission ». En QA guidé, le plan doit d’abord être préparé et relu.',
+    'Quand tout est prêt (l’application est vérifiée et son compte de test enregistré, ou c’est un site public), la consigne proposée part après un compte à rebours de 4 secondes, que l’utilisateur peut annuler ; le plan est préparé par Hugging Face juste avant le lancement.',
+    'Sinon, l’utilisateur reprend la consigne dans le studio, complète ce qui manque (par exemple le compte de test d’un site qui en demande un), relit le plan, puis appuie sur « Lancer la mission ».',
   ] },
 
   // ── QA fonctionnel ──

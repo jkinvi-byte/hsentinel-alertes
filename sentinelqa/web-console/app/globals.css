@@ -1391,3 +1391,16 @@ body:has(.theme-console[data-theme='dark']) { background-color: #0b0e14; }
 @media (prefers-reduced-motion: reduce) {
   .lv-carte, .lv-prete { animation: none; }
 }
+
+/* D-57 : la consigne prête part seule. Le compte à rebours se lit (le nombre) et se voit (un trait qui se vide une fois,
+   en transformation seule) ; « Annuler » reste à portée. Les deux boutons de la carte : lancer, ou reprendre. */
+.expert-proposition-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.expert-proposition-actions .expert-action { margin-top: 0; }
+.expert-action-trait { border: 1px solid var(--xc-filet); background: transparent; color: var(--xc-encre); }
+.theme-console[data-theme='dark'] .expert-action-trait { color: var(--xc-encre); }
+.expert-compte { position: relative; display: flex; align-items: center; gap: 12px; margin-top: 14px; overflow: hidden; border-radius: 12px; background: var(--xc-carte); padding: 10px 14px 12px; font-size: 13.5px; font-weight: 600; color: var(--xc-encre); }
+.expert-compte-barre { position: absolute; inset: auto 0 0; height: 3px; background: var(--xc-voix); transform-origin: left; animation: expert-compte var(--duree, 4s) linear forwards; }
+@keyframes expert-compte { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.expert-compte-texte { flex: 1; font-variant-numeric: tabular-nums; }
+.expert-annuler { border-radius: 8px; padding: 4px 8px; font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; color: var(--xc-encre); }
+@media (prefers-reduced-motion: reduce) { .expert-compte-barre { animation: none; } }

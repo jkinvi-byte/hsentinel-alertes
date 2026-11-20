@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, CornerDownLeft, KeyRound, Keyboard, Mic, Plus, Square, Volume2, X } from 'lucide-react'
+import { CornerDownLeft, KeyRound, Keyboard, Mic, Play, Plus, Square, Volume2, X } from 'lucide-react'
 import Link from 'next/link'
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { creerDictee as creerDicteeJs } from '../../../web/lib/qa-dictee.mjs'
@@ -20,8 +20,10 @@ const creerDictee = creerDicteeJs as unknown as (options: Record<string, unknown
 
 // D-56 : l'expert oriente au lieu de bloquer. Sous sa réponse, un bouton mène à l'ajout de l'application ou d'un compte de test.
 export type ActionProposee = { type: 'ajouter_application' | 'ajouter_compte'; libelle: string; href: string }
-export type ReponseExpert = { reponse: string; consigne_proposee: string | null; action?: ActionProposee | null }
-export type TourFil = { role: 'utilisateur' | 'expert'; texte: string; consigne?: string | null; action?: ActionProposee | null }
+// D-57 : « direct », tout est prêt et la consigne part après un compte à rebours ; « studio », il manque une information.
+export type Lancement = 'direct' | 'studio' | null
+export type ReponseExpert = { reponse: string; consigne_proposee: string | null; action?: ActionProposee | null; lancement?: Lancement }
+export type TourFil = { role: 'utilisateur' | 'expert'; texte: string; consigne?: string | null; action?: ActionProposee | null; lancement?: Lancement }
 type Tour = TourFil & { id: number; direct: boolean; phrases: string[] }
 type Etat = 'arrivee' | 'ouverture' | 'ecoute' | 'transcription' | 'reflexion' | 'formulation' | 'reponse' | 'attente'
 type Props = {
@@ -33,9 +35,13 @@ type Props = {
   origine: { x: number; y: number } | null
   poser: (question: string) => Promise<ReponseExpert | null>
   annoncer: (texte: string) => void
-  onApply: (texte: string) => void
+  /** La consigne choisie ; `lancer` : partir tout de suite (tout est prêt), sinon la reprendre dans le studio. */
+  onApply: (texte: string, lancer: boolean) => void
   onClose: () => void
 }
+
+// D-57 : une consigne prête part seule après ce délai, annulable ; reprendre la parole l'annule aussi.
+const SECONDES_LANCEMENT = 4
 
 const BARRES = 36
 // Détection de la fin de phrase : le silence après la parole, mesuré sur le micro.
@@ -94,7 +100,6 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
   const [fil, setFil] = useState<Tour[]>(() => filInitial.map((t) => ({ ...t, id: ++ids.current, direct: false, phrases: decouper(t.texte) })))
   const [etat, setEtat] = useState<Etat>('arrivee')
   const [modeVoix, setModeVoix] = useState<'flux' | 'phrase'>('flux')
-  const [reprises, setReprises] = useState<number[]>([])
   const [mainsLibres, setMainsLibres] = useState(true)
   const [ecrire, setEcrire] = useState(false)
   const [saisie, setSaisie] = useState('')
@@ -166,13 +171,36 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
     boucle.current = requestAnimationFrame(tour)
   }, [arreterBoucle])
 
+  // Le compte à rebours d'une consigne prête (D-57). Toute reprise de parole, toute fermeture l'annule (taireTout).
+  const [compte, setCompte] = useState<{ id: number; reste: number } | null>(null)
+  const compteMinuteur = useRef<ReturnType<typeof setInterval> | null>(null)
+  const lancerRef = useRef<(consigne: string, lancer: boolean) => void>(() => {})
+  const annulerCompte = useCallback(() => {
+    if (compteMinuteur.current) clearInterval(compteMinuteur.current)
+    compteMinuteur.current = null
+    setCompte(null)
+  }, [])
+  const demarrerCompte = useCallback((id: number, consigne: string) => {
+    annulerCompte()
+    let reste = SECONDES_LANCEMENT
+    setCompte({ id, reste })
+    compteMinuteur.current = setInterval(() => {
+      reste -= 1
+      if (reste > 0) { setCompte({ id, reste }); return }
+      annulerCompte()
+      if (ouvert.current) lancerRef.current(consigne, true)
+    }, 1000)
+  }, [annulerCompte])
+  useEffect(() => () => { if (compteMinuteur.current) clearInterval(compteMinuteur.current) }, [])
+
   const taireTout = useCallback(() => {
+    annulerCompte()
     lecture.current++
     audio.current?.pause()
     audio.current = null
     taire()
     arreterBoucle()
-  }, [arreterBoucle])
+  }, [annulerCompte, arreterBoucle])
 
   // ── La voix : Kokoro (Hugging Face) phrase par phrase, la suivante préchargée ; sinon la voix du système. ──
   const jouer = useCallback((blob: Blob, n: number, i: number, auDebut: () => void) => new Promise<void>((fini, echec) => {
@@ -213,13 +241,15 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
     motsRef.current = []
     allumes.current = 0
     setFil((f) => [...f.map((t) => (t.direct ? { ...t, direct: false } : t)),
-      { id, role: 'expert', texte: r.reponse, consigne: r.consigne_proposee, action: r.action ?? null, direct: true, phrases: suite }])
+      { id, role: 'expert', texte: r.reponse, consigne: r.consigne_proposee, action: r.action ?? null, lancement: r.lancement ?? null, direct: true, phrases: suite }])
     setModeVoix('flux')
     setEtat('formulation')
     const apres = () => {
       if (n !== lecture.current || !ouvert.current) return
       arreterBoucle()
       setFil((f) => f.map((t) => (t.id === id ? { ...t, direct: false } : t)))
+      // D-57 : tout est prêt, la mission part après le compte à rebours ; l'écoute ne reprend pas pendant ce temps.
+      if (r.consigne_proposee && r.lancement === 'direct') { setEtat('attente'); demarrerCompte(id, r.consigne_proposee); return }
       if (mainsLibresRef.current) setTimeout(() => { if (ouvert.current && n === lecture.current) void ecouterRef.current() }, 450)
       else setEtat('attente')
     }
@@ -255,7 +285,7 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
       }
       if (!parler(suite.slice(depart).join(' '), apres, dite)) apres()
     }
-  }, [jouer, arreterBoucle, allumer])
+  }, [jouer, arreterBoucle, allumer, demarrerCompte])
   const repondreRef = useRef(repondre)
   repondreRef.current = repondre
 
@@ -403,6 +433,14 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
     else { setFermeture(true); setTimeout(onClose, 200) }
   }, [onClose, taireTout])
 
+  // D-57 : choisir une consigne ferme la voix tout de suite ; « lancer » la fait partir sans autre clic.
+  const lancerConsigne = useCallback((consigne: string, lancer: boolean) => {
+    annulerCompte()
+    onApply(consigne, lancer)
+    fermer()
+  }, [annulerCompte, onApply, fermer])
+  lancerRef.current = lancerConsigne
+
   useEffect(() => {
     const touche = (e: KeyboardEvent) => { if (e.key === 'Escape') fermer() }
     window.addEventListener('keydown', touche)
@@ -516,11 +554,25 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
                   <div className="expert-proposition">
                     <p className="expert-qui expert-qui-voix">{volet === 'qa' ? 'Consigne proposée' : 'Précisions proposées'}</p>
                     <p className="expert-proposition-texte">{typographie(t.consigne)}</p>
-                    <button type="button" disabled={reprises.includes(t.id)} className="expert-action"
-                      onClick={() => { onApply(t.consigne!); setReprises((r) => [...r, t.id]) }}>
-                      {reprises.includes(t.id) ? <Check className="size-4" aria-hidden="true" /> : <CornerDownLeft className="size-4" aria-hidden="true" />}
-                      {reprises.includes(t.id) ? 'Reprise dans la consigne' : 'Reprendre dans la consigne'}
-                    </button>
+                    {compte?.id === t.id ? (
+                      <div className="expert-compte" role="status">
+                        <span className="expert-compte-barre" aria-hidden="true" style={{ ['--duree' as string]: `${SECONDES_LANCEMENT}s` }} />
+                        <span className="expert-compte-texte">Lancement dans {compte.reste}&nbsp;s</span>
+                        <button type="button" className="expert-annuler" onClick={annulerCompte}>Annuler</button>
+                      </div>
+                    ) : (
+                      <div className="expert-proposition-actions">
+                        {t.lancement === 'direct' ? (
+                          <button type="button" className="expert-action" onClick={() => lancerConsigne(t.consigne!, true)}>
+                            <Play className="size-4" aria-hidden="true" />Lancer la mission
+                          </button>
+                        ) : null}
+                        <button type="button" className={cn('expert-action', t.lancement === 'direct' && 'expert-action-trait')}
+                          onClick={() => lancerConsigne(t.consigne!, false)}>
+                          <CornerDownLeft className="size-4" aria-hidden="true" />Reprendre dans la consigne
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : null}
                 {t.role === 'expert' && t.action && !t.direct ? (
@@ -562,7 +614,7 @@ export function ExpertConversation({ nom, volet, cibleNom, accueil, fil: filInit
             </button>
           </div>
           <p className="expert-note">
-            {modeVoix === 'phrase' ? 'Whisper écoute · Llama répond, sur Hugging Face · voix du système.' : 'Whisper écoute · Llama répond · Kokoro parle, sur Hugging Face.'} L’expert ne lance rien.
+            {modeVoix === 'phrase' ? 'Whisper écoute · Llama répond, sur Hugging Face · voix du système.' : 'Whisper écoute · Llama répond · Kokoro parle, sur Hugging Face.'} Une mission prête part après 4 s, annulable.
           </p>
         </footer>
       </div>

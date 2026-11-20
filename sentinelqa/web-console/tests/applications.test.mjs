@@ -162,3 +162,24 @@ test('un échange sur un site inconnu ne déteint pas sur les questions suivante
   assert.deepEqual(historiqueSurLaCible(historique, connues).map((t) => t.texte), ['Que vérifier sur ardoise-demo.vercel.app ?', 'La page Factures.'])
   assert.deepEqual(historiqueSurLaCible(historique.slice(2), connues), historique.slice(2))
 })
+
+// ── D-57 : l'expert propose ; une question au plus ; il lance quand tout est prêt ─────────────────────────────
+test('une seule question de précision : l’accueil ne compte pas, une question qui répond à l’utilisateur compte', async () => {
+  const { questionDejaPosee } = await import('../lib/expert/actions.mjs')
+  const accueil = { role: 'expert', texte: 'Bonjour. Que souhaitez-vous vérifier ?' }
+  assert.equal(questionDejaPosee([accueil]), false)
+  assert.equal(questionDejaPosee([accueil, { role: 'utilisateur', texte: 'Les factures' }]), false)
+  assert.equal(questionDejaPosee([accueil, { role: 'utilisateur', texte: 'Les factures' }, { role: 'expert', texte: 'Je vérifie la page Factures, ou une autre ?' }]), true)
+  assert.equal(questionDejaPosee([{ role: 'utilisateur', texte: 'Les factures' }, { role: 'expert', texte: 'Je vérifie la page Factures.' }]), false)
+})
+
+test('le lancement direct seulement quand tout est prêt ; sinon le studio', async () => {
+  const { lancementPossible } = await import('../lib/expert/actions.mjs')
+  assert.equal(lancementPossible({ volet: 'qa', ajoutee: { verifiee_le: 'x', connexion: true, comptes: 1 } }), 'direct')
+  assert.equal(lancementPossible({ volet: 'qa', ajoutee: { verifiee_le: 'x', connexion: false, comptes: 0 } }), 'direct')
+  assert.equal(lancementPossible({ volet: 'qa', ajoutee: { verifiee_le: 'x', connexion: true, comptes: 0 } }), 'studio')
+  assert.equal(lancementPossible({ volet: 'qa', ajoutee: { verifiee_le: null, connexion: false, comptes: 0 } }), 'studio')
+  assert.equal(lancementPossible({ volet: 'qa', catalogue: { connexion: false } }), 'direct')
+  assert.equal(lancementPossible({ volet: 'qa', catalogue: { connexion: true } }), 'studio') // un compte saisi pour la mission
+  assert.equal(lancementPossible({ volet: 'pentest', catalogue: { connexion: false } }), 'studio') // jamais en Pentest
+})

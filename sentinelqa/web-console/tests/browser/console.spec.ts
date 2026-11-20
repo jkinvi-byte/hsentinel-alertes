@@ -37,7 +37,8 @@ async function fixtures(page: Page) {
   const calls = { starts: [] as any[], plans: [] as any[], stops: 0, transcriptions: 0, failed: false, running: false,
     keys: 0, keyAvailable: true, alertsFailed: false, expert: [] as any[], voix: [] as any[], voixEnPanne: false,
     reponseExpert: 'Réponse synthétique de l’expert.', transcription: 'Vérifie le Bachelor et son diplôme.',
-    ajouts: [] as any[], verifications: 0, comptes: [] as any[], actionExpert: null as null | Record<string, unknown> }
+    ajouts: [] as any[], verifications: 0, comptes: [] as any[], actionExpert: null as null | Record<string, unknown>,
+    lancementExpert: null as null | 'direct' | 'studio' }
   await page.route('**/api/console/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname
     const response = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
@@ -61,7 +62,7 @@ async function fixtures(page: Page) {
     if (path === '/api/console/expert') {
       calls.expert.push(request.postDataJSON())
       return response({ reponse: calls.reponseExpert, consigne_proposee: calls.actionExpert ? null : 'Ouvrir le menu « Programmes », puis vérifier le texte « Bac+3 ».',
-        action: calls.actionExpert, fiches: ['consigne'], modele: 'fixture', latence_s: 0.1 })
+        action: calls.actionExpert, lancement: calls.actionExpert ? null : calls.lancementExpert, fiches: ['consigne'], modele: 'fixture', latence_s: 0.1 })
     }
     if (path === '/api/console/transcription') {
       calls.transcriptions++; await new Promise(resolve => setTimeout(resolve, 350))
@@ -487,9 +488,8 @@ test('Mode conversation : l’expert parle le premier, puis répond à la phrase
   // Mains libres : la réponse dite, tous ses mots sont écrits, et l'écoute reprend seule.
   await expect(dialogue.getByRole('status')).toHaveText('L’expert QA vous écoute', { timeout: 10_000 })
   await expect(dialogue.locator('[data-direct]')).toHaveCount(0)
+  // D-57 : choisir la consigne ferme la voix tout de suite.
   await dialogue.getByRole('button', { name: 'Reprendre dans la consigne' }).click()
-  await expect(dialogue.getByRole('button', { name: 'Reprise dans la consigne' })).toBeDisabled()
-  await page.keyboard.press('Escape')
   await expect(dialogue).toHaveCount(0)
   await expect(page.getByLabel('Votre consigne')).toHaveValue('Ouvrir le menu « Programmes », puis vérifier le texte « Bac+3 ».')
   // Le panneau garde toute la conversation, accueil compris ; rien n'a été lancé.
@@ -764,4 +764,41 @@ test('L’expert oriente au lieu de bloquer : son bouton mène à l’ajout, adr
   await bouton.click()
   await expect(page).toHaveURL(/\/app\/applications\/nouvelle\?adresse=/)
   await expect(page.getByLabel('Adresse du site')).toHaveValue('https://app.facturo.io')
+})
+
+// ── D-57 : l'expert propose, et quand tout est prêt la mission part seule, après un compte à rebours annulable ──
+
+test('Mode conversation : tout est prêt, la consigne part seule après le compte à rebours (plan, puis mission)', async ({ page }) => {
+  await loginCookie(page); const calls = await fixtures(page)
+  calls.reponseExpert = 'Je vérifie la page du Bachelor et le texte « Bac+3 ». Je lance la mission ; vous pouvez annuler.'
+  calls.lancementExpert = 'direct'
+  await page.goto('/app/nouveau')
+  await page.getByRole('button', { name: 'Parler à l’expert' }).click()
+  const dialogue = page.getByRole('dialog', { name: /Conversation/ })
+  await dialogue.getByRole('button', { name: 'J’ai fini' }).click({ timeout: 8000 }).catch(() => {})
+  await expect(dialogue.getByText(/Lancement dans [1-4]/)).toBeVisible({ timeout: 15_000 })
+  // Pendant le compte à rebours, l'écoute ne reprend pas ; à zéro, la voix se ferme et le studio prépare puis lance.
+  await expect(dialogue).toHaveCount(0, { timeout: 8000 })
+  await expect.poll(() => calls.plans.length).toBe(1)
+  await expect.poll(() => calls.starts.length).toBe(1)
+  expect(calls.starts[0]).toMatchObject({ mode: 'qa', pilotage: 'guide', source: 'voix', instruction: 'Ouvrir le menu « Programmes », puis vérifier le texte « Bac+3 ».' })
+  expect(calls.starts[0].plan.criteres).toHaveLength(2)
+  await expect(page).toHaveURL(new RegExp(`/app/missions/qa/${id}$`))
+})
+
+test('Mode conversation : « Annuler » arrête le compte à rebours ; « Lancer la mission » part d’un clic et ferme la voix', async ({ page }) => {
+  await loginCookie(page); const calls = await fixtures(page)
+  calls.lancementExpert = 'direct'
+  await page.goto('/app/nouveau')
+  await page.getByRole('button', { name: 'Parler à l’expert' }).click()
+  const dialogue = page.getByRole('dialog', { name: /Conversation/ })
+  await dialogue.getByRole('button', { name: 'J’ai fini' }).click({ timeout: 8000 }).catch(() => {})
+  await dialogue.getByRole('button', { name: 'Annuler' }).click({ timeout: 15_000 })
+  await page.waitForTimeout(5000) // au-delà du délai : rien ne part
+  expect(calls.starts).toHaveLength(0)
+  await expect(dialogue).toBeVisible()
+  await dialogue.getByRole('button', { name: 'Lancer la mission' }).click()
+  await expect(dialogue).toHaveCount(0)
+  await expect.poll(() => calls.starts.length).toBe(1)
+  await expect(page).toHaveURL(new RegExp(`/app/missions/qa/${id}$`))
 })

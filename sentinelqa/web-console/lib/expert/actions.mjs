@@ -24,6 +24,26 @@ export function adressesCitees(texte) {
 const INTENTION_AJOUT = /\b(?:(?:mon|ma|notre|nos|mes)\s+(?:propre\s+)?(?:site|application|app|saas|logiciel|plateforme|produit)s?|(?:un|une|d['’]un|d['’]une)\s+autre\s+(?:site|application|app|saas|logiciel|plateforme)|(?:nouveau|nouvelle)\s+(?:site|application|app|saas)|ajouter|ajout|pas dans (?:la|ma|votre) liste)\b/i
 export const intentionAjout = (question) => INTENTION_AJOUT.test(String(question ?? '').normalize('NFC'))
 
+// D-57 : l'expert propose plus qu'il ne questionne. Une seule question de précision par conversation : une question de
+// l'expert compte quand elle répond à l'utilisateur (l'accueil, « Que souhaitez-vous vérifier ? », ne compte pas).
+/** @param {{ role: string, texte: string }[]} historique */
+export function questionDejaPosee(historique) {
+  return historique.some((t, i) => t.role === 'expert' && i > 0 && historique[i - 1].role === 'utilisateur' && /\?\s*$/.test(String(t.texte).trim()))
+}
+
+/**
+ * Peut-on lancer la mission tout de suite, sans rien demander de plus ? Seulement en QA, et seulement si la cible a tout
+ * ce qu'il faut : un site public, ou une application ajoutée et vérifiée avec au moins un compte de test enregistré.
+ * Un exemple du catalogue qui demande une connexion attend son compte, saisi pour la mission : « studio ».
+ * @param {{ volet: string, catalogue?: { connexion?: boolean } | null, ajoutee?: { verifiee_le?: string | null, connexion?: boolean, comptes?: number } | null }} d
+ * @returns {'direct' | 'studio'}
+ */
+export function lancementPossible({ volet, catalogue = null, ajoutee = null }) {
+  if (volet !== 'qa') return 'studio'
+  if (ajoutee) return ajoutee.verifiee_le && (!ajoutee.connexion || (ajoutee.comptes ?? 0) > 0) ? 'direct' : 'studio'
+  return catalogue && !catalogue.connexion ? 'direct' : 'studio'
+}
+
 /**
  * L'historique envoyé au modèle, sans les échanges sur un site inconnu (une question qui en cite l'adresse, et la réponse qui
  * suit) : le 20/11, après « peux-tu tester app.facturo.io ? », l'expert répondait sur facturo à une question sur Ardoise.
