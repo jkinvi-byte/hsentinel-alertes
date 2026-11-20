@@ -81,11 +81,14 @@ function Parcours({ visite, depart, onFin }: { visite: Visite; depart: DOMRect |
     const el = cibleDe(etape)
     if (!el) return
     setArrivee(false)
-    el.scrollIntoView({ block: 'center', behavior: reduit.current ? 'auto' : 'smooth' })
+    // Une cible déjà entière à l'écran : pas de défilement, le halo part tout de suite. Sinon, on défile puis on attend.
+    const r = el.getBoundingClientRect()
+    const visible = r.top >= 64 && r.bottom <= innerHeight - 24
+    if (!visible) el.scrollIntoView({ block: 'center', behavior: reduit.current ? 'auto' : 'smooth' })
     let image = 0
     const mesurer = () => { cancelAnimationFrame(image); image = requestAnimationFrame(() => setBoite(el.getBoundingClientRect())) }
     let arrivee: ReturnType<typeof setTimeout> | undefined
-    const attente = setTimeout(() => { mesurer(); arrivee = setTimeout(() => setArrivee(true), reduit.current ? 0 : 400) }, reduit.current ? 0 : 420)
+    const attente = setTimeout(() => { mesurer(); arrivee = setTimeout(() => setArrivee(true), reduit.current ? 0 : 400) }, reduit.current || visible ? 0 : 420)
     addEventListener('scroll', mesurer, true)
     addEventListener('resize', mesurer)
     return () => { clearTimeout(attente); clearTimeout(arrivee); cancelAnimationFrame(image); removeEventListener('scroll', mesurer, true); removeEventListener('resize', mesurer) }
