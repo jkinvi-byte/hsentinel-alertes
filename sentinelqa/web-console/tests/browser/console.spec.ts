@@ -5,6 +5,7 @@ import { constants, generateKeyPairSync, privateDecrypt } from 'node:crypto'
 import { createSession } from '../../lib/operator-session.mjs'
 import { normaliseMission } from '../../lib/mission-view.mjs'
 import { bilanAlertes, ligneAlerte } from '../../../web/lib/alertes-format.mjs'
+import { profilClient } from '../../../web/lib/applications-contrat.mjs'
 
 const secret = 'synthetic-browser-test-access-token'
 const externalServer = process.env.CONSOLE_TEST_URL
@@ -118,6 +119,27 @@ test('Les routes réelles refusent une session absente ou la session simulée hi
   const blocked = await request.post('/api/console/missions', { headers: { cookie: signed, origin: 'http://127.0.0.1:3102' }, data: { schema_version: 2, mode: 'security', target_id: 'peer-review', scenario_id: 'S-GEN-ACTIVE-01' } })
   expect(blocked.status()).toBe(400)
   expect((await request.post('/api/console/missions', { headers: { cookie: signed, origin: 'https://elsewhere.example' }, data: {} })).status()).toBe(403)
+})
+
+test('L’API enfile réellement un pentest libre sur une application vérifiée', async ({ request }) => {
+  const avant = TABLES.applications
+  const targetId = 'ardoise-demo-vercel-app'
+  const origine = 'https://ardoise-demo.vercel.app'
+  TABLES.applications = [{ id: targetId, nom: 'Ardoise', origine, autorisee: true, verifiee_le: '2026-11-20T08:00:00Z',
+    ajoutee_console: true, retiree_le: null, profil_qa: profilClient({ id: targetId, nom: 'Ardoise', origine }) }]
+  try {
+    const reponse = await request.post('/api/console/missions', {
+      headers: { cookie: `hs_operator_session=${createSession(secret)}`, origin: baseURL },
+      data: { schema_version: 2, mode: 'security', target_id: targetId, scenario_id: 'S-GEN-DISCOVERY-01', instruction: '' },
+    })
+    expect(reponse.status()).toBe(201)
+    expect(recues.audits).toHaveLength(1)
+    expect(recues.audits[0]).toMatchObject({ statut: 'en_attente', application: 'Ardoise', cible: `${origine}/`,
+      ecriture_autorisee: false, secrets_chiffres: null, comptes: [] })
+    expect(recues.audits[0].rapport.request).toMatchObject({ target_id: targetId, scenario_id: 'S-GEN-DISCOVERY-01', mode: 'security' })
+  } finally {
+    TABLES.applications = avant
+  }
 })
 
 test('Connexion opérateur : un faux code est refusé', async ({ page }) => {
@@ -366,6 +388,37 @@ test('Pentest : scénarios disponibles, contrôles actifs réservés au laborato
   await expect(page).toHaveURL(new RegExp(`/app/missions/pentest/${id}`))
   expect(calls.starts[0].mode).toBe('security')
   expect(calls.starts[0].scenario_id).toBe('S-PEER-01')
+})
+
+test('Pentest libre : une application vérifiée se lance depuis le studio en consultation seule', async ({ page }) => {
+  const avant = TABLES.applications
+  const cibleId = 'ardoise-demo-vercel-app'
+  const origine = 'https://ardoise-demo.vercel.app'
+  TABLES.applications = [...avant, {
+    id: cibleId, nom: 'Ardoise', origine, autorisee: true, verifiee_le: '2026-11-20T08:00:00Z', ajoutee_console: true,
+    profil_qa: {
+      id: cibleId, nom: 'Ardoise', origine, client: true, entree: `${origine}/accueil`, consultation_seule: true,
+      autorisation: 'Contrôle du site prouvé par le jeton publié', chemins_exclus: ['/api', '/deconnexion'], interdits: [],
+      limites: { guide: { max_steps: 30, max_time_s: 300 }, exploration: { max_steps: 40, max_time_s: 420, max_pages: 6 },
+        lectures_http: 30, octets_par_lecture: 3_000_000 },
+    },
+  }]
+  try {
+    await loginCookie(page); const calls = await fixtures(page)
+    await page.goto(`/app/nouveau?volet=pentest&cible=${cibleId}`)
+    await expect(page.getByRole('combobox', { name: 'Contrôle' })).toHaveValue('S-GEN-DISCOVERY-01')
+    await expect(page.getByRole('combobox', { name: 'Application autorisée' })).toHaveValue(cibleId)
+    await expect(page.getByRole('button', { name: 'Lancer la mission' })).toBeEnabled()
+    await page.getByRole('button', { name: 'Lancer la mission' }).click()
+    await expect(page).toHaveURL(new RegExp(`/app/missions/pentest/${id}`))
+    expect(calls.starts).toHaveLength(1)
+    expect(calls.starts[0]).toMatchObject({ schema_version: 2, mode: 'security', target_id: cibleId,
+      scenario_id: 'S-GEN-DISCOVERY-01', instruction: '' })
+    expect(calls.starts[0].compte).toBeUndefined()
+    expect(calls.starts[0].ecriture_autorisee).toBeUndefined()
+  } finally {
+    TABLES.applications = avant
+  }
 })
 
 test('Expert du studio : la voix d’abord, l’écrit à côté, consigne reprise sur demande, Entrée ne lance rien, un seul micro', async ({ page }) => {
@@ -663,6 +716,7 @@ test('Ajouter une application : adresse, vérification par jeton, compte chiffr�
   const clair = JSON.parse(privateDecrypt({ key: privateKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha256' }, Buffer.from(envoye.secret_chiffre, 'base64')).toString())
   expect(clair).toEqual({ mot_de_passe: motDePasse })
   await expect(page.getByRole('link', { name: /Préparer un test/ })).toHaveAttribute('href', `/app/nouveau?volet=qa&cible=${APP_AJOUTEE.id}`)
+  await expect(page.getByRole('link', { name: 'Pentest libre' })).toHaveAttribute('href', `/app/nouveau?volet=pentest&cible=${APP_AJOUTEE.id}`)
 })
 
 test('Studio : une application ajoutée se teste avec son compte enregistré, sans rien retaper', async ({ page }) => {
@@ -690,6 +744,7 @@ test('Applications : la liste « Vos applications » dit ce qu’il reste à fai
   await expect(ligne.getByText('Vérifiée')).toBeVisible()
   await expect(ligne.getByText('1 compte de test')).toBeVisible()
   await expect(ligne.getByRole('link', { name: /Préparer un test/ })).toHaveAttribute('href', `/app/nouveau?volet=qa&cible=${APP_AJOUTEE.id}`)
+  await expect(ligne.getByRole('link', { name: 'Pentest libre' })).toHaveAttribute('href', `/app/nouveau?volet=pentest&cible=${APP_AJOUTEE.id}`)
   // Les exemples phares ne se mêlent pas aux applications ajoutées.
   await expect(page.getByRole('region', { name: 'Exemples phares' }).getByRole('heading', { name: 'Ardoise' })).toHaveCount(0)
 })

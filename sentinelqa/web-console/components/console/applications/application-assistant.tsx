@@ -354,6 +354,7 @@ function Prete({ app, focus }: { app: ApplicationAjoutee; focus: boolean }) {
       <div className="lv-prete-actions">
         <Link href={`/app/nouveau?volet=qa&cible=${encodeURIComponent(app.id)}&voix=1`} className="lv-bouton lv-bouton-encre"><Mic aria-hidden="true" />Parler à l’expert</Link>
         <Link href={`/app/nouveau?volet=qa&cible=${encodeURIComponent(app.id)}`} className="lv-bouton lv-bouton-bleu">Préparer un test <ArrowRight aria-hidden="true" /></Link>
+        <Link href={`/app/nouveau?volet=pentest&cible=${encodeURIComponent(app.id)}`} className="lv-bouton lv-bouton-trait"><ShieldCheck aria-hidden="true" />Pentest libre</Link>
       </div>
     </section>
   )

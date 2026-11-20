@@ -41,7 +41,7 @@ export async function GET(request: Request, context: Context) {
   const { path } = await context.params
   const query = new URL(request.url).searchParams
   try {
-    if (path.join('/') === 'catalogue') return json(catalog())
+    if (path.join('/') === 'catalogue') return json(catalog(await listerAjoutees()))
     if (path.join('/') === 'applications') return json({ applications: await listerAjoutees() })
     if (path.join('/') === 'cle-runner') return json(publicRunnerKey(await cleRunner()))
     if (path.join('/') === 'alertes') {
@@ -116,8 +116,14 @@ export async function POST(request: Request, context: Context) {
     try { qa = await cibleQaDe(body.target_id) } catch { return json({ erreur: 'Les applications sont momentanément illisibles. Réessayez.' }, 503) }
     if (!qa.connue) return json({ erreur: 'Cette application n’est pas vérifiée : prouvez d’abord que vous en avez le contrôle.' }, 400)
   }
+  let pentestLibre: Record<string, any> | null = null
+  if (body?.mode === 'security' && !catalog().pentest.some(s => s.targetIds.includes(body.target_id))) {
+    try { pentestLibre = await cibleQaClient(body.target_id) }
+    catch { return json({ erreur: 'Les applications sont momentanément illisibles. Réessayez.' }, 503) }
+    if (!pentestLibre) return json({ erreur: 'Cette application n’est pas vérifiée : prouvez d’abord que vous en avez le contrôle.' }, 400)
+  }
   let validated
-  try { validated = validateStart(body, qa.cible) }
+  try { validated = validateStart(body, qa.cible, pentestLibre) }
   catch (error) { return json({ erreur: error instanceof Error ? error.message : 'Mission invalide.' }, 400) }
   // Un compte enregistré doit appartenir à cette application : jamais le compte d'une autre.
   const qaData = validated.data as { target_id?: string; compte_id?: string }

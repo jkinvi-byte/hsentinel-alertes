@@ -1,0 +1,1005 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light"><title>HSentinel — Défense technique CTO</title><style>
+:root{--ink:#172d43;--muted:#60758a;--blue:#1d58a8;--line:#dce4ed;--paper:#fff;--bg:#f5f7fa;--side:270px}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+a{color:var(--blue);text-underline-offset:3px}a:hover{color:#113868}aside{position:fixed;inset:0 auto 0 0;width:var(--side);overflow:auto;padding:28px 20px;border-right:1px solid var(--line);background:#eef2f6}
+.brand{font-weight:850;font-size:20px;letter-spacing:-.8px}.eyebrow{color:var(--muted);font-size:11px;letter-spacing:1.4px;text-transform:uppercase}.toc ul{padding:0;list-style:none}.toc ul ul{display:none}.toc>ul>li>a{display:none}.toc>ul>li>ul{display:block}.toc>ul>li>ul>li{margin:13px 0;line-height:1.4}.toc a{color:#36506a;text-decoration:none;font-size:13px}
+main{max-width:1180px;margin:0 auto 0 var(--side);padding:45px 5vw 100px}article{background:var(--paper);padding:38px 48px;border:1px solid var(--line);border-radius:16px;box-shadow:0 5px 30px #173b5f06}
+h1{font-size:38px;line-height:1.16;letter-spacing:-1.5px;max-width:760px;margin:0 0 26px}h2{font-size:25px;line-height:1.25;letter-spacing:-.6px;margin:54px 0 22px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:19px;line-height:1.4;margin:30px 0 12px}p{margin:14px 0}li{margin:8px 0}strong{font-weight:730}
+blockquote{margin:24px 0;padding:8px 22px;border-left:4px solid #2d66b7;background:#f0f5fc;border-radius:0 9px 9px 0}blockquote p{margin:10px 0}code{font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;background:#edf1f6;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{padding:20px;background:#eef2f6;overflow-x:auto}
+.table-scroll{overflow:auto;margin:22px 0}table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.55;text-align:left}th{background:#ecf2f8;color:#294965;font-size:12px;padding:12px;vertical-align:top}td{padding:12px;vertical-align:top;border-bottom:1px solid var(--line)}tr:nth-child(even) td{background:#f9fbfd}td p{margin:0}table code{font-size:11px}
+.architecture{margin:24px 0;background:#f8fafd;border:1px solid var(--line);border-radius:12px;padding:14px}.architecture svg{width:100%;height:auto;display:block}figcaption{font-size:12px;color:var(--muted);line-height:1.5;padding:12px}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 26px}.tools button,.tools a{font-family:inherit;font-weight:600;font-size:12px;line-height:1.5;border:1px solid #ccd8e5;background:#fff;border-radius:7px;padding:8px 12px;cursor:pointer;color:var(--blue);text-decoration:none}.tools button:hover,.tools a:hover{background:#eaf2fc}
+.qa{border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:15px 19px;background:#fff}.qa summary{font-weight:730;font-size:17px;cursor:pointer;line-height:1.45}.qa[open] summary{margin-bottom:12px}.qa>div>p:last-child{margin-bottom:3px}
+.reference{font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap}.note{font-size:12px;color:var(--muted)}footer{margin-top:25px;font-size:12px;color:var(--muted)}section{overflow-wrap:anywhere}.print-only{display:none}
+@media(min-width:1600px){main{margin-left:calc(var(--side) + (100vw - 1600px)/2)}}
+@media(max-width:1050px){:root{--side:220px}aside{padding:22px 14px}main{padding:24px}article{padding:30px}h1{font-size:32px}}
+@media(max-width:760px){aside{position:relative;width:auto;border-right:0;border-bottom:1px solid var(--line);padding:20px}.toc{display:none}main{margin:0;padding:14px}article{padding:24px 19px}h1{font-size:30px}h2{font-size:23px}.tools{margin-bottom:15px}table{min-width:620px}.qa summary{font-size:16px}}
+@media print{@page{size:A4;margin:16mm 14mm 18mm}body{background:#fff;font-size:10pt;line-height:1.5}aside,.tools{display:none}main{margin:0;padding:0;max-width:none}article{padding:0;border:0;box-shadow:none;border-radius:0}h1{font-size:25pt}h2{font-size:17pt;margin-top:28px;break-after:avoid}h3,summary{break-after:avoid}p{orphans:3;widows:3}table{min-width:0;font-size:8pt;line-height:1.4}th,td{padding:7px}tr{break-inside:avoid}thead{display:table-header-group}a{color:inherit;text-decoration:none}blockquote,.architecture{break-inside:avoid}svg{max-height:170mm}.table-scroll{overflow:visible}.qa{padding:10px 12px}.qa>div{display:block!important}.qa summary{font-size:11pt}.print-only{display:block}}
+</style></head>
+<body><aside><div class="eyebrow">Préparation du jury</div><div class="brand">HSentinel / CTO</div>
+<p class="note">20 novembre 2026<br>Code examiné : 902b0c9</p><div class="toc">
+<ul>
+<li><a href="#hsentinel-dossier-de-defense-cto">HSentinel — Dossier de défense CTO</a><ul>
+<li><a href="#1-ta-presentation-technique-en-90-secondes">1. Ta présentation technique en 90 secondes</a></li>
+<li><a href="#2-larchitecture-que-tu-dois-savoir-dessiner">2. L'architecture que tu dois savoir dessiner</a></li>
+<li><a href="#3-le-trajet-complet-dune-mission">3. Le trajet complet d'une mission</a><ul>
+<li><a href="#31-qa-public-de-la-consigne-a-la-preuve">3.1 QA public : de la consigne à la preuve</a></li>
+<li><a href="#32-qa-connecte-ce-qui-change">3.2 QA connecté : ce qui change</a></li>
+<li><a href="#33-pentest-trois-chemins-a-connaitre">3.3 Pentest : trois chemins à connaître</a></li>
+</ul>
+</li>
+<li><a href="#4-pourquoi-ces-choix-plutot-que-les-alternatives">4. Pourquoi ces choix plutôt que les alternatives ?</a></li>
+<li><a href="#5-ce-que-prouve-signifie-exactement">5. Ce que « prouvé » signifie exactement</a><ul>
+<li><a href="#51-quatre-resultats-deux-niveaux-de-statut">5.1 Quatre résultats, deux niveaux de statut</a></li>
+<li><a href="#52-qa-trois-forces-de-preuve-differentes">5.2 QA : trois forces de preuve différentes</a></li>
+<li><a href="#53-controle-dacces-loracle-vient-de-la-regle-metier">5.3 Contrôle d'accès : l'oracle vient de la règle métier</a></li>
+<li><a href="#54-scanner-ne-melange-jamais-les-compteurs">5.4 Scanner : ne mélange jamais les compteurs</a></li>
+</ul>
+</li>
+<li><a href="#6-donnees-acces-et-frontieres-de-confiance">6. Données, accès et frontières de confiance</a><ul>
+<li><a href="#61-lacces-a-hsentinel-lui-meme">6.1 L'accès à HSentinel lui-même</a></li>
+<li><a href="#62-ou-vont-les-donnees">6.2 Où vont les données ?</a></li>
+<li><a href="#63-perimetre-et-actions">6.3 Périmètre et actions</a></li>
+</ul>
+</li>
+<li><a href="#7-robustesse-ce-qui-tient-et-ce-qui-manque">7. Robustesse : ce qui tient et ce qui manque</a></li>
+<li><a href="#8-les-chiffres-que-tu-peux-defendre">8. Les chiffres que tu peux défendre</a><ul>
+<li><a href="#le-roi-a-presenter-honnetement">Le ROI à présenter honnêtement</a></li>
+</ul>
+</li>
+<li><a href="#9-questions-difficiles-reponses-pretes-a-dire">9. Questions difficiles — réponses prêtes à dire</a><ul>
+<li><a href="#1-pourquoi-le-computer-use-est-il-necessaire">1. « Pourquoi le computer use est-il nécessaire ? »</a></li>
+<li><a href="#2-pourquoi-pas-playwright-seulement">2. « Pourquoi pas Playwright seulement ? »</a></li>
+<li><a href="#3-vous-etes-une-surcouche-de-h">3. « Vous êtes une surcouche de H ? »</a></li>
+<li><a href="#4-h-fait-deja-du-qa-quajoutez-vous">4. « H fait déjà du QA. Qu'ajoutez-vous ? »</a></li>
+<li><a href="#5-votre-agent-sadapte-a-tous-les-sites">5. « Votre agent s'adapte à tous les sites ? »</a></li>
+<li><a href="#6-pourquoi-holo-35b-et-pas-un-autre-modele">6. « Pourquoi Holo 35B et pas un autre modèle ? »</a></li>
+<li><a href="#7-ou-sont-vos-agents-et-combien">7. « Où sont vos agents, et combien ? »</a></li>
+<li><a href="#8-vos-agents-apprennent-ils-a-chaque-passage">8. « Vos agents apprennent-ils à chaque passage ? »</a></li>
+<li><a href="#9-hf-change-vraiment-le-resultat">9. « HF change vraiment le résultat ? »</a></li>
+<li><a href="#10-pourquoi-plusieurs-modeles-hf">10. « Pourquoi plusieurs modèles HF ? »</a></li>
+<li><a href="#11-pourquoi-pas-un-agent-qui-decide-de-tout">11. « Pourquoi pas un agent qui décide de tout ? »</a></li>
+<li><a href="#12-et-si-le-site-injecte-des-instructions-dans-le-contenu">12. « Et si le site injecte des instructions dans le contenu ? »</a></li>
+<li><a href="#13-deux-textes-identiques-prouvent-une-fuite">13. « Deux textes identiques prouvent une fuite ? »</a></li>
+<li><a href="#14-pourquoi-un-resultat-non-concluant">14. « Pourquoi un résultat non concluant ? »</a></li>
+<li><a href="#15-comment-prouvez-vous-une-absence">15. « Comment prouvez-vous une absence ? »</a></li>
+<li><a href="#16-vos-scores-de-gravite-sont-ils-cvss">16. « Vos scores de gravité sont-ils CVSS ? »</a></li>
+<li><a href="#17-le-classement-owasp-rend-votre-pentest-le-plus-avance">17. « Le classement OWASP rend votre pentest le plus avancé ? »</a></li>
+<li><a href="#18-avez-vous-trouve-une-faille-sur-le-site-de-lecole">18. « Avez-vous trouvé une faille sur le site de l'école ? »</a></li>
+<li><a href="#19-les-tests-ne-sont-ils-pas-faits-pour-reussir-sur-votre-banc">19. « Les tests ne sont-ils pas faits pour réussir sur votre banc ? »</a></li>
+<li><a href="#20-zap-fait-le-vrai-travail-alors">20. « ZAP fait le vrai travail, alors ? »</a></li>
+<li><a href="#21-pourquoi-python-et-typescript">21. « Pourquoi Python et TypeScript ? »</a></li>
+<li><a href="#22-pourquoi-deux-versions-de-rapport">22. « Pourquoi deux versions de rapport ? »</a></li>
+<li><a href="#23-le-worker-garantit-il-une-seule-execution">23. « Le worker garantit-il une seule exécution ? »</a></li>
+<li><a href="#24-le-worker-tombe-au-milieu-que-faites-vous">24. « Le worker tombe au milieu : que faites-vous ? »</a></li>
+<li><a href="#25-si-je-ferme-mon-ordinateur-vos-tests-sarretent">25. « Si je ferme mon ordinateur, vos tests s'arrêtent ? »</a></li>
+<li><a href="#26-vous-etes-prets-pour-cent-clients">26. « Vous êtes prêts pour cent clients ? »</a></li>
+<li><a href="#27-la-rls-protege-deja-vos-clients">27. « La RLS protège déjà vos clients ? »</a></li>
+<li><a href="#28-comment-protegez-vous-les-secrets">28. « Comment protégez-vous les secrets ? »</a></li>
+<li><a href="#29-pourquoi-rsa-si-https-existe">29. « Pourquoi RSA si HTTPS existe ? »</a></li>
+<li><a href="#30-larret-empeche-toutes-les-ecritures">30. « L'arrêt empêche toutes les écritures ? »</a></li>
+<li><a href="#31-peut-on-ouvrir-nimporte-quelle-url-dans-votre-app">31. « Peut-on ouvrir n'importe quelle URL dans votre app ? »</a></li>
+<li><a href="#32-tout-est-temps-reel">32. « Tout est temps réel ? »</a></li>
+<li><a href="#33-le-test-part-exactement-a-chaque-deploiement">33. « Le test part exactement à chaque déploiement ? »</a></li>
+<li><a href="#34-que-se-passe-t-il-si-n8n-est-indisponible">34. « Que se passe-t-il si n8n est indisponible ? »</a></li>
+<li><a href="#35-votre-preuve-est-elle-opposable-ou-infalsifiable">35. « Votre preuve est-elle opposable ou infalsifiable ? »</a></li>
+<li><a href="#36-votre-cout-de-run-est-il-le-cout-complet">36. « Votre coût de run est-il le coût complet ? »</a></li>
+<li><a href="#37-combien-de-temps-gagne-le-client">37. « Combien de temps gagne le client ? »</a></li>
+<li><a href="#38-le-client-peut-deja-acheter-et-sinscrire">38. « Le client peut déjà acheter et s'inscrire ? »</a></li>
+<li><a href="#39-quavez-vous-appris-de-lapi-h">39. « Qu'avez-vous appris de l'API H ? »</a></li>
+<li><a href="#40-quelle-est-votre-prochaine-decision-technique">40. « Quelle est votre prochaine décision technique ? »</a></li>
+</ul>
+</li>
+<li><a href="#10-comment-defendre-hsentinel-face-au-projet-dautomatisation-repetitive">10. Comment défendre HSentinel face au projet d'automatisation répétitive</a></li>
+<li><a href="#11-ce-qui-doit-etre-pret-pour-la-demo">11. Ce qui doit être prêt pour la démo</a><ul>
+<li><a href="#priorite-immediate">Priorité immédiate</a></li>
+<li><a href="#apres-le-hackathon-ordre-de-production-propose">Après le hackathon : ordre de production proposé</a></li>
+</ul>
+</li>
+<li><a href="#12-les-formulations-qui-peuvent-te-pieger">12. Les formulations qui peuvent te piéger</a><ul>
+<li><a href="#ecarts-documentaires-releves">Écarts documentaires relevés</a></li>
+</ul>
+</li>
+<li><a href="#13-dernier-entrainement-12-questions-sans-tes-notes">13. Dernier entraînement : 12 questions sans tes notes</a></li>
+<li><a href="#14-le-vocabulaire-a-maitriser">14. Le vocabulaire à maîtriser</a></li>
+<li><a href="#sources-et-points-dentree">Sources et points d'entrée</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</aside>
+<main><div class="eyebrow">Architecture vérifiée · décisions · preuves</div>
+<div class="tools"><a href="FICHE-ORALE-CTO.html">Fiche orale · révision rapide</a><button data-qa="close">Mode oral · masquer les réponses</button><button data-qa="open">Afficher les réponses</button><button data-print>Imprimer / enregistrer en PDF</button></div>
+<article><h1 id="hsentinel-dossier-de-defense-cto">HSentinel — Dossier de défense CTO</h1>
+<p><strong>Architecture, choix, preuves et questions du jury · Revue du 20 novembre 2026</strong></p>
+<p><strong>Version examinée :</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/commit/902b0c915ca3e0ae943325c3367ec4cdce50549a"><code>main</code>, commit <code>902b0c9</code></a>. La comparaison GitHub confirme que le dépôt local correspond à cette version au moment de la revue.</p>
+<p><strong>Mode d'emploi.</strong> Commence par la fiche orale jointe, puis les sections 1, 5, 8 et 9. Le reste sert à répondre aux relances. Tu peux défendre un choix imparfait si tu sais expliquer son périmètre, son coût et son évolution.</p>
+<p><strong>Niveau de preuve.</strong> « Code relu » signifie une vérification dans cette version. « Mesure archivée » signifie un résultat consigné dans les rapports ou le journal, sans nouvelle exécution pendant cette revue. « Proposition » signifie une évolution à construire. La présence sur GitHub ne prouve ni le déploiement ni la disponibilité actuelle d'un service.</p>
+<blockquote>
+<p><strong>Point à régler avant de présenter la dernière version :</strong> la dernière entrée D-54 indique que le scanner de Kimi et sa matrice sont publiés, mais que la console en ligne n'a pas encore été redéployée avec ce lot. Distingue le code publié, le moteur testé et l'interface réellement déployée. <a class="reference" href="#source-C01">[C01]</a></p>
+</blockquote>
+<h2 id="1-ta-presentation-technique-en-90-secondes">1. Ta présentation technique en 90 secondes</h2>
+<blockquote>
+<p>HSentinel aide une petite équipe SaaS à vérifier les parcours utilisateurs et les contrôles d'accès de son application. Nous avons deux volets de même importance : le QA fonctionnel et le pentest, avec un socle commun de missions, de preuves et de rapports.</p>
+<p>La console Next.js prépare une mission et la dépose dans Supabase. Deux workers Python prennent les missions : un pour le QA, un pour le pentest. Ils pilotent les agents H et les contrôles HTTP. Les traitements longs continuent indépendamment de la page web.</p>
+<p>H apporte la navigation visuelle : se connecter, trouver un menu, suivre un parcours sur ordinateur ou sur un écran mobile. Hugging Face transforme la consigne en plan, transcrit la voix et, dans le scanner, priorise des contrôles autorisés.</p>
+<p>La séparation essentielle est celle du raisonnement et de la vérification. Une affirmation libre du modèle ne suffit pas à déclarer une faille. Nos règles confrontent les observations, les réponses HTTP et les témoins attendus. Nous conservons quatre résultats : conforme, écart ou faille démontrée, non concluant, non exécuté.</p>
+<p>Nous avons exécuté des parcours sur des sites réels autorisés et calibré la détection sur un banc à vérité terrain connue. Les coûts et durées sont mesurés. Le prototype fonctionne avec un accès opérateur et des workers sur notre poste ; l'isolation entre clients et l'exploitation continue sont les prochaines étapes de production.</p>
+</blockquote>
+<p><strong>La phrase à retenir :</strong> « Nous automatisons l'exécution et rendons explicite ce qui a réellement été vérifié. »</p>
+<h2 id="2-larchitecture-que-tu-dois-savoir-dessiner">2. L'architecture que tu dois savoir dessiner</h2>
+<figure class="architecture">
+<svg viewBox="0 0 1000 610" role="img" aria-labelledby="schema-titre schema-description" xmlns="http://www.w3.org/2000/svg">
+<title id="schema-titre">Architecture de HSentinel au commit 902b0c9</title>
+<desc id="schema-description">La console Vercel prépare avec Hugging Face et dépose les missions dans Supabase. Les workers Python sur le Mac utilisent H et les contrôles HTTP ou le scanner. Ils enregistrent les résultats ; n8n traite les alertes.</desc>
+<defs><marker id="fleche" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#678098"/></marker></defs>
+<g fill="none" stroke="#678098" stroke-width="2" marker-end="url(#fleche)">
+<path d="M500 85V133"/><path d="M350 50H285"/><path d="M500 213V241H268V270"/><path d="M500 241H732V270"/>
+<path d="M268 350V380H170V410"/><path d="M268 380H500V410"/><path d="M732 350V380H830V410"/><path d="M732 380H500"/>
+<path d="M170 480V524H500V545"/><path d="M500 480V545"/><path d="M830 480V524H500"/>
+<path d="M650 173H730"/><path d="M925 213V242"/>
+</g>
+<g font-family="Arial, sans-serif" text-anchor="middle">
+<rect x="350" y="15" width="300" height="70" rx="12" fill="#10243b"/>
+<text x="500" y="44" fill="white" font-size="19" font-weight="bold">Console Next.js</text><text x="500" y="66" fill="#cedef0" font-size="14">Vercel · session opérateur</text>
+<rect x="30" y="15" width="255" height="70" rx="12" fill="#ede9fe" stroke="#cdc3f5"/>
+<text x="157" y="44" fill="#493581" font-size="18" font-weight="bold">Hugging Face</text><text x="157" y="66" fill="#493581" font-size="14">Plan · voix · priorités scanner</text>
+<rect x="350" y="133" width="300" height="80" rx="12" fill="#ecf8f0" stroke="#b5d6c0"/>
+<text x="500" y="165" fill="#205237" font-size="19" font-weight="bold">Supabase / Postgres</text><text x="500" y="189" fill="#205237" font-size="14">Files · événements · rapports · constats</text>
+<rect x="730" y="133" width="240" height="80" rx="12" fill="#f7f1e6" stroke="#e3d3b4"/>
+<text x="850" y="165" fill="#6d5324" font-size="18" font-weight="bold">n8n</text><text x="850" y="189" fill="#6d5324" font-size="14">Alertes et intégrations</text>
+<text x="925" y="263" fill="#6d5324" font-size="13">Ticket / e-mail</text>
+<rect x="90" y="270" width="355" height="80" rx="12" fill="#eaf2ff" stroke="#b7cbe9"/>
+<text x="268" y="300" fill="#1c477e" font-size="19" font-weight="bold">Worker QA · Python</text><text x="268" y="326" fill="#1c477e" font-size="14">Mac de l'équipe · rapport v3</text>
+<rect x="555" y="270" width="355" height="80" rx="12" fill="#eaf2ff" stroke="#b7cbe9"/>
+<text x="732" y="300" fill="#1c477e" font-size="19" font-weight="bold">Worker pentest · Python</text><text x="732" y="326" fill="#1c477e" font-size="14">Mac de l'équipe · rapport v2</text>
+<rect x="40" y="410" width="260" height="70" rx="12" fill="#fff" stroke="#c1ceda"/>
+<text x="170" y="438" fill="#21354c" font-size="17" font-weight="bold">Assertions QA + HTTP</text><text x="170" y="462" fill="#52687f" font-size="13">Critères et observations</text>
+<rect x="370" y="410" width="260" height="70" rx="12" fill="#fff" stroke="#c1ceda"/>
+<text x="500" y="438" fill="#21354c" font-size="17" font-weight="bold">Agents H</text><text x="500" y="462" fill="#52687f" font-size="13">Navigateur cloud · coffres · sessions</text>
+<rect x="700" y="410" width="260" height="70" rx="12" fill="#fff" stroke="#c1ceda"/>
+<text x="830" y="438" fill="#21354c" font-size="17" font-weight="bold">Scanner selon profil</text><text x="830" y="462" fill="#52687f" font-size="13">HTTP · Playwright · ZAP</text>
+<rect x="290" y="545" width="420" height="54" rx="12" fill="#10243b"/>
+<text x="500" y="579" fill="#fff" font-size="18" font-weight="bold">Application autorisée</text>
+</g></svg>
+<figcaption>Les workers enregistrent leurs résultats dans Supabase. Le schéma sépare le traitement des missions des requêtes de la console ; les contrôles du scanner ne passent pas tous par H.</figcaption>
+</figure>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Brique</th>
+<th>Responsabilité actuelle</th>
+<th>Frontière importante</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>web-console</code></td>
+<td>Interface de l'équipe, session opérateur, préparation, lancement, suivi, rapports</td>
+<td>Ne calcule pas les verdicts ; les affiche</td>
+</tr>
+<tr>
+<td><code>web/lib</code></td>
+<td>Services partagés : HF, validation, accès Supabase, arrêt, captures</td>
+<td>Réutilisés par la console ; il existe encore une ancienne interface <code>web</code></td>
+</tr>
+<tr>
+<td>Supabase / Postgres</td>
+<td>Files persistantes et données structurées</td>
+<td>Pas encore d'organisations clients ni de RLS par organisation</td>
+</tr>
+<tr>
+<td>Worker QA</td>
+<td>Réserve une mission, crée la session H, vérifie les critères, publie le rapport</td>
+<td>Un traitement à la fois par processus</td>
+</tr>
+<tr>
+<td>Worker pentest</td>
+<td>Oriente vers le banc, le contrôle A/B ou le scanner générique</td>
+<td>Ces trois chemins n'ont pas exactement les mêmes preuves ni les mêmes capacités</td>
+</tr>
+<tr>
+<td>H Agents API</td>
+<td>Agents enregistrés, navigateur cloud, sessions, coffres et trajectoires</td>
+<td>Fournisseur de l'exécution visuelle ; ne décide pas seul du verdict produit</td>
+</tr>
+<tr>
+<td>Hugging Face</td>
+<td>Préparation du plan, transcription, conversation, synthèse vocale, priorisation</td>
+<td>Aucun pouvoir d'élargir les autorisations du scanner</td>
+</tr>
+<tr>
+<td>n8n</td>
+<td>Déclenchements et transmission des constats</td>
+<td>Le moteur de vérification continue sans lui ; l'envoi d'alertes peut échouer séparément</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Déploiement réel :</strong> console sur Vercel ; base Supabase distante ; navigateur H distant ; workers Python sur le Mac de l'équipe. Le banc Paie Express est sur Vercel ; le banc du scanner générique est un laboratoire distinct. Ce ne sont pas des microservices tous hébergés et supervisés. <a class="reference" href="#source-C02">[C02]</a><a class="reference" href="#source-C03">[C03]</a></p>
+<p><strong>Trois flux à distinguer :</strong> les requêtes de l'utilisateur vers la console ; les appels du serveur et des workers aux fournisseurs ; les interactions du navigateur H et du scanner avec la cible.</p>
+<h2 id="3-le-trajet-complet-dune-mission">3. Le trajet complet d'une mission</h2>
+<h3 id="31-qa-public-de-la-consigne-a-la-preuve">3.1 QA public : de la consigne à la preuve</h3>
+<ol>
+<li>L'utilisateur choisit une cible du catalogue, un appareil et un mode : guidé ou exploration bornée.</li>
+<li>S'il dicte, Whisper produit un texte modifiable. Le texte rejoint le même parcours que la saisie clavier.</li>
+<li>En mode guidé, Llama reçoit la consigne et les liens connus. Il propose au plus huit étapes et six critères : page, texte, constat. L'utilisateur relit le plan.</li>
+<li>La route Next.js vérifie la session, l'origine de l'écriture et le contrat. Elle crée une ligne <code>qa_missions</code>.</li>
+<li>Le worker prend la plus ancienne mission en attente. Un <code>PATCH</code> conditionné par <code>statut=en_attente</code> empêche deux workers de réserver simultanément la même ligne.</li>
+<li>Le worker revalide la demande. Il confirme la définition de l'agent H puis démarre une session avec URL, écran, schéma de réponse et budgets.</li>
+<li>Les événements H alimentent <code>qa_evenements</code>. L'interface les relit périodiquement.</li>
+<li>Python confronte les observations aux critères et, lorsque pertinent, relit le site en HTTP.</li>
+<li>Le rapport QA <strong>v3</strong> est conservé avec sessions, preuves, raisons, coûts disponibles et interruptions. Les écarts éligibles alimentent <code>constats</code>.</li>
+</ol>
+<p><strong>Deux détails qui font CTO :</strong> <code>termine</code> décrit la fin du traitement, pas un résultat « tout va bien » ; une mission terminée peut contenir des non-conclusions. Le suivi de la console utilise <strong>SWR avec polling à 1,8 seconde pendant l'exécution</strong>, pas un abonnement Supabase Realtime. <a class="reference" href="#source-C04">[C04]</a><a class="reference" href="#source-C05">[C05]</a><a class="reference" href="#source-C06">[C06]</a></p>
+<p><strong>Budgets concrets du catalogue QA.</strong> Eugenia guidé : 25 steps / 300 s ; exploration : 40 steps / 420 s / 6 pages au plus. Peer Review guidé : 25 steps / 240 s. Ces plafonds encadrent la session H ; la préparation, les appels d'API et les vérifications finales ajoutent du temps. Le moteur accorde notamment un budget séparé de 60 s aux lectures finales : ne transforme pas le plafond de session en SLA de bout en bout.</p>
+<p><strong>L'expert conversationnel est distinct de l'exécuteur.</strong> Il conseille à partir du manuel et du contexte de mission. Il ne lance pas d'audit ; l'utilisateur doit reprendre la proposition puis passer par le parcours de validation. La voix simplifie l'entrée, sans modifier les permissions du moteur.</p>
+<h3 id="32-qa-connecte-ce-qui-change">3.2 QA connecté : ce qui change</h3>
+<p>Le navigateur chiffre <code>JSON.stringify({ mot_de_passe: ... })</code> avec la clé publique RSA-OAEP du runner, SHA-256, clé de 3 072 bits. Le serveur reçoit le compte avec ce texte chiffré. Le worker retire le compte de la demande stockée avant de déchiffrer le mot de passe en mémoire ; il crée ensuite un coffre H propre à la mission.</p>
+<p>L'agent utilise <code>fill_secret_at</code>. Le contrôle K1 vérifie la connexion et K2 cherche un marqueur d'identité attendu. Le coffre est supprimé en fin de traitement ; si la suppression échoue, le code le signale pour intervention. La demande peut porter jusqu'à trois marqueurs d'identité. <a class="reference" href="#source-C07">[C07]</a><a class="reference" href="#source-C04">[C04]</a></p>
+<p><strong>Précision :</strong> le code du formulaire QA limite le message RSA à 300 octets, sous le maximum cryptographique de cette clé. Le chiffrement direct est adapté à ce petit secret ; de plus gros paquets demanderaient une enveloppe de chiffrement différente.</p>
+<p><strong>Ne dis pas :</strong> « Nous ne voyons jamais les mots de passe. » Le navigateur les saisit et le worker les déchiffre. La propriété défendable est : <strong>ils ne transitent pas en clair dans la demande conservée par la base et ne sont pas insérés dans le prompt du modèle</strong>. Les mécanismes de nettoyage ne prouvent pas l'effacement de toutes les sauvegardes et traces des fournisseurs.</p>
+<h3 id="33-pentest-trois-chemins-a-connaitre">3.3 Pentest : trois chemins à connaître</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Chemin</th>
+<th>Usage</th>
+<th>Ce qui fait preuve</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>S-BANC-01</code>, Paie Express</td>
+<td>Calibration lecture, écriture et administration sur données fictives</td>
+<td>Rejeu HTTP et confirmation H ; comparaison à la vérité terrain du banc</td>
+</tr>
+<tr>
+<td><code>S-PEER-02</code>, Peer Review</td>
+<td>Contrôle ciblé d'une ressource connue avec A, anonyme et B</td>
+<td>Authentification et identité, témoin privé, assertions HTTP et observations H</td>
+</tr>
+<tr>
+<td><code>S-GEN-*</code>, scanner générique</td>
+<td>Découverte et contrôles selon un profil : HTTP, navigateur, HF, ZAP</td>
+<td>Assertions propres à chaque contrôle ; matrice d'accès ; distinction entre failles, configuration et candidats</td>
+</tr>
+</tbody>
+</table></div>
+<p>Le runner <code>missions.py</code> choisit le chemin. Le scanner générique sait utiliser des adaptateurs d'authentification formulaire ou Bearer et des sessions séparées. Son profil fixe les origines, chemins, opérations, comptes et budgets. L'adaptateur spécifique Peer Review reste utile pour son formulaire Next.js : <strong>la livraison générique ne signifie pas que toutes les connexions arbitraires sont désormais prises en charge</strong>. <a class="reference" href="#source-C08">[C08]</a><a class="reference" href="#source-C09">[C09]</a></p>
+<p><strong>Distinction essentielle :</strong> la double confirmation HTTP + H est le fonctionnement du banc et du contrôle spécialisé. Ne la présente pas comme une exigence universelle de chaque contrôle du scanner générique. La campagne de laboratoire <code>daa3bb11</code> contient du HTTP et du Playwright ; son <code>cost_h</code> est <code>null</code>. Le scanner peut rendre une preuve déterministe sans session H pour ce contrôle.</p>
+<h2 id="4-pourquoi-ces-choix-plutot-que-les-alternatives">4. Pourquoi ces choix plutôt que les alternatives ?</h2>
+<p>Quand le journal donne une raison historique, elle est indiquée. Les autres arguments sont une lecture technique du code actuel, pas une décision rétroactivement attribuée à l'équipe.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Choix</th>
+<th>Réponse défendable</th>
+<th>Alternative et compromis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Agent visuel H</strong></td>
+<td>Explorer le parcours réellement utilisable, se connecter, trouver les éléments à l'écran ; le contrat décrit l'intention</td>
+<td>Playwright excelle pour un parcours stable et des assertions précises. Nous l'utilisons aussi. Le gain de maintenance de H reste à mesurer</td>
+</tr>
+<tr>
+<td><strong>Assertions en Python</strong></td>
+<td>Les règles de résultat sont lisibles, testables, rejouables sur les mêmes observations</td>
+<td>Un LLM juge serait souple, mais la gravité a réellement varié entre exécutions ; D-11 documente ce problème</td>
+</tr>
+<tr>
+<td><strong>HTTP en complément du navigateur</strong></td>
+<td>Relire efficacement une réponse, comparer les droits, confirmer un témoin</td>
+<td>Le navigateur seul coûte plus et peut mal extraire le texte ; HTTP seul ne démontre pas le parcours utilisateur</td>
+</tr>
+<tr>
+<td><strong>Deux workers et deux files</strong></td>
+<td>QA et pentest ont des durées, des contrats et des besoins différents ; leur traitement est séparé</td>
+<td>Unifier tout maintenant imposerait une migration. À terme, une enveloppe commune et des files spécialisées sont possibles</td>
+</tr>
+<tr>
+<td><strong>Workers hors des routes Next.js</strong></td>
+<td>Une campagne peut durer plusieurs minutes ; elle doit survivre à la fermeture de la page</td>
+<td>Exécuter dans la requête web lie la mission au cycle HTTP. La route console déclare 90 s, alors que des audits mesurés durent près de 300 s</td>
+</tr>
+<tr>
+<td><strong>Postgres comme file du MVP</strong></td>
+<td>Persistance, réservation conditionnelle, historique et rapports dans un service déjà utilisé</td>
+<td>Redis/Celery ou une file gérée ajouteraient un composant. Notre file n'a pas encore de bail, de heartbeat ni de reprise automatique après crash</td>
+</tr>
+<tr>
+<td><strong>Supabase</strong></td>
+<td>Choix D-09/D-38 : une base commune structurée, administration rapide et possibilité d'évoluer vers Auth/RLS</td>
+<td>Les fichiers locaux gênent le partage. Auth, Storage et Realtime disponibles chez Supabase ne sont pas pour autant tous utilisés</td>
+</tr>
+<tr>
+<td><strong>Next.js / Vercel</strong></td>
+<td>Console serveur qui garde les clés hors du navigateur, pages produit et API dans un même projet</td>
+<td>Une SPA avec un backend distinct est possible. Vercel héberge ici la console ; les jobs longs restent ailleurs</td>
+</tr>
+<tr>
+<td><strong>Services partagés avec l'ancienne web</strong></td>
+<td>Conserver les connexions et la logique déjà testées en changeant le design</td>
+<td>Dupliquer aurait créé deux comportements. Dette actuelle : imports entre dossiers, deux interfaces et validations JS/Python à maintenir</td>
+</tr>
+<tr>
+<td><strong>Agents H enregistrés sur mesure</strong></td>
+<td>Consignes, réponses structurées, contrôle de la configuration, coffre injecté par session</td>
+<td>L'agent H standard a servi à la v0. Les agents sur mesure rendent le comportement plus explicite ; ce ne sont pas des modèles entraînés par nous</td>
+</tr>
+<tr>
+<td><strong>HF pour préparer et prioriser</strong></td>
+<td>Langage naturel utile à l'entrée ; sélection encadrée de contrôles du scanner</td>
+<td>Un moteur entièrement déterministe reste possible pour des profils connus. Le gain marginal de HF doit être comparé à budget égal</td>
+</tr>
+<tr>
+<td><strong>Recherche lexicale pour l'expert</strong></td>
+<td>D-51 : corpus de 25 fiches, alias et digest de mission ; solution simple à inspecter</td>
+<td>Une base vectorielle n'est pas justifiée à ce volume. Ce choix se réévalue si le corpus et les recherches deviennent plus complexes</td>
+</tr>
+<tr>
+<td><strong>n8n pour les intégrations</strong></td>
+<td>D-15/D-47 : déclenchements et alertes séparés du verdict</td>
+<td>Tout coder augmente la maintenance des connecteurs. n8n ajoute une dépendance d'exploitation, pas une dépendance de validité du test</td>
+</tr>
+<tr>
+<td><strong>Banc à vérité terrain</strong></td>
+<td>On connaît les défauts injectés et les contrôles sains ; on peut compter les erreurs</td>
+<td>Un site réel inconnu ne permet pas de mesurer le rappel. Le banc risque toutefois d'être trop favorable à notre implémentation</td>
+</tr>
+<tr>
+<td><strong>Observation des mises à jour</strong></td>
+<td>D-43 : empreinte de compilation, assets et titres, sans intégration initiale chez le client</td>
+<td>Un événement CI est plus précis. L'empreinte peut manquer une modification purement serveur ; W1 existe mais reste désactivé</td>
+</tr>
+<tr>
+<td><strong>Contrats et schémas stricts</strong></td>
+<td>Refuser les champs et opérations inattendus, revalider à l'exécution, conserver le périmètre du rapport</td>
+<td>Un prompt libre seul serait plus flexible mais ne suffit pas à fixer les permissions ni à rendre les résultats comparables</td>
+</tr>
+</tbody>
+</table></div>
+<p>Sources : décisions D-05, D-06, D-09, D-11, D-15, D-37, D-38, D-43, D-51 et D-54 ; code des workers, routes, contrats et compilateur HF. <a class="reference" href="#source-C01">[C01]</a><a class="reference" href="#source-C04">[C04]</a><a class="reference" href="#source-C05">[C05]</a><a class="reference" href="#source-C08">[C08]</a><a class="reference" href="#source-C10">[C10]</a></p>
+<h2 id="5-ce-que-prouve-signifie-exactement">5. Ce que « prouvé » signifie exactement</h2>
+<h3 id="51-quatre-resultats-deux-niveaux-de-statut">5.1 Quatre résultats, deux niveaux de statut</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Résultat d'un contrôle</th>
+<th>Interprétation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>passed</code></td>
+<td>Le critère particulier a satisfait sa règle de vérification</td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td>Un écart a été établi ; en pentest, lire aussi la classification avant de dire « vulnérabilité »</td>
+</tr>
+<tr>
+<td><code>inconclusive</code></td>
+<td>Les observations ne permettent pas de trancher correctement</td>
+</tr>
+<tr>
+<td><code>skipped</code></td>
+<td>Le contrôle n'a pas été exécuté, par exemple faute de prérequis ou après arrêt</td>
+</tr>
+</tbody>
+</table></div>
+<p>Le statut de la <strong>mission</strong> (<code>en_attente</code>, <code>en_cours</code>, <code>termine</code>, <code>echec</code>) est distinct. La fin du processus n'est ni la réussite des critères ni la certification de la cible.</p>
+<h3 id="52-qa-trois-forces-de-preuve-differentes">5.2 QA : trois forces de preuve différentes</h3>
+<ul>
+<li><strong>Page :</strong> retrouver la page dans la trajectoire ; distinguer un clic d'une adresse tapée. Une navigation directe ne prouve pas que le menu permet d'y accéder.</li>
+<li><strong>Texte :</strong> rechercher la valeur attendue dans le contenu approprié. Pour conclure à une absence, le code exige une page servie suffisamment complète et cohérente avec l'écran. Une page privée relue anonymement ne suffit pas.</li>
+<li><strong>Constat :</strong> retrouver une citation sur la page. Cela recoupe les propos de l'agent, mais <strong>ne constitue pas une démonstration indépendante de toute la sémantique métier</strong> de sa conclusion. Une citation retrouvée n'est pas une preuve universelle de conformité.</li>
+</ul>
+<p>Le moteur conserve un désaccord agent/code comme non concluant dans certains cas. Les titres tronqués par H ont une raison explicite <code>h_text_partial</code>. <a class="reference" href="#source-C06">[C06]</a></p>
+<p><strong>Réponse précise à « votre système est déterministe ? » :</strong> les règles d'évaluation le sont pour les mêmes entrées. La navigation du modèle, le contenu du site et les réponses des fournisseurs peuvent varier. L'ensemble d'une exécution n'est donc pas déterministe. Une température à zéro ne change pas cette réalité.</p>
+<h3 id="53-controle-dacces-loracle-vient-de-la-regle-metier">5.3 Contrôle d'accès : l'oracle vient de la règle métier</h3>
+<p>Avant de comparer A et B, il faut savoir que <strong>A doit accéder à cette ressource et B ne doit pas y accéder</strong>. Cette règle vient du propriétaire de l'application et du profil, pas d'une supposition du modèle.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Observation</th>
+<th>Conclusion admissible</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A authentifié reçoit le témoin privé attendu</td>
+<td>Contrôle positif établi ; les comparaisons deviennent interprétables</td>
+</tr>
+<tr>
+<td>A ne reçoit pas la ressource attendue</td>
+<td>Comparaison non concluante ; on ne peut pas prouver une isolation sur une ressource témoin défaillante</td>
+</tr>
+<tr>
+<td>B reçoit le témoin privé de A</td>
+<td>Violation démontrée dans ce scénario ; le scanner générique examine le contenu même sous HTTP 500</td>
+</tr>
+<tr>
+<td>B reçoit HTTP 200 sans témoin privé et sans refus explicite</td>
+<td>Non concluant ; une coquille HTML n'est pas un refus prouvé</td>
+</tr>
+<tr>
+<td>B reçoit un refus explicite, avec session correctement identifiée</td>
+<td>Refus observé pour ce contrôle ; pas une certification générale</td>
+</tr>
+<tr>
+<td>Un 404 est reçu par B</td>
+<td>Le scanner peut l'accepter comme refus après contrôle positif de A ; un 404 sans ce contexte ne suffit pas</td>
+</tr>
+<tr>
+<td>B est déconnecté ou sa session a expiré</td>
+<td>On vérifie/renouvelle la session selon le chemin ; l'échec de connexion n'est pas une preuve d'autorisation correcte</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Limites de l'oracle :</strong> un marqueur trop générique, public ou mal choisi affaiblit la preuve. Un identifiant d'URL n'est pas un témoin privé. Les profils et règles métier doivent donc être relus. L'adaptation au site est une vraie partie du produit. <a class="reference" href="#source-C09">[C09]</a></p>
+<h3 id="54-scanner-ne-melange-jamais-les-compteurs">5.4 Scanner : ne mélange jamais les compteurs</h3>
+<p><code>demonstrated_vulnerability</code>, <code>configuration_weakness</code>, <code>observation</code> et <code>tool_candidate</code> sont des catégories distinctes. Un candidat ZAP n'est pas une faille confirmée. Le scanner ne publie dans les constats que les résultats <code>failed + demonstrated_vulnerability</code>.</p>
+<p>La campagne de laboratoire a <strong>10 assertions <code>failed</code>, mais 6 vulnérabilités uniques</strong>, plus 3 assertions de faiblesse de configuration. Les doublons et les types de résultat expliquent pourquoi ces nombres ne sont pas interchangeables. <a class="reference" href="#source-R02">[R02]</a></p>
+<h2 id="6-donnees-acces-et-frontieres-de-confiance">6. Données, accès et frontières de confiance</h2>
+<h3 id="61-lacces-a-hsentinel-lui-meme">6.1 L'accès à HSentinel lui-même</h3>
+<p>La console utilise un <strong>accès opérateur commun</strong>. Le code émet un cookie signé par HMAC-SHA256, durée de huit heures, <code>HttpOnly</code>, <code>SameSite=Lax</code>, <code>Secure</code> en production. Les routes vérifient la session ; les écritures vérifient aussi l'origine. L'ancienne web utilise une garde opérateur distincte fondée sur le même secret et HTTP Basic. <a class="reference" href="#source-C11">[C11]</a></p>
+<p><strong>Ce n'est pas encore une authentification client multi-tenant.</strong> Les tables métier ont la RLS activée sans politiques d'accès public ; le serveur et les workers utilisent une clé secrète qui passe outre cette RLS. Cela ferme l'accès direct public. Cela ne crée pas une isolation entre plusieurs clients servis par le backend.</p>
+<p>La prochaine étape est Supabase Auth + organisations + appartenances + politiques RLS par organisation, y compris sur missions, événements, constats et preuves. Il faut ensuite tester les accès inter-organisations depuis les vrais points d'entrée. Les cookies de choix d'offre ne sont pas une autorisation commerciale. <a class="reference" href="#source-C12">[C12]</a></p>
+<p><strong>Exception volontaire du laboratoire :</strong> <code>cobaye_ecritures</code> est accessible avec la clé publishable du banc, dans une politique limitée à ses données fictives. Cette exception ne concerne pas les tables de missions. Elle ne doit pas devenir le modèle d'accès de l'application commerciale.</p>
+<h3 id="62-ou-vont-les-donnees">6.2 Où vont les données ?</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Destination</th>
+<th>Données nécessaires</th>
+<th>Limite à expliquer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Supabase</td>
+<td>Demande, statut, événements, preuves sélectionnées et rapport ; secret chiffré transitoire pour le QA connecté</td>
+<td>Le rapport peut contenir des observations sensibles ; « pas de mot de passe » ne veut pas dire « aucune donnée personnelle »</td>
+</tr>
+<tr>
+<td>H</td>
+<td>Instructions, application visitée, captures/texte, secrets déposés au coffre</td>
+<td>Le coffre évite le secret dans le prompt ; le navigateur et le fournisseur participent bien au traitement</td>
+</tr>
+<tr>
+<td>Hugging Face / fournisseur d'inférence</td>
+<td>Consigne, liens connus, audio, conversation ; inventaire encadré du scanner</td>
+<td>Le fournisseur effectif et la conservation doivent être qualifiés avant engagement contractuel ; ne pas promettre une résidence des données non vérifiée</td>
+</tr>
+<tr>
+<td>n8n / GitHub / e-mail</td>
+<td>Constats filtrés, états d'alerte, références</td>
+<td>Les sites tiers gardent leurs constats réservés ; les tickets publics sont limités aux applications déclarées éligibles</td>
+</tr>
+</tbody>
+</table></div>
+<p>Le scanner générique minimise ses preuves : références, empreintes et métadonnées plutôt que corps bruts, cookies et charges utiles. Cette politique n'est pas identique à celle de tous les rapports QA et captures H. Les URL de capture passent par le serveur avec une validation du chemin de ressource H. <a class="reference" href="#source-C13">[C13]</a><a class="reference" href="#source-C05">[C05]</a></p>
+<p><strong>À ne pas confondre :</strong> un hash de preuve aide à l'identifier ; il ne rend pas à lui seul le journal infalsifiable. Nous n'avons pas démontré une chaîne d'audit signée et immuable.</p>
+<p><strong>Reproductible ne signifie pas figé dans le temps.</strong> Le rapport conserve le scénario et son périmètre ; une reproduction dépend encore de la version du site, des données, des comptes et de l'état initial. La veille ne donne pas systématiquement un commit Git fiable de l'application testée. Versionner l'oracle, les règles et la cible améliore cette propriété.</p>
+<h3 id="63-perimetre-et-actions">6.3 Périmètre et actions</h3>
+<p>Les sites réels du projet sont testés en consultation, avec connexion autorisée. Les écritures métier du banc sont un autre profil, explicitement activé sur données fictives.</p>
+<p>Le client HTTP du scanner vérifie origine, chemins, méthode, redirections, adresses réseau et budgets. Sa connexion utilise l'IP validée. <strong>Cette protection ne décrit pas automatiquement tous les outils du projet.</strong> La garde du navigateur H observe les événements après leur émission : elle peut arrêter la suite, mais n'intercepte pas chaque clic avant son exécution. L'incident documenté du 18 novembre a ouvert une page d'évaluation sans enregistrer de note. C'est un apprentissage de conception, pas une garantie à cacher. <a class="reference" href="#source-C14">[C14]</a><a class="reference" href="#source-C06">[C06]</a></p>
+<p>Dans le laboratoire, une campagne ZAP a envoyé des POST malgré <code>postData: false</code>. L'équipe a donc maintenu le mode large au laboratoire. « Aucun formulaire métier soumis par notre code » et « aucune mutation réelle du site » sont deux mesures différentes ; un GET peut aussi avoir un effet sur une application mal conçue. Le zéro mutation du banc est attribuable à son observateur, pas à une propriété universelle du protocole. <a class="reference" href="#source-C01">[C01]</a><a class="reference" href="#source-R02">[R02]</a></p>
+<h2 id="7-robustesse-ce-qui-tient-et-ce-qui-manque">7. Robustesse : ce qui tient et ce qui manque</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Incident / question</th>
+<th>Comportement actuel</th>
+<th>Amélioration de production</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L'utilisateur ferme l'onglet</td>
+<td>La demande persiste et le worker poursuit</td>
+<td>Notification et reprise de consultation</td>
+</tr>
+<tr>
+<td>Deux workers voient la même demande</td>
+<td>Réservation conditionnelle ; un seul obtient la ligne</td>
+<td>Tests sous charge et contrôle global de concurrence</td>
+</tr>
+<tr>
+<td>Le worker meurt après réservation</td>
+<td>Une mission peut rester <code>en_cours</code> ; pas de reprise automatique générale repérée</td>
+<td>Bail, heartbeat, réconciliation avec la session H, politique de reprise</td>
+</tr>
+<tr>
+<td>L'utilisateur relance après une réponse réseau perdue</td>
+<td>Une nouvelle mission peut être créée ; pas de clé d'idempotence globale à la création</td>
+<td>Clé d'idempotence par lancement</td>
+</tr>
+<tr>
+<td>Supabase répond mal</td>
+<td>Boucles de lecture avec temporisation croissante, jusqu'à 30 s ; le journal tolère certains échecs</td>
+<td>Outbox locale/durable et réconciliation des rapports non publiés</td>
+</tr>
+<tr>
+<td>H tarde ou se bloque</td>
+<td>Budgets steps/temps ; interruption sur certains états ; annulation tentée</td>
+<td>Supervision et vérification de l'annulation ; budget partagé entre workers</td>
+</tr>
+<tr>
+<td>H passe à <code>idle</code> avant de fournir la réponse</td>
+<td>Relecture jusqu'à dix secondes dans le moteur QA</td>
+<td>Surveiller cette métrique et les régressions du SDK</td>
+</tr>
+<tr>
+<td>HF renvoie 429/5xx au plan ou à l'expert</td>
+<td>Nouvelle tentative vers le même modèle sans fournisseur imposé</td>
+<td>Circuit breaker, métriques et budgets de dépendances</td>
+</tr>
+<tr>
+<td>HF échoue dans le scanner</td>
+<td>Plan déterministe de secours pour les contrôles autorisés</td>
+<td>Comparer la couverture et le coût avec/sans HF</td>
+</tr>
+<tr>
+<td>Le coffre ne se supprime pas</td>
+<td>Erreur journalisée pour intervention</td>
+<td>Nettoyeur périodique des coffres orphelins</td>
+</tr>
+<tr>
+<td>n8n échoue</td>
+<td>Le rapport reste disponible ; alertes séparées et rattrapage</td>
+<td>Mesurer le délai de livraison et reprendre les erreurs</td>
+</tr>
+<tr>
+<td>Le Mac dort</td>
+<td>Les missions ne sont plus consommées</td>
+<td>Workers hébergés et supervisés avant une offre continue</td>
+</tr>
+</tbody>
+</table></div>
+<p>Sources : workers et services relus. Les évolutions de la dernière colonne sont des <strong>propositions</strong>, pas des fonctions livrées. <a class="reference" href="#source-C04">[C04]</a><a class="reference" href="#source-C05">[C05]</a><a class="reference" href="#source-C08">[C08]</a><a class="reference" href="#source-C10">[C10]</a></p>
+<p><strong>Trois réponses à maîtriser :</strong></p>
+<ul>
+<li><strong>Pas d'« exactly once » promis.</strong> La réservation atomique protège une prise de travail. Elle ne rend pas atomiques les appels H, les écritures du rapport et la création d'un ticket externe.</li>
+<li><strong>La clé publique du runner n'est pas un heartbeat.</strong> <code>cleRunner()</code> relit la dernière clé enregistrée ; elle peut exister alors que le processus est arrêté. <code>null</code> signifie absence de clé enregistrée, pas un diagnostic complet de disponibilité.</li>
+<li><strong>Le bouton Arrêter n'est pas instantané.</strong> L'arrêt passe par la base, les cycles de lecture et l'appel H. La vérification finale conserve encore ses propres lectures ; le banc peut attendre une étape et une remise en état.</li>
+</ul>
+<p><strong>Montée en charge.</strong> On peut ajouter des workers grâce à la réservation conditionnelle, mais il faut d'abord une concurrence globale bornée, un routage des secrets vers la bonne clé, une gestion des missions abandonnées et des quotas par client. L'espace H a été documenté avec trois sessions simultanées ; ce quota doit être revérifié avant de dimensionner un service. Aucun test de charge client n'est revendiqué.</p>
+<h2 id="8-les-chiffres-que-tu-peux-defendre">8. Les chiffres que tu peux défendre</h2>
+<p><strong>Sépare toujours</strong> temps d'exécution, temps humain actif, coût fournisseur connu et coût complet du service. Les moyennes ci-dessous portent sur des scénarios différents.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Expérience</th>
+<th>Résultat archivé</th>
+<th>Durée / coût</th>
+<th>Ce que cela ne prouve pas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>QA guidé Eugenia « Bac+3 », 10 répétitions</td>
+<td>10/10 sur ce scénario</td>
+<td>Moyenne 29 s ; 0,007 $ H</td>
+<td>Le taux de réussite universel du QA ou un gain humain de 29 s</td>
+</tr>
+<tr>
+<td>QA exploration, 10 répétitions</td>
+<td>10/10 selon le protocole « au moins 3 pages, sans arrêt »</td>
+<td>Moyenne 103 s ; 0,051 $ H</td>
+<td>Aucun défaut dans les pages ; un signal mobile reste non concluant</td>
+</tr>
+<tr>
+<td>QA connecté Peer Review, 10 répétitions</td>
+<td>Connexion/identité 10/10 ; « Mon parcours » 10/10</td>
+<td>Moyenne 40 s ; 0,015 $ H</td>
+<td>Tous les critères conformes : titres/états ont aussi produit des non-conclusions</td>
+</tr>
+<tr>
+<td>Paie Express, 10 audits</td>
+<td>59 détections sur 60 occasions de détecter les 6 défauts injectés ; aucun faux positif observé sur les contrôles sains</td>
+<td>170–349 s ; 0,13–0,21 $ H par audit</td>
+<td>59 failles différentes ; 98 % de couverture du marché ; zéro faux positif garanti</td>
+</tr>
+<tr>
+<td>Paie Express depuis la console</td>
+<td>6/6 défauts injectés retrouvés</td>
+<td>298 s ; 0,203 $ H</td>
+<td>Le coût total de tous les fournisseurs et de l'exploitation</td>
+</tr>
+<tr>
+<td>S-PEER-02 réel</td>
+<td>2 conformes, 0 faille, 1 non concluant</td>
+<td>106,27 s ; 0,0346595 $ H</td>
+<td>Une faille trouvée sur l'école ou l'isolation générale de son site</td>
+</tr>
+<tr>
+<td>Scanner générique, laboratoire <code>daa3bb11</code></td>
+<td>6 vulnérabilités fictives uniques ; 7 ressources dans la matrice</td>
+<td>215,51 s ; 1 028 requêtes actives ZAP ; 1 116 requêtes comptées au total</td>
+<td>Un taux de réussite commercial ou une campagne H intégrale</td>
+</tr>
+<tr>
+<td>HF dans cette campagne</td>
+<td>Priorités valides, dont une ressource IDOR observée ; 2 419 tokens</td>
+<td>42,842 s ; 0,00049728 $ HF rapporté</td>
+<td>Un gain de détection attribuable causalement à HF : comparaison activé/désactivé manquante</td>
+</tr>
+<tr>
+<td>Scanner passif Peer Review <code>16c90a28</code></td>
+<td>0 faille démontrée ; 7 candidats non confirmés</td>
+<td>82,9 s ; 0,00645764 $ H</td>
+<td>Une absence de vulnérabilité</td>
+</tr>
+</tbody>
+</table></div>
+<p>Les trois premières séries et les dix audits du banc sont consignés dans l'architecture/journal. Les rapports S-PEER-02 et des deux campagnes génériques ont été ouverts pendant cette revue ; leurs résumés ont été recoupés. <a class="reference" href="#source-C02">[C02]</a><a class="reference" href="#source-C03">[C03]</a><a class="reference" href="#source-R01">[R01]</a><a class="reference" href="#source-R02">[R02]</a><a class="reference" href="#source-R03">[R03]</a></p>
+<p><strong>Tests avant publication de <code>902b0c9</code>, d'après D-54 :</strong> runner : 123 tests exécutés dont 1 sauté ; contribution Kimi : 25 ; web : 47 ; console : 43 ; navigateur : 21 ; builds web et console. Ces suites n'ont pas été relancées pour produire ce dossier. Le nombre de tests ne mesure ni la couverture de toutes les applications ni la disponibilité en production. <a class="reference" href="#source-C01">[C01]</a></p>
+<p><strong>Retour concret sur notre produit :</strong> quatre essais H sur notre console ont relevé des indicateurs rognés et un montant cassé sur mobile ; des corrections ont été revérifiées. La barre d'icônes repliée reste imparfaite. Ce cas illustre la valeur d'une observation visuelle ; il ne prouve pas que Playwright serait incapable de détecter ces défauts avec les bonnes assertions. [C01, D-53]</p>
+<h3 id="le-roi-a-presenter-honnetement">Le ROI à présenter honnêtement</h3>
+<p>Le suivi indique encore « temps humain gagné : à mesurer ». Un coût H faible ne suffit pas à établir la rentabilité client.</p>
+<p><strong>Temps humain économisé par campagne = temps manuel actif − préparation HSentinel − relecture des résultats − interventions et reprises.</strong></p>
+<p><strong>Valeur mensuelle du temps = minutes économisées / 60 × fréquence mensuelle × coût horaire chargé.</strong> À comparer au prix facturé. Pour notre marge : retirer du revenu les appels H/HF, l'infrastructure, le support et l'exploitation. Ne pas déduire deux fois le coût fournisseur dans le ROI du client si ce coût est déjà inclus dans son abonnement.</p>
+<p>À mesurer avant le pitch si possible : trois parcours identiques, exécutés manuellement puis avec HSentinel, en séparant chronomètre total et minutes d'attention humaine. Conserver aussi les cas non concluants. Ne pas inventer un coût de fuite évitée ni transformer une petite série en statistique de marché.</p>
+<h2 id="9-questions-difficiles-reponses-pretes-a-dire">9. Questions difficiles — réponses prêtes à dire</h2>
+<details class="qa" id="1-pourquoi-le-computer-use-est-il-necessaire" open><summary>1. « Pourquoi le computer use est-il nécessaire ? »</summary><div><p>« Nous vérifions aussi qu'un utilisateur peut trouver et accomplir le parcours dans l'interface. Une réponse API correcte ne le démontre pas. H apporte l'exécution visuelle ; le code contrôle les résultats. Pour les vérifications purement HTTP, nous utilisons directement HTTP. »</p>
+</div></details><details class="qa" id="2-pourquoi-pas-playwright-seulement" open><summary>2. « Pourquoi pas Playwright seulement ? »</summary><div><p>« Playwright est excellent pour les parcours connus. H permet une navigation guidée par l'intention et l'exploration visuelle. Notre hypothèse est de réduire la préparation et l'entretien de certains parcours ; nous devons encore la mesurer contre une suite Playwright équivalente. Nous utilisons déjà Playwright pour notre console et certains contrôles. »</p>
+</div></details><details class="qa" id="3-vous-etes-une-surcouche-de-h" open><summary>3. « Vous êtes une surcouche de H ? »</summary><div><p>« H fournit la capacité d'action. Nous apportons les contrats métier, les règles de preuve, les contrôles entre comptes, les profils, les rapports et les intégrations. Notre valeur se juge sur la fiabilité et le temps gagné dans ce travail précis. »</p>
+</div></details><details class="qa" id="4-h-fait-deja-du-qa-quajoutez-vous" open><summary>4. « H fait déjà du QA. Qu'ajoutez-vous ? »</summary><div><p>« Oui : le QA par agent existe, y compris chez H. Notre différenciation à démontrer est l'association des parcours fonctionnels et des règles d'accès, avec preuves attribuées, non-conclusions explicites et suivi opérationnel pour une petite équipe SaaS. » Ne prétends pas que H ne possède aucun de ces mécanismes sans comparaison détaillée. <a class="reference" href="#source-E01">[E01]</a></p>
+</div></details><details class="qa" id="5-votre-agent-sadapte-a-tous-les-sites" open><summary>5. « Votre agent s'adapte à tous les sites ? »</summary><div><p>« Nous adaptons le moteur par profils. Les cibles de démo sont connues ; les connexions, règles métier et témoins doivent être renseignés. Nous ne revendiquons pas un onboarding universel à partir d'une URL. »</p>
+</div></details><details class="qa" id="6-pourquoi-holo-35b-et-pas-un-autre-modele" open><summary>6. « Pourquoi Holo 35B et pas un autre modèle ? »</summary><div><p>« C'est le modèle sur lequel nos scénarios ont été mesurés. Le QA permet aussi Holo 27B par session. Nous n'avons pas établi qu'un modèle est optimal sur tous les critères ; le prochain choix se fera par comparaison réussite, non-conclusions, latence et coût. »</p>
+</div></details><details class="qa" id="7-ou-sont-vos-agents-et-combien" open><summary>7. « Où sont vos agents, et combien ? »</summary><div><p>« Ce sont des configurations persistantes enregistrées chez H, puis instanciées en sessions. Le QA a un agent public et un connecté ; le banc a un explorateur et un vérificateur ; les contrôles réels ont leurs agents dédiés. L'appareil et le coffre sont des paramètres de session. » Les anciens <code>hsentinel-*</code> de la branche Mohamed ne sont pas les agents intégrés de <code>main</code>. <a class="reference" href="#source-C02">[C02]</a></p>
+</div></details><details class="qa" id="8-vos-agents-apprennent-ils-a-chaque-passage" open><summary>8. « Vos agents apprennent-ils à chaque passage ? »</summary><div><p>« Nous n'avons pas de mécanisme démontré d'apprentissage en ligne. Nous conservons les observations et améliorons les profils, les consignes et les règles. Nos agents ne réentraînent pas le modèle H. »</p>
+</div></details><details class="qa" id="9-hf-change-vraiment-le-resultat" open><summary>9. « HF change vraiment le résultat ? »</summary><div><p>« Pour le QA, il produit le plan relu par l'utilisateur. Dans le scanner, ses priorités compilées déclenchent des contrôles autorisés. Cela établit une intégration fonctionnelle ; le gain supplémentaire de détection reste à mesurer avec un groupe de comparaison. »</p>
+</div></details><details class="qa" id="10-pourquoi-plusieurs-modeles-hf" open><summary>10. « Pourquoi plusieurs modèles HF ? »</summary><div><p>« Les tâches diffèrent : Whisper transcrit ; Llama prépare et converse ; Kokoro synthétise la voix ; Qwen priorise dans le scanner. Nous réutilisons les modèles déjà intégrés, sans prétendre avoir fait un benchmark exhaustif. » L'ancien banc utilise Qwen2.5-72B ; le scanner générique Qwen3-32B par défaut.</p>
+</div></details><details class="qa" id="11-pourquoi-pas-un-agent-qui-decide-de-tout" open><summary>11. « Pourquoi pas un agent qui décide de tout ? »</summary><div><p>« Le modèle est utile pour interpréter et explorer. Les permissions, les budgets et les verdicts demandent des règles inspectables. Un schéma de réponse propre ne garantit pas à lui seul un résultat vrai. »</p>
+</div></details><details class="qa" id="12-et-si-le-site-injecte-des-instructions-dans-le-contenu" open><summary>12. « Et si le site injecte des instructions dans le contenu ? »</summary><div><p>« Le contenu du site est une donnée non fiable. Le scanner compile les propositions HF contre les identifiants et permissions du profil. La navigation H reste un autre périmètre : consignes et arrêt après observation réduisent le risque, sans prouver une immunité générale aux injections de prompt. »</p>
+</div></details><details class="qa" id="13-deux-textes-identiques-prouvent-une-fuite" open><summary>13. « Deux textes identiques prouvent une fuite ? »</summary><div><p>« Pas en général : deux pages de connexion ou deux erreurs peuvent être identiques. Le banc a une règle de similarité contextualisée ; le scanner générique exige un contrôle positif et un témoin privé attribuable. La similarité seule n'est pas un oracle universel. »</p>
+</div></details><details class="qa" id="14-pourquoi-un-resultat-non-concluant" open><summary>14. « Pourquoi un résultat non concluant ? »</summary><div><p>« Parce qu'une panne d'outil ou un contenu incomplet ne doit pas devenir un faux succès. Le rapport indique la raison et ce qui manque pour conclure. Nous devons ensuite réduire ce taux sans dégrader la validité des verdicts. »</p>
+</div></details><details class="qa" id="15-comment-prouvez-vous-une-absence" open><summary>15. « Comment prouvez-vous une absence ? »</summary><div><p>« Seulement pour une attente et une source suffisamment définies. En QA, le moteur évite de conclure à l'absence d'un texte si la page est incomplète. En pentest, nous prouvons un refus observé sur un scénario, pas l'absence de toutes les failles. »</p>
+</div></details><details class="qa" id="16-vos-scores-de-gravite-sont-ils-cvss" open><summary>16. « Vos scores de gravité sont-ils CVSS ? »</summary><div><p>« Non. Ce sont des règles internes explicites, adaptées au contrôle et aux données observées. Elles sont stables pour les mêmes entrées. Nous ne les présentons ni comme un score CVSS ni comme une certification. »</p>
+</div></details><details class="qa" id="17-le-classement-owasp-rend-votre-pentest-le-plus-avance" open><summary>17. « Le classement OWASP rend votre pentest le plus avancé ? »</summary><div><p>« Non. Broken Access Control est A01 du Top 10 OWASP 2025 : cela justifie l'importance de cette famille. La profondeur réelle de notre test dépend des scénarios, comptes, ressources et preuves couverts. » <a class="reference" href="#source-E02">[E02]</a></p>
+</div></details><details class="qa" id="18-avez-vous-trouve-une-faille-sur-le-site-de-lecole" open><summary>18. « Avez-vous trouvé une faille sur le site de l'école ? »</summary><div><p>« Les rapports examinés ne démontrent aucune fuite. S-PEER-02 a deux contrôles conformes et un non concluant. La détection positive est calibrée sur nos bancs fictifs. »</p>
+</div></details><details class="qa" id="19-les-tests-ne-sont-ils-pas-faits-pour-reussir-sur-votre-banc" open><summary>19. « Les tests ne sont-ils pas faits pour réussir sur votre banc ? »</summary><div><p>« Le banc apporte une vérité terrain et des contrôles sains ; il reste favorable à notre domaine. Pour démontrer la généralisation, il faut des applications indépendantes, des défauts inconnus à l'avance et des variantes de présentation. Nous ne convertissons pas les résultats du banc en taux de marché. »</p>
+</div></details><details class="qa" id="20-zap-fait-le-vrai-travail-alors" open><summary>20. « ZAP fait le vrai travail, alors ? »</summary><div><p>« ZAP est un moteur complémentaire. Ses alertes restent candidates. Notre scanner apporte les profils, sessions, contrôles d'accès et assertions ; H apporte la navigation quand elle est nécessaire. La valeur se mesure au résultat vérifié, pas au nombre d'outils assemblés. »</p>
+</div></details><details class="qa" id="21-pourquoi-python-et-typescript" open><summary>21. « Pourquoi Python et TypeScript ? »</summary><div><p>« TypeScript sert l'interface Next.js ; Python rassemble le SDK H, HTTP, les validations et le scanner. Cela suit les briques existantes et permet des jobs séparés. Le coût est la duplication de certains contrats, à réduire par des schémas partagés et des tests de compatibilité. »</p>
+</div></details><details class="qa" id="22-pourquoi-deux-versions-de-rapport" open><summary>22. « Pourquoi deux versions de rapport ? »</summary><div><p>« Le QA a évolué vers un contrat v3 ; les missions pentest utilisent une enveloppe v2. La console les normalise. Une évolution durable doit versionner les schémas et maintenir les lecteurs des rapports historiques. »</p>
+</div></details><details class="qa" id="23-le-worker-garantit-il-une-seule-execution" open><summary>23. « Le worker garantit-il une seule exécution ? »</summary><div><p>« Il garantit une réservation conditionnelle de la ligne en attente. Il manque encore une garantie globale face aux crashs et répétitions réseau. Nous ajouterons idempotence, baux et réconciliation avant de revendiquer une exécution fiable à grande échelle. »</p>
+</div></details><details class="qa" id="24-le-worker-tombe-au-milieu-que-faites-vous" open><summary>24. « Le worker tombe au milieu : que faites-vous ? »</summary><div><p>« Nous avons des événements et l'identifiant de session pour diagnostiquer, mais pas de reprise automatique générale. Le service actuel est opéré. La prochaine étape est un superviseur qui distingue session encore active, mission abandonnée et rapport à republier. »</p>
+</div></details><details class="qa" id="25-si-je-ferme-mon-ordinateur-vos-tests-sarretent" open><summary>25. « Si je ferme mon ordinateur, vos tests s'arrêtent ? »</summary><div><p>« Fermer la page du client n'arrête pas une mission. En revanche, les workers du prototype tournent sur notre Mac : s'il s'arrête, le service est affecté. L'hébergement supervisé des workers est nécessaire avant une offre disponible en continu. »</p>
+</div></details><details class="qa" id="26-vous-etes-prets-pour-cent-clients" open><summary>26. « Vous êtes prêts pour cent clients ? »</summary><div><p>« Non, pas dans cette exploitation. Le découpage permet l'évolution, mais il manque l'isolation client, la supervision, les quotas et la validation de charge. La priorité est un pilote opéré et mesuré. »</p>
+</div></details><details class="qa" id="27-la-rls-protege-deja-vos-clients" open><summary>27. « La RLS protège déjà vos clients ? »</summary><div><p>« Elle ferme actuellement les tables à l'accès public. Notre serveur utilise une clé privilégiée et nous avons un accès d'équipe. L'isolation entre clients doit être construite et testée explicitement. »</p>
+</div></details><details class="qa" id="28-comment-protegez-vous-les-secrets" open><summary>28. « Comment protégez-vous les secrets ? »</summary><div><p>« Chiffrement navigateur vers runner pour le secret de QA connecté, retrait de la base avant déchiffrement, coffre H par mission, nettoyage et clés de service côté serveur. Cela réduit les expositions ; cela n'élimine pas les obligations d'exploitation ni la confiance dans les fournisseurs. »</p>
+</div></details><details class="qa" id="29-pourquoi-rsa-si-https-existe" open><summary>29. « Pourquoi RSA si HTTPS existe ? »</summary><div><p>« HTTPS protège le transport. Le chiffrement applicatif protège aussi le mot de passe conservé temporairement dans la file : le runner possède la clé privée. La livraison de cette clé publique et du code web reste une frontière de confiance. »</p>
+</div></details><details class="qa" id="30-larret-empeche-toutes-les-ecritures" open><summary>30. « L'arrêt empêche toutes les écritures ? »</summary><div><p>« Non. C'est une annulation coopérative, avec un délai d'observation. Les profils et consignes limitent les actions ; la garde H ne se substitue pas à un filtrage réseau avant action. »</p>
+</div></details><details class="qa" id="31-peut-on-ouvrir-nimporte-quelle-url-dans-votre-app" open><summary>31. « Peut-on ouvrir n'importe quelle URL dans votre app ? »</summary><div><p>« La console actuelle utilise un catalogue. Le scanner générique exige un profil relu et contrôle les requêtes qu'il émet. Un produit ouvert à des URL arbitraires demanderait un onboarding et des protections supplémentaires ; ce n'est pas la capacité actuelle. »</p>
+</div></details><details class="qa" id="32-tout-est-temps-reel" open><summary>32. « Tout est temps réel ? »</summary><div><p>« Les événements sont persistés et la console les relit environ toutes les 1,8 seconde pendant la mission. Nous affichons un suivi fréquent ; nous ne prétendons pas utiliser un canal WebSocket Supabase. »</p>
+</div></details><details class="qa" id="33-le-test-part-exactement-a-chaque-deploiement" open><summary>33. « Le test part exactement à chaque déploiement ? »</summary><div><p>« La veille actuelle observe périodiquement une empreinte de la page d'entrée. W1 pour les événements GitHub est importé mais désactivé. Un changement purement serveur peut échapper à l'empreinte. »</p>
+</div></details><details class="qa" id="34-que-se-passe-t-il-si-n8n-est-indisponible" open><summary>34. « Que se passe-t-il si n8n est indisponible ? »</summary><div><p>« La mission et son rapport restent traités par nos workers. L'alerte a son propre état et un mécanisme de rattrapage. Une panne de notification ne devient pas une réussite ou un échec fictif du contrôle. »</p>
+</div></details><details class="qa" id="35-votre-preuve-est-elle-opposable-ou-infalsifiable" open><summary>35. « Votre preuve est-elle opposable ou infalsifiable ? »</summary><div><p>« Nous fournissons des observations attribuées, des règles et des références permettant une revue. Nous ne revendiquons pas un journal immuable signé ni une qualification réglementaire. »</p>
+</div></details><details class="qa" id="36-votre-cout-de-run-est-il-le-cout-complet" open><summary>36. « Votre coût de run est-il le coût complet ? »</summary><div><p>« Nous savons mesurer des coûts H et certains coûts HF. Les valeurs inconnues restent nulles. Le coût complet doit inclure hébergement, stockage, alertes, support et reprises ; nous ne vendons pas une marge calculée sur H seul. »</p>
+</div></details><details class="qa" id="37-combien-de-temps-gagne-le-client" open><summary>37. « Combien de temps gagne le client ? »</summary><div><p>« Les durées machine sont mesurées ; le temps humain économisé n'a pas encore été validé dans le suivi. Notre protocole compare préparation, exécution manuelle, relecture et reprises sur les mêmes parcours. »</p>
+</div></details><details class="qa" id="38-le-client-peut-deja-acheter-et-sinscrire" open><summary>38. « Le client peut déjà acheter et s'inscrire ? »</summary><div><p>« Il peut demander un accès et cette demande est enregistrée. Les organisations clients, quotas et paiement ne sont pas encore une chaîne commerciale complète. Les pages de prix ne prouvent pas un paywall opérationnel. »</p>
+</div></details><details class="qa" id="39-quavez-vous-appris-de-lapi-h" open><summary>39. « Qu'avez-vous appris de l'API H ? »</summary><div><p>« Trois exemples concrets : <code>idle</code> peut précéder la réponse finale ; certains titres à styles mixtes sont tronqués dans le texte extrait ; une garde qui lit les événements ne bloque pas nécessairement le geste précédent. Nous avons adapté la lecture finale, les verdicts et notre description des limites. »</p>
+</div></details><details class="qa" id="40-quelle-est-votre-prochaine-decision-technique" open><summary>40. « Quelle est votre prochaine décision technique ? »</summary><div><p>« Avant d'ajouter des fonctions : aligner la version déployée, mesurer le temps humain, fiabiliser l'exploitation des workers. Ensuite seulement, ouvrir les comptes clients avec une isolation complète et des quotas. »</p>
+</div></details><h2 id="10-comment-defendre-hsentinel-face-au-projet-dautomatisation-repetitive">10. Comment défendre HSentinel face au projet d'automatisation répétitive</h2>
+<p>Leur idée, telle que décrite par l'équipe, est de repérer les tâches répétées sur le poste et d'automatiser les plus fréquentes. C'est une proposition facile à comprendre et naturellement liée au computer use. Leur implémentation n'a pas été examinée ; la rumeur de rachat n'est pas vérifiée.</p>
+<p>Le mécanisme de repérage existe dans le <strong>task mining</strong>, notamment documenté par Microsoft. Le relevé local du showcase mentionne aussi ImproveMe, Show Me Once et d'autres cousins. Le QA par agent existe également, dont Tester H. La seule catégorie d'idée ne départage donc pas les projets. <a class="reference" href="#source-E03">[E03]</a><a class="reference" href="#source-E01">[E01]</a><a class="reference" href="#source-C15">[C15]</a></p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Axe de défense</th>
+<th>Ce que HSentinel doit montrer</th>
+<th>Preuve encore nécessaire</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Un problème et un acheteur précis</strong></td>
+<td>CTO de petite équipe SaaS ; répétition de la vérification à chaque évolution</td>
+<td>Entretien et intention de pilote, pas seulement un persona écrit</td>
+</tr>
+<tr>
+<td><strong>Un résultat interprétable</strong></td>
+<td>Attendu, observé, preuve, verdict et raison d'une non-conclusion</td>
+<td>Un exemple simple compréhensible en quelques secondes</td>
+</tr>
+<tr>
+<td><strong>Deux dimensions d'une même fonctionnalité</strong></td>
+<td>Le bon utilisateur réussit son parcours ; les accès interdits sont vérifiés séparément</td>
+<td>Démo avec données fictives et règle de droit claire ; ne pas prétendre un scénario unifié déjà livré partout</td>
+</tr>
+<tr>
+<td><strong>Un computer use justifié</strong></td>
+<td>Menu et navigation sur un vrai site ; défaut mobile réellement vu</td>
+<td>Ne pas réduire la démo à une liste de réponses HTTP</td>
+</tr>
+<tr>
+<td><strong>Une économie démontrable</strong></td>
+<td>Minutes humaines économisées et coût connu par campagne</td>
+<td>Comparaison manuelle/assistée ; faible coût technique seul insuffisant</td>
+</tr>
+<tr>
+<td><strong>Une réponse honnête à l'incertitude</strong></td>
+<td>Un cas conforme, un écart connu, un cas non concluant</td>
+<td>Montrer que le produit n'invente pas une réussite pour finir la démonstration</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Angle recommandé :</strong> « À chaque évolution d'un SaaS, vérifiez les parcours et les accès, avec des résultats que votre équipe peut examiner et reproduire. »</p>
+<p><strong>Pour H, hypothèse stratégique à défendre :</strong> une verticale répétable peut produire des usages récurrents et des retours précis sur la fiabilité de son API. Ce n'est pas une preuve qu'H préférera votre projet ni qu'il souhaite l'acquérir.</p>
+<p><strong>Grille locale du jury :</strong> technique/API 30 %, impact 25 %, faisabilité/adoption/apprentissages 25 %, UX/démo/pitch 20 %. Votre prochain avantage peut donc venir d'une preuve de temps gagné et d'une démo cohérente, sans nouvelle fonctionnalité. <a class="reference" href="#source-C16">[C16]</a></p>
+<h2 id="11-ce-qui-doit-etre-pret-pour-la-demo">11. Ce qui doit être prêt pour la démo</h2>
+<h3 id="priorite-immediate">Priorité immédiate</h3>
+<ol>
+<li><strong>Choisir et identifier la version montrée.</strong> Confirmer si D-54 a été déployée ; sinon, annoncer précisément ce qui sera montré dans le moteur et ce qui l'est dans la console.</li>
+<li><strong>Démarrer et vérifier les deux workers.</strong> Vérifier une mission réelle de bout en bout ; une page web accessible ou une clé RSA enregistrée ne suffit pas.</li>
+<li><strong>Répéter le parcours retenu.</strong> Même écran, même compte de test, même scénario. Tester aussi le micro et les haut-parleurs réels ; garder la saisie disponible.</li>
+<li><strong>Préparer trois résultats lisibles.</strong> Un contrôle conforme, un défaut injecté démontré, une non-conclusion expliquée. Identifier clairement les résultats archivés et les passages live.</li>
+<li><strong>Mesurer l'effort humain.</strong> Même un petit protocole explicite est plus défendable qu'un pourcentage inventé.</li>
+<li><strong>Vérifier l'alerte si elle fait partie du pitch.</strong> Un webhook authentifié qui répond 200 n'établit pas, seul, un nouveau ticket et un e-mail livrés.</li>
+</ol>
+<h3 id="apres-le-hackathon-ordre-de-production-propose">Après le hackathon : ordre de production proposé</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Étape</th>
+<th>Travail concret</th>
+<th>Critère de sortie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pilote opéré</td>
+<td>Workers supervisés, heartbeat, reprise contrôlée, surveillance des budgets et coffres</td>
+<td>Pannes injectées et missions réconciliées sans résultat perdu ni action dupliquée non maîtrisée</td>
+</tr>
+<tr>
+<td>Comptes clients</td>
+<td>Auth, organisations, RLS, autorisations serveur et séparation des preuves</td>
+<td>Un client ne peut ni lire ni déclencher les missions d'un autre, tests de bout en bout à l'appui</td>
+</tr>
+<tr>
+<td>Qualité mesurée</td>
+<td>Corpus indépendant, contrôles sains, perturbations UI, mesures de non-conclusions</td>
+<td>Résultats ventilés par scénario et comparaison avec une référence scriptée</td>
+</tr>
+<tr>
+<td>Économie mesurée</td>
+<td>Temps humain, coût complet, fréquence réelle, support</td>
+<td>Pilotes qui confirment l'usage et une disposition à payer</td>
+</tr>
+<tr>
+<td>Offre autonome</td>
+<td>Quotas, facturation, limites, rétention et parcours d'autorisation</td>
+<td>Droits et compteurs cohérents avec les événements de facturation</td>
+</tr>
+<tr>
+<td>Croissance</td>
+<td>Ordonnanceur, isolation d'exécution, pools de workers et budgets globaux</td>
+<td>Test de charge avec objectifs de délai et taux de réussite explicites</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="12-les-formulations-qui-peuvent-te-pieger">12. Les formulations qui peuvent te piéger</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>À éviter</th>
+<th>À dire à la place</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>« Tout est déployé »</td>
+<td>« Voici le commit et le déploiement que nous démontrons ; D-54 doit être confirmé côté console »</td>
+</tr>
+<tr>
+<td>« Supabase isole déjà nos clients »</td>
+<td>« Les tables sont fermées au public ; l'isolation par organisation reste à construire »</td>
+</tr>
+<tr>
+<td>« Le suivi utilise Supabase Realtime »</td>
+<td>« La console relit les événements par polling »</td>
+</tr>
+<tr>
+<td>« Le QA connecté passe entièrement 10/10 »</td>
+<td>« Connexion et identité 10/10 ; certains autres critères restent non concluants »</td>
+</tr>
+<tr>
+<td>« On a trouvé 59 failles »</td>
+<td>« 59 détections sur 60 occasions, avec six failles injectées rejouées dix fois »</td>
+</tr>
+<tr>
+<td>« Zéro faux positif »</td>
+<td>« Aucun observé sur ces contrôles sains dans ce protocole »</td>
+</tr>
+<tr>
+<td>« Tout est confirmé visuellement et en HTTP »</td>
+<td>« La stratégie de preuve dépend du moteur et du contrôle »</td>
+</tr>
+<tr>
+<td>« Le scanner a trouvé dix vulnérabilités »</td>
+<td>« Dix assertions échouées ; six vulnérabilités uniques sur cette campagne »</td>
+</tr>
+<tr>
+<td>« HF augmente forcément notre détection »</td>
+<td>« HF est raccordé ; son apport marginal demande une comparaison »</td>
+</tr>
+<tr>
+<td>« L'agent voit l'écran donc il a forcément raison »</td>
+<td>« Nous recoupons les observations ; certaines preuves restent dépendantes de l'extraction H »</td>
+</tr>
+<tr>
+<td>« Tout le traitement est déterministe »</td>
+<td>« Les règles le sont pour les mêmes entrées »</td>
+</tr>
+<tr>
+<td>« L'arrêt bloque immédiatement toute action »</td>
+<td>« L'annulation est coopérative et son délai dépend des échanges »</td>
+</tr>
+<tr>
+<td>« Une clé runner disponible prouve qu'il tourne »</td>
+<td>« Il manque un signal de santé récent »</td>
+</tr>
+<tr>
+<td>« Chaque déploiement déclenche exactement un audit »</td>
+<td>« Une veille observe les changements ; le webhook CI n'est pas actif »</td>
+</tr>
+<tr>
+<td>« Un run coûte 0,007 $ au total »</td>
+<td>« Ce scénario a coûté en moyenne 0,007 $ H ; le coût complet est distinct »</td>
+</tr>
+<tr>
+<td>« Le mobile a été testé sur un vrai téléphone »</td>
+<td>« Le navigateur H utilise un viewport mobile de 390 × 844 »</td>
+</tr>
+<tr>
+<td>« Le replay est une vidéo »</td>
+<td>« H rejoue les observations et actions de la session »</td>
+</tr>
+<tr>
+<td>« Le N°1 OWASP prouve que notre pentest est le plus profond »</td>
+<td>« Il justifie l'importance de la famille ; notre couverture se mesure par scénarios »</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="ecarts-documentaires-releves">Écarts documentaires relevés</h3>
+<p>Ne mémorise pas les résumés anciens sans leur date. Le README dit encore que le compte B manque ; D-54 et le rapport S-PEER-02 prouvent l'exécution. Plusieurs sections d'architecture gardent l'ancien problème de secret n8n ; D-47 et le suivi décrivent la bascule faite à 10 h 57. La table historique dit encore « web pas déployée » ; la console l'est depuis le 19, mais sans garantie que le dernier lot y soit présent. L'ancien D-09 parle d'Auth/Realtime/Storage comme choix de plateforme : le code relu n'en fait pas trois fonctionnalités livrées.</p>
+<p>Le dossier ci-présent corrige ces formulations pour la préparation orale. Il ne modifie pas les documents canoniques ni les décisions de l'équipe.</p>
+<h2 id="13-dernier-entrainement-12-questions-sans-tes-notes">13. Dernier entraînement : 12 questions sans tes notes</h2>
+<ol>
+<li>Dessine où tourne chaque brique, et où passe une mission.</li>
+<li>Explique pourquoi H et HTTP sont tous les deux utiles.</li>
+<li>Donne un exemple où <code>inconclusive</code> est la bonne réponse.</li>
+<li>Dis pourquoi un <code>200</code> et un <code>500</code> ne suffisent pas à trancher un accès.</li>
+<li>Distingue le banc, S-PEER-02 et le scanner générique.</li>
+<li>Explique pourquoi ta file n'est pas une garantie « exactement une fois ».</li>
+<li>Retrace le mot de passe du navigateur jusqu'au coffre et au nettoyage.</li>
+<li>Explique ce que RLS protège aujourd'hui et ce qu'il reste à construire.</li>
+<li>Donne un résultat chiffré avec son protocole et sa limite.</li>
+<li>Justifie HF sans prétendre un gain non mesuré.</li>
+<li>Explique comment tu passes du Mac à un service exploitable.</li>
+<li>Réponds à « pourquoi vous plutôt que Tester H ou une suite Playwright ? ».</li>
+</ol>
+<p><strong>Méthode de réponse :</strong> décision → raison → preuve → limite → prochaine étape. Si tu ne sais pas, précise ce que tu peux vérifier au lieu d'improviser une garantie.</p>
+<h2 id="14-le-vocabulaire-a-maitriser">14. Le vocabulaire à maîtriser</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Terme</th>
+<th>Sens dans ce projet</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agent / session</td>
+<td>Configuration persistante / exécution particulière de cette configuration</td>
+</tr>
+<tr>
+<td>Oracle</td>
+<td>Règle qui permet de dire quel résultat est correct ; elle dépend de l'attente métier</td>
+</tr>
+<tr>
+<td>Assertion</td>
+<td>Contrôle exécutable d'une propriété précise</td>
+</tr>
+<tr>
+<td>Contrôle positif</td>
+<td>Vérifier que le cas autorisé fonctionne avant d'interpréter les cas interdits</td>
+</tr>
+<tr>
+<td>Faux positif / faux négatif</td>
+<td>Signaler à tort un défaut / manquer un défaut existant</td>
+</tr>
+<tr>
+<td>Rappel / précision</td>
+<td>Part des défauts connus détectés / part des défauts signalés réellement vrais, avec protocole et dénominateurs explicites</td>
+</tr>
+<tr>
+<td>Couverture</td>
+<td>Ressources ou scénarios effectivement vérifiés par rapport à un ensemble défini ; pas le pourcentage de sécurité totale d'un site</td>
+</tr>
+<tr>
+<td>IDOR / contrôle d'accès</td>
+<td>Accès à un objet sans autorisation suffisante ; la vérification doit connaître propriétaire, rôle et règle</td>
+</tr>
+<tr>
+<td>RLS</td>
+<td>Politiques d'accès aux lignes imposées par Postgres ; une clé privilégiée peut les contourner</td>
+</tr>
+<tr>
+<td>Idempotence</td>
+<td>Répéter une demande sans répéter involontairement son effet</td>
+</tr>
+<tr>
+<td>Réservation atomique</td>
+<td>Une prise de travail conditionnelle indivisible ; distincte de l'atomicité de toute la mission</td>
+</tr>
+<tr>
+<td>Bail / heartbeat</td>
+<td>Réservation à durée limitée / signe périodique de vie du worker ; à ajouter à notre exploitation</td>
+</tr>
+<tr>
+<td>Polling / webhook</td>
+<td>Relire périodiquement / être appelé lorsqu'un événement est produit</td>
+</tr>
+<tr>
+<td>Backoff</td>
+<td>Espacer progressivement les tentatives après une erreur</td>
+</tr>
+<tr>
+<td>Outbox</td>
+<td>Enregistrer durablement une action à transmettre puis la livrer avec suivi et reprise</td>
+</tr>
+<tr>
+<td>SLO / SLA</td>
+<td>Objectif opérationnel mesuré / engagement de service contractuel ; aucun n'est établi par dix essais</td>
+</tr>
+<tr>
+<td>Rejeu H</td>
+<td>Consultation des actions et observations de la session ; distincte d'une nouvelle exécution du test</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Attention aux échantillons :</strong> dix réussites sur dix ne prouvent pas une fiabilité de 100 %. Les mêmes six failles répétées ne forment pas soixante cas métier indépendants.</p>
+<h2 id="sources-et-points-dentree">Sources et points d'entrée</h2>
+<p>Les liens de code sont figés au commit examiné. Les rapports locaux peuvent être exclus du dépôt public ; ils sont cités pour l'équipe sans reproduire de données de comptes.</p>
+<ul>
+<li id="source-C01"><strong>[C01]</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/livrables/08-justification-des-choix.md">Journal des décisions</a> — notamment D-05 à D-15, D-43, D-47, D-50 à D-54 ; deux entrées portent D-54.</li>
+<li id="source-C02"><strong>[C02]</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/ARCHITECTURE.md">Architecture publiée</a> — à lire avec les écarts de la section 12.</li>
+<li id="source-C03"><strong>[C03]</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/SUIVI.md">Suivi</a> — mesures, état des tâches et temps humain à mesurer.</li>
+<li id="source-C04"><strong>[C04]</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/runner/qa_worker.py#L66">Worker QA</a> — secret, prise de mission, publication, arrêt et nettoyage.</li>
+<li id="source-C05"><strong>[C05]</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/web-console/app/api/console/%5B...path%5D/route.ts">API console</a>, <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/web/lib/qa.js">service QA</a>, <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/web-console/components/console/mission-detail.tsx#L23">suivi de mission</a>.</li>
+<li id="source-C06"><strong>[C06]</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/runner/qa_moteur.py#L586">Moteur QA</a> — règles de résultat ; <code>lire_fin</code> à la ligne 918 ; session à la ligne 929.</li>
+<li id="source-C07"><strong>[C07]</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/web-console/lib/qa-account.mjs">Chiffrement navigateur</a>, <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/runner/cle_runner.py">clé du runner</a>.</li>
+<li id="source-C08"><strong>[C08]</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/runner/missions.py">Routage des missions</a>, <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/runner/sentinelqa.py#L738">runner pentest</a>, <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/runner/pentest/execution.py">scanner</a>.</li>
+<li id="source-C09"><strong>[C09]</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/runner/pentest/acces.py">Matrice d'accès</a>, <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/runner/pentest/authentification.py">authentification</a>.</li>
+<li id="source-C10"><strong>[C10]</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/runner/pentest/hf.py">Compilation des propositions HF</a>.</li>
+<li id="source-C11"><strong>[C11]</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/web-console/lib/operator-session.mjs">Session opérateur</a>, <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/web-console/app/actions.ts">cookie</a>, <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/web/lib/acces-operateur.js">garde historique</a>.</li>
+<li id="source-C12"><strong>[C12]</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/supabase/qa.sql">Schéma QA</a>, <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/runner/base.py#L47">accès privilégié du worker</a>, D-50 dans C01.</li>
+<li id="source-C13"><strong>[C13]</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/runner/pentest/preuves.py">Minimisation des preuves</a>, <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/supabase/alertes.sql#L153">alertes SQL</a>.</li>
+<li id="source-C14"><strong>[C14]</strong> <a href="https://github.com/jkinvi-byte/hsentinel-alertes/blob/902b0c915ca3e0ae943325c3367ec4cdce50549a/sentinelqa/runner/pentest/politique.py">Politique réseau du scanner</a>.</li>
+<li id="source-C15"><strong>[C15]</strong> <a href="../../contexte/02-showcase-h.md">Relevé local du showcase, 16 novembre</a> — la page publique n'a pas pu être rouverte lors de cette revue ; comparaison historique, pas audit des concurrents.</li>
+<li id="source-C16"><strong>[C16]</strong> <a href="../../CLAUDE.md#3-comment-on-est-noté">Règles et grille du jury</a>.</li>
+<li id="source-R01"><strong>[R01]</strong> <a href="../../sentinelqa/rapports/rapport-20261119-114623-971079.json">Rapport S-PEER-02</a>.</li>
+<li id="source-R02"><strong>[R02]</strong> <a href="../../sentinelqa/rapports/rapport-20261119-163636-562026.json">Rapport du laboratoire générique</a>.</li>
+<li id="source-R03"><strong>[R03]</strong> <a href="../../sentinelqa/rapports/rapport-20261119-163834-769931.json">Rapport passif Peer Review</a>.</li>
+<li id="source-E01"><strong>[E01]</strong> <a href="https://tester.hcompany.ai/terms-of-service">Description officielle de Tester H</a> — page ouverte pendant la revue ; confirme le positionnement d'automatisation des tests web en langage naturel, sans comparaison exhaustive de fonctions.</li>
+<li id="source-E02"><strong>[E02]</strong> <a href="https://top10.owasp.org/2025/A01_2025-Broken_Access_Control/">OWASP Top 10:2025 — A01 Broken Access Control</a> — classement de la famille, pas mesure de notre profondeur.</li>
+<li id="source-E03"><strong>[E03]</strong> <a href="https://learn.microsoft.com/en-us/power-automate/task-mining-overview">Microsoft — Overview of task mining</a> — page ouverte ; capture des actions et identification des tâches automatisables.</li>
+<li id="source-E04"><strong>[E04]</strong> <a href="https://hub.hcompany.ai/agents-api/agents/overview">H Agents API — Agents</a> — configuration enregistrée, environnement, modèle et instructions ; documentation ouverte pendant la revue.</li>
+</ul></article><footer>Document local autonome · aucun service externe ni donnée de compte chargé par cette page.</footer></main>
+<script>
+document.querySelectorAll('[data-qa]').forEach(button=>button.addEventListener('click',()=>{
+  document.querySelectorAll('details.qa').forEach(item=>item.open=button.dataset.qa==='open');
+}));
+document.querySelector('[data-print]').addEventListener('click',()=>window.print());
+let previous;
+window.addEventListener('beforeprint',()=>{previous=[...document.querySelectorAll('details.qa')].map(d=>d.open);document.querySelectorAll('details.qa').forEach(d=>d.open=true)});
+window.addEventListener('afterprint',()=>{document.querySelectorAll('details.qa').forEach((d,i)=>d.open=previous?.[i]??true)});
+</script></body></html>

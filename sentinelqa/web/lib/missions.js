@@ -49,7 +49,18 @@ export function cibleReelle(url) {
 }
 
 export function rapportArretAvantDepart(enveloppe, instant = new Date().toISOString()) {
-  const { request, target, scenario } = validerMission({ schema_version: 2, ...enveloppe.request });
+  let request, target, scenario;
+  try {
+    ({ request, target, scenario } = validerMission({ schema_version: 2, ...enveloppe.request }));
+  } catch (error) {
+    const brut = enveloppe?.request;
+    if (brut?.scenario_id !== 'S-GEN-DISCOVERY-01' || brut?.mode !== 'security'
+        || typeof brut?.target_id !== 'string' || !/^[a-z0-9][a-z0-9-]{0,59}$/.test(brut.target_id)
+        || typeof (brut.instruction ?? '') !== 'string' || [...(brut.instruction ?? '')].length > 2000) throw error;
+    request = { target_id: brut.target_id, scenario_id: brut.scenario_id, mode: 'security', instruction: (brut.instruction ?? '').trim() };
+    scenario = catalogue.scenarios.find((s) => s.id === brut.scenario_id);
+    target = { id: request.target_id, name: request.target_id };
+  }
   return {
     schema_version: 2, phase: 'completed', request, scenario_title: scenario.title, scenario_version: scenario.version,
     scope_snapshot: target, started_at: instant, finished_at: instant, duration_s: 0, cost_h: 0, cost_hf: 0, human_minutes: null,

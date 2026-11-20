@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light"><title>HSentinel — Fiche orale CTO</title><style>
+:root{--ink:#172d43;--muted:#60758a;--blue:#1d58a8;--line:#dce4ed;--paper:#fff;--bg:#f5f7fa;--side:270px}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+a{color:var(--blue);text-underline-offset:3px}a:hover{color:#113868}aside{position:fixed;inset:0 auto 0 0;width:var(--side);overflow:auto;padding:28px 20px;border-right:1px solid var(--line);background:#eef2f6}
+.brand{font-weight:850;font-size:20px;letter-spacing:-.8px}.eyebrow{color:var(--muted);font-size:11px;letter-spacing:1.4px;text-transform:uppercase}.toc ul{padding:0;list-style:none}.toc ul ul{display:none}.toc>ul>li>a{display:none}.toc>ul>li>ul{display:block}.toc>ul>li>ul>li{margin:13px 0;line-height:1.4}.toc a{color:#36506a;text-decoration:none;font-size:13px}
+main{max-width:1180px;margin:0 auto 0 var(--side);padding:45px 5vw 100px}article{background:var(--paper);padding:38px 48px;border:1px solid var(--line);border-radius:16px;box-shadow:0 5px 30px #173b5f06}
+h1{font-size:38px;line-height:1.16;letter-spacing:-1.5px;max-width:760px;margin:0 0 26px}h2{font-size:25px;line-height:1.25;letter-spacing:-.6px;margin:54px 0 22px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:19px;line-height:1.4;margin:30px 0 12px}p{margin:14px 0}li{margin:8px 0}strong{font-weight:730}
+blockquote{margin:24px 0;padding:8px 22px;border-left:4px solid #2d66b7;background:#f0f5fc;border-radius:0 9px 9px 0}blockquote p{margin:10px 0}code{font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;background:#edf1f6;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{padding:20px;background:#eef2f6;overflow-x:auto}
+.table-scroll{overflow:auto;margin:22px 0}table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.55;text-align:left}th{background:#ecf2f8;color:#294965;font-size:12px;padding:12px;vertical-align:top}td{padding:12px;vertical-align:top;border-bottom:1px solid var(--line)}tr:nth-child(even) td{background:#f9fbfd}td p{margin:0}table code{font-size:11px}
+.architecture{margin:24px 0;background:#f8fafd;border:1px solid var(--line);border-radius:12px;padding:14px}.architecture svg{width:100%;height:auto;display:block}figcaption{font-size:12px;color:var(--muted);line-height:1.5;padding:12px}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 26px}.tools button,.tools a{font-family:inherit;font-weight:600;font-size:12px;line-height:1.5;border:1px solid #ccd8e5;background:#fff;border-radius:7px;padding:8px 12px;cursor:pointer;color:var(--blue);text-decoration:none}.tools button:hover,.tools a:hover{background:#eaf2fc}
+.qa{border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:15px 19px;background:#fff}.qa summary{font-weight:730;font-size:17px;cursor:pointer;line-height:1.45}.qa[open] summary{margin-bottom:12px}.qa>div>p:last-child{margin-bottom:3px}
+.reference{font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap}.note{font-size:12px;color:var(--muted)}footer{margin-top:25px;font-size:12px;color:var(--muted)}section{overflow-wrap:anywhere}.print-only{display:none}
+@media(min-width:1600px){main{margin-left:calc(var(--side) + (100vw - 1600px)/2)}}
+@media(max-width:1050px){:root{--side:220px}aside{padding:22px 14px}main{padding:24px}article{padding:30px}h1{font-size:32px}}
+@media(max-width:760px){aside{position:relative;width:auto;border-right:0;border-bottom:1px solid var(--line);padding:20px}.toc{display:none}main{margin:0;padding:14px}article{padding:24px 19px}h1{font-size:30px}h2{font-size:23px}.tools{margin-bottom:15px}table{min-width:620px}.qa summary{font-size:16px}}
+@media print{@page{size:A4;margin:16mm 14mm 18mm}body{background:#fff;font-size:10pt;line-height:1.5}aside,.tools{display:none}main{margin:0;padding:0;max-width:none}article{padding:0;border:0;box-shadow:none;border-radius:0}h1{font-size:25pt}h2{font-size:17pt;margin-top:28px;break-after:avoid}h3,summary{break-after:avoid}p{orphans:3;widows:3}table{min-width:0;font-size:8pt;line-height:1.4}th,td{padding:7px}tr{break-inside:avoid}thead{display:table-header-group}a{color:inherit;text-decoration:none}blockquote,.architecture{break-inside:avoid}svg{max-height:170mm}.table-scroll{overflow:visible}.qa{padding:10px 12px}.qa>div{display:block!important}.qa summary{font-size:11pt}.print-only{display:block}}
+</style></head>
+<body><aside><div class="eyebrow">Préparation du jury</div><div class="brand">HSentinel / CTO</div>
+<p class="note">20 novembre 2026<br>Code examiné : 902b0c9</p><div class="toc">
+<ul>
+<li><a href="#hsentinel-fiche-orale-cto">HSentinel — Fiche orale CTO</a><ul>
+<li><a href="#la-phrase-centrale">La phrase centrale</a></li>
+<li><a href="#le-dessin-en-vingt-secondes">Le dessin en vingt secondes</a></li>
+<li><a href="#les-cinq-choix-a-defendre">Les cinq choix à défendre</a></li>
+<li><a href="#les-chiffres-surs">Les chiffres sûrs</a></li>
+<li><a href="#les-reponses-qui-evitent-les-pieges">Les réponses qui évitent les pièges</a></li>
+<li><a href="#avant-de-monter-sur-scene">Avant de monter sur scène</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</aside>
+<main><div class="eyebrow">Architecture vérifiée · décisions · preuves</div>
+<div class="tools"><a href="DEFENSE-TECHNIQUE-CTO.html">Ouvrir le dossier complet</a><button data-print>Imprimer / enregistrer en PDF</button></div>
+<article><h1 id="hsentinel-fiche-orale-cto">HSentinel — Fiche orale CTO</h1>
+<p><strong>À relire juste avant le jury · 20 novembre 2026 · code <code>902b0c9</code></strong></p>
+<h2 id="la-phrase-centrale">La phrase centrale</h2>
+<p><strong>« HSentinel vérifie les parcours utilisateurs et les contrôles d'accès d'un SaaS. H navigue, Hugging Face prépare, nos règles évaluent les preuves. »</strong></p>
+<p>Deux volets de même importance : QA fonctionnel et pentest. Un même besoin : vérifier les effets d'une évolution de l'application.</p>
+<h2 id="le-dessin-en-vingt-secondes">Le dessin en vingt secondes</h2>
+<p><strong>Console Next.js sur Vercel → Supabase → deux workers Python → H + contrôles HTTP → rapport → alertes n8n.</strong></p>
+<ul>
+<li>HF : plan, transcription, conversation, voix ; priorisation encadrée dans le scanner.</li>
+<li>Workers actuellement sur le Mac ; navigateur chez H.</li>
+<li>QA : <code>qa_missions</code>, rapport v3. Pentest : <code>audits</code>, rapport v2.</li>
+<li>Suivi par polling ; pas Supabase Realtime dans ce parcours.</li>
+<li>Une mission terminée peut contenir des résultats non concluants.</li>
+</ul>
+<h2 id="les-cinq-choix-a-defendre">Les cinq choix à défendre</h2>
+<ol>
+<li><strong>H + HTTP.</strong> H prouve le parcours dans l'interface ; HTTP confirme efficacement certaines observations. Les tests purement HTTP n'ont pas besoin de clics artificiels.</li>
+<li><strong>Règles de verdict.</strong> Elles sont inspectables et testables. Même règle et mêmes observations donnent le même résultat ; toute l'exécution n'est pas déterministe.</li>
+<li><strong>Jobs hors de Next.js.</strong> Les campagnes durent plusieurs minutes et continuent si l'utilisateur ferme sa page.</li>
+<li><strong>Supabase comme file.</strong> Persistance et réservation conditionnelle, avec peu de composants. Il manque la reprise automatique après crash et l'idempotence globale.</li>
+<li><strong>Banc + sites réels.</strong> Le banc mesure la détection sur défauts connus ; les sites réels prouvent l'intégration. L'un ne remplace pas l'autre.</li>
+</ol>
+<h2 id="les-chiffres-surs">Les chiffres sûrs</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Cas</th>
+<th>À dire</th>
+<th>Limite</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>QA « Bac+3 »</td>
+<td>10/10 ; moyenne 29 s et 0,007 $ H</td>
+<td>Un scénario précis</td>
+</tr>
+<tr>
+<td>QA connecté</td>
+<td>Connexion/identité 10/10 ; 40 s, 0,015 $ H</td>
+<td>D'autres critères restent non concluants</td>
+</tr>
+<tr>
+<td>Paie Express</td>
+<td>59 détections sur 60 occasions ; 6 failles injectées, 10 audits</td>
+<td>Pas 59 failles différentes ; pas un taux de marché</td>
+</tr>
+<tr>
+<td>S-PEER-02</td>
+<td>2 conformes, 0 faille, 1 non concluant ; 106 s</td>
+<td>Aucune fuite démontrée sur l'école</td>
+</tr>
+<tr>
+<td>Scanner laboratoire</td>
+<td>6 vulnérabilités fictives uniques ; 7 ressources dans la matrice</td>
+<td>Les 10 assertions échouées ne sont pas 10 vulnérabilités</td>
+</tr>
+</tbody>
+</table></div>
+<p>Coût H ≠ coût complet. Durée machine ≠ temps humain gagné. Le temps humain reste à mesurer selon le suivi.</p>
+<h2 id="les-reponses-qui-evitent-les-pieges">Les réponses qui évitent les pièges</h2>
+<p><strong>Pourquoi pas Playwright ?</strong> Il est pertinent pour les parcours stables ; nous l'utilisons. H apporte l'exploration visuelle à partir d'une intention. Le gain de maintenance comparé reste à mesurer.</p>
+<p><strong>Votre IA peut se tromper ?</strong> Oui. On confronte ses observations aux règles et aux preuves. Une citation retrouvée recoupe son constat sans prouver toute sa signification métier.</p>
+<p><strong>Pourquoi non concluant ?</strong> Un échec d'outil, une page générique ou une session expirée ne doivent pas devenir une conformité inventée.</p>
+<p><strong>Vous êtes prêts pour cent clients ?</strong> Pas dans l'exploitation actuelle. Il faut héberger et superviser les workers, ajouter organisations/RLS, quotas et reprise des missions.</p>
+<p><strong>La RLS isole déjà les clients ?</strong> Elle ferme l'accès public. Le backend privilégié et l'accès opérateur commun ne constituent pas une isolation client.</p>
+<p><strong>Le mot de passe ?</strong> Chiffré dans le navigateur, retiré de la demande en base avant déchiffrement par le runner, puis coffre H et nettoyage. Pas de secret dans le prompt ; pas de promesse « zéro donnée sensible ».</p>
+<p><strong>L'arrêt est immédiat ?</strong> Non : annulation coopérative. La garde H observe des événements après les gestes.</p>
+<p><strong>Vous avez trouvé une faille réelle sur l'école ?</strong> Les rapports examinés n'en démontrent pas. Les résultats positifs sont sur les bancs fictifs.</p>
+<p><strong>Pourquoi vous plutôt qu'un autre agent ?</strong> Profils métier, vérification des parcours et des accès, résultats examinables et suivi. La différenciation doit être démontrée, car le QA par agent existe déjà.</p>
+<h2 id="avant-de-monter-sur-scene">Avant de monter sur scène</h2>
+<ul>
+<li>Confirmer le déploiement : le dernier D-54 est publié mais déclaré non déployé dans la console.</li>
+<li>Vérifier les deux workers par une mission de bout en bout ; une clé publique présente n'est pas un heartbeat.</li>
+<li>Préparer une preuve conforme, un défaut injecté et une non-conclusion expliquée.</li>
+<li>Identifier explicitement ce qui est live et ce qui est archivé.</li>
+<li>Tester le micro réel ; garder la saisie clavier disponible.</li>
+</ul>
+<p><strong>Si une question te déstabilise : décision → raison → preuve → limite → prochaine étape.</strong></p>
+<p><a href="DEFENSE-TECHNIQUE-CTO.html">Dossier complet et 40 questions</a></p></article><footer>Document local autonome · aucun service externe ni donnée de compte chargé par cette page.</footer></main>
+<script>
+document.querySelectorAll('[data-qa]').forEach(button=>button.addEventListener('click',()=>{
+  document.querySelectorAll('details.qa').forEach(item=>item.open=button.dataset.qa==='open');
+}));
+document.querySelector('[data-print]').addEventListener('click',()=>window.print());
+let previous;
+window.addEventListener('beforeprint',()=>{previous=[...document.querySelectorAll('details.qa')].map(d=>d.open);document.querySelectorAll('details.qa').forEach(d=>d.open=true)});
+window.addEventListener('afterprint',()=>{document.querySelectorAll('details.qa').forEach((d,i)=>d.open=previous?.[i]??true)});
+</script></body></html>

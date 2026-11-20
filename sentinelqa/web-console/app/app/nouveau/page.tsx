@@ -8,7 +8,7 @@ import { listerAjoutees } from '@/lib/applications-reel'
 export default async function NewMission({ searchParams }: { searchParams: Promise<{ volet?: string; cible?: string; voix?: string }> }) {
   const { volet, cible, voix } = await searchParams
   const ajoutees = await listerAjoutees().catch(() => [])
-  const base = catalog() as unknown as Catalog
+  const base = catalog(ajoutees) as unknown as Catalog
   const qa = [
     ...ajoutees.map((a) => ({
       id: a.id, name: a.nom, url: a.profil_qa?.entree ?? a.origine, available: Boolean(a.autorisee && a.verifiee_le), connexion: Boolean(a.profil_qa?.connexion),

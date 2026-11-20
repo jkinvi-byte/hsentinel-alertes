@@ -112,6 +112,7 @@ function LigneAjoutee({ app }: { app: ApplicationAjoutee }) {
           </ul>
         </div>
         <div className="lv-app-actions">
+          {app.verifiee_le ? <Link href={`/app/nouveau?volet=pentest&cible=${encodeURIComponent(app.id)}`} className="lv-bouton lv-bouton-trait"><ShieldCheck aria-hidden="true" />Pentest libre</Link> : null}
           {suite === 'prete' ? (
             <Link href={`/app/nouveau?volet=qa&cible=${encodeURIComponent(app.id)}`} className="lv-bouton lv-bouton-trait">Préparer un test <ArrowRight aria-hidden="true" /></Link>
           ) : (

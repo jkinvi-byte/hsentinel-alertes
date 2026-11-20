@@ -690,7 +690,14 @@ def traiter_demande(base, cle, demande):
     journal(f"Demande prise par le runner : {demande['application']} · {demande['cible']}", "info")
     try:
         if (demande.get("rapport") or {}).get("schema_version") == 2:
-            mission, cible, scenario = valider_demande(demande["rapport"]["request"])
+            requete = demande["rapport"]["request"]
+            profil_libre = None
+            if (requete.get("scenario_id") == "S-GEN-DISCOVERY-01"
+                    and requete.get("target_id") not in {t["id"] for t in CATALOGUE["targets"]}):
+                import pentest_libre
+                mission, cible, scenario, profil_libre = pentest_libre.preparer(base, requete)
+            else:
+                mission, cible, scenario = valider_demande(requete)
             if (demande["cible"] != cible["entry_url"] or demande.get("ecriture_autorisee")
                     or demande.get("comptes") or demande.get("secrets_chiffres")):
                 raise ValueError("La demande ne correspond pas au profil anonyme enregistré.")
@@ -700,7 +707,10 @@ def traiter_demande(base, cle, demande):
                     stop[0] = bool(base.lire("evenements", audit_id=f"eq.{audit_id}", type="eq.arret", limit="1"))
                     derniere_verification[0] = time.monotonic()
                 return stop[0]
-            if scenario.get("assertion_type") == "idor_bench":
+            if profil_libre is not None:
+                donnees = pentest_libre.executer(mission, cible, scenario, profil_libre,
+                    NavigateurH(lambda: Client(api_key=cle_api(), timeout=15, max_retries=0)), journal, arret)
+            elif scenario.get("assertion_type") == "idor_bench":
                 donnees = auditer_banc(mission, cible, scenario, arret)
             else:
                 donnees = executer_mission(mission, NavigateurH(lambda: Client(api_key=cle_api(), timeout=15, max_retries=0)), journal, arret)
