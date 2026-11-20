@@ -857,3 +857,12 @@ test('Visite guidée : la vue d’ensemble en six étapes, Échap ferme, et une 
   await page.goto('/app/compte')
   await expect(page.getByRole('button', { name: /Visite guidée de la page/ })).toHaveCount(0)
 })
+
+test('Visite guidée : la bulle prend les couleurs de la console, en clair comme en sombre', async ({ page }) => {
+  await loginCookie(page); await fixtures(page)
+  await page.goto('/app/nouveau')
+  await page.getByRole('button', { name: /Visite guidée de la page/ }).click()
+  const fond = () => page.locator('.lv-visite-bulle').evaluate((el) => getComputedStyle(el).backgroundColor)
+  await expect.poll(fond).toBe('rgb(255, 255, 255)') // la carte claire de la console, pas la palette sombre du site vitrine
+  expect(await page.locator('.lv-visite').evaluate((el) => el.parentElement?.id)).toBe('console-root')
+})

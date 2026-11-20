@@ -139,6 +139,8 @@ function Parcours({ visite, depart, onFin }: { visite: Visite; depart: DOMRect |
         </div>
       </div>
     </div>,
-    document.body,
+    // Dans la racine de la console, pas dans <body> : la bulle prend les couleurs de la console, claires ou sombres
+    // (le 20/11, rendue dans <body>, elle prenait la palette sombre du site vitrine).
+    document.getElementById('console-root') ?? document.body,
   )
 }
