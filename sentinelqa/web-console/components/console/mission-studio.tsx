@@ -75,11 +75,22 @@ export function MissionStudio({ catalog, initialModule, initialTarget, initialVo
   }
   // Prêt à partir sans rien demander : QA, application disponible, et son compte de test s'il en faut un (enregistré).
   const pretDirect = module === 'qa' && selected?.available === true && (!connected || (ajoutee && Boolean(compteId)))
-  async function lancerDirect(texte: string) {
+  async function lancerDirect(texte: string, pilotage: 'guide' | 'exploration' = 'guide') {
     if (locked.current) return
     locked.current = true; begin(); setError(null)
-    setPending('plan'); setDirect('L’expert prépare le plan avec Hugging Face…')
     try {
+      // D-57 bis : une exploration part sans plan ; la consigne guidée passe d'abord par Hugging Face.
+      if (pilotage === 'exploration') {
+        setPending('launch'); setDirect('Lancement de l’exploration…')
+        const mission = await postJson<{ id: string; module: Module }>('missions', {
+          schema_version: 3, mode: 'qa', target_id: target, pilotage: 'exploration', appareil: screen, modele_h: 'holo4-35b-a3b',
+          instruction: '', source: 'voix', plan: null, preparation_humaine_s: began.current ? Math.round((Date.now() - began.current) / 1000) : null,
+          ...(connected && ajoutee ? { compte_id: compteId } : {}),
+        })
+        router.push(`/app/missions/${mission.module}/${mission.id}`)
+        return
+      }
+      setPending('plan'); setDirect('L’expert prépare le plan avec Hugging Face…')
       const data = await postJson<{ plan: Plan }>('plan', { target_id: target, instruction: texte })
       setPlan(data.plan); setPlanFor(`${target}:${texte}`)
       setPending('launch'); setDirect(`Plan prêt : ${data.plan.criteres.length} critère${data.plan.criteres.length > 1 ? 's' : ''}. Lancement de la mission…`)
@@ -123,9 +134,10 @@ export function MissionStudio({ catalog, initialModule, initialTarget, initialVo
           {/* D-51 puis D-55 et D-57 : l'expert QA ou Pentest, porte d'entrée vocale ; quand tout est prêt, sa consigne part après un compte à rebours ; sinon elle ne remplace la vôtre que sur demande. */}
           <MissionExpert volet={module} cible={module === 'qa' ? target : targetPentest} cibleNom={module === 'qa' ? selected?.name : selectedPentestTarget?.name} consigne={instruction} disabled={busy}
             ouvrirAuDepart={initialVoix} onManuel={ouvrirManuel}
-            onApply={(texte: string, lancer?: boolean) => {
-              setInstruction(texte); setVoiceUsed(true); if (module === 'qa') setMode('guide'); begin()
-              if (lancer && pretDirect) void lancerDirect(texte)
+            onApply={(texte: string, lancer?: boolean, pilotage: 'guide' | 'exploration' = 'guide') => {
+              const exploration = module === 'qa' && pilotage === 'exploration' && Boolean(selected?.modes.includes('exploration'))
+              setInstruction(exploration ? '' : texte); setVoiceUsed(true); if (module === 'qa') setMode(exploration ? 'exploration' : 'guide'); begin()
+              if (lancer && pretDirect) void lancerDirect(texte, exploration ? 'exploration' : 'guide')
               else ouvrirManuel()
             }} />
           {direct ? <p className="lv-note" data-ton="bleu" role="status"><Sparkles aria-hidden="true" /><span>{direct}</span></p> : null}

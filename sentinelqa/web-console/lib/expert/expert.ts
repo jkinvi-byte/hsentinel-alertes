@@ -3,7 +3,7 @@ import { CATALOGUE_QA as CATALOGUE_QA_JS } from '../../../web/lib/qa-contrat.mjs
 import { requete as requeteJs } from '../../../web/lib/supabase.js'
 import { catalog } from '../console-contract.mjs'
 import { blocFiches, IDS } from './manuel.mjs'
-import { actionExpert, historiqueSurLaCible, lancementPossible, questionDejaPosee } from './actions.mjs'
+import { actionExpert, consigneProche, historiqueSurLaCible, intentionExploration, lancementPossible, propositionExploration, questionDejaPosee, questionTronquee } from './actions.mjs'
 import { listerAjoutees } from '../applications-reel'
 import type { ApplicationAjoutee } from '../applications-types'
 
@@ -20,7 +20,9 @@ export type Volet = 'qa' | 'pentest'
 export type Tour = { role: 'utilisateur' | 'expert'; texte: string }
 export type Demande = { volet: Volet; cible: string; consigne: string; question: string; historique: Tour[] }
 export type ActionExpert = { type: 'ajouter_application' | 'ajouter_compte'; libelle: string; href: string; adresse?: string | null }
-export type Reponse = { reponse: string; consigne_proposee: string | null; action: ActionExpert | null; lancement: 'direct' | 'studio' | null; fiches: string[]; modele: string; fournisseur: string; latence_s: number }
+export type Reponse = { reponse: string; consigne_proposee: string | null; action: ActionExpert | null; lancement: 'direct' | 'studio' | null;
+  /** D-57 bis : « exploration » quand on cherche des bugs ou des liens cassés ; sinon un parcours guidé. */
+  pilotage: 'guide' | 'exploration'; fiches: string[]; modele: string; fournisseur: string; latence_s: number }
 
 const COMMUN = [
   'Tu parles directement à l’utilisateur et tu le vouvoies. Ta réponse est lue à voix haute : 2 à 4 phrases courtes, en français, sans liste, sans markdown, sans emoji. Les nombres s’écrivent en chiffres, avec leur unité.',
@@ -39,6 +41,8 @@ const PERSONAS: Record<Volet, string[]> = {
     'Tu es l’expert QA de HSentinel. Tu aides l’utilisateur à préparer une mission de QA fonctionnel que l’agent H saura jouer et que le code saura vérifier.',
     // D-57 : dans la proposition, pas dans l’interrogatoire.
     'Sois dans la proposition. Dès que tu sais quelle page ouvrir et ce qu’on doit y voir, propose consigne_proposee, même si tout n’est pas précisé : l’utilisateur la corrige d’un clic.',
+    'Une consigne guidée vérifie exactement ce que l’utilisateur a demandé, avec ses mots : n’y mets entre guillemets que des mots qu’il a dits, jamais un texte d’accueil ou un titre inventé (« Bienvenue »). L’agent ne clique jamais sur un bouton qui enregistre ou envoie : n’écris jamais « clique sur chaque bouton ».',
+    'La transcription vocale peut omettre des mots : si la demande te semble incomplète, pose ta question de précision plutôt que de deviner.',
     'Au plus une question de précision dans toute la conversation, et seulement si sans elle aucune consigne vérifiable n’est possible. Elle est courte et fermée, avec ta proposition par défaut (« Je vérifie la page Factures, ou une autre ? »). Si le CONTEXTE indique que ta question est déjà posée, n’en pose plus : propose la meilleure consigne avec ce que tu sais.',
     'Quand tu proposes une consigne et que le CONTEXTE indique « lancement direct : possible », dis en une phrase ce que l’agent va faire et que tu lances la mission ; l’utilisateur peut annuler. Sinon, dis ce qu’il reste à fournir dans le studio.',
     'Quand la consigne en cours est vague, propose dans consigne_proposee une consigne entière et meilleure : la page à atteindre, puis ce qu’on doit y voir, avec les mots attendus exactement entre guillemets ; 400 caractères au plus ; uniquement sur la cible choisie et en consultation seule. Sinon, consigne_proposee vaut null.',
@@ -108,6 +112,12 @@ export async function cibleConnue(volet: Volet, cible: string) {
   return c.qa.some((t) => t.id === cible) || (await ajouteesLisibles()).some((a) => a.id === cible)
 }
 
+/** Le nom de la cible, tel que l'utilisateur la voit (« Ardoise », « Eugenia School »). */
+function nomDe(cible: string, ajoutees: ApplicationAjoutee[]) {
+  const c = catalog() as { qa: Ligne[]; pentest: Ligne[] }
+  return ajoutees.find((a) => a.id === cible)?.nom ?? c.qa.find((t) => t.id === cible)?.name ?? 'le site'
+}
+
 /** Le lancement possible pour cette cible (D-57) : la règle écrite d'actions.mjs, sur le catalogue ou l'application ajoutée. */
 function lancementDe(volet: Volet, cible: string, ajoutees: ApplicationAjoutee[]) {
   const c = catalog() as { qa: Ligne[]; pentest: Ligne[] }
@@ -139,6 +149,26 @@ export async function repondre(d: Demande, jeton = process.env.HF_TOKEN): Promis
     { role: 'user', content: d.question.slice(0, 1000) },
   ]
   const debut = performance.now()
+  const cibleAjoutee = ajoutees.find((a) => a.id === d.cible)
+  const cibleAction = cibleAjoutee ? { id: cibleAjoutee.id, ajoutee: true, connexion: Boolean(cibleAjoutee.profil_qa?.connexion), comptes: cibleAjoutee.comptes.length } : null
+  // D-57 bis : avant le modèle, deux règles écrites, plus justes et plus rapides que lui. Un site inconnu cité garde la main
+  // (l'expert propose de l'ajouter) ; sinon une dictée coupée se redemande, et une chasse aux bugs devient une exploration.
+  if (d.volet === 'qa') {
+    const nom = nomDe(d.cible, ajoutees)
+    const prete = lancementDe(d.volet, d.cible, ajoutees)
+    const siteInconnu = actionExpert({ question: d.question, cible: null, connues })?.type === 'ajouter_application'
+    const regle = (reponse: string, consigne: string | null, lancement: 'direct' | 'studio' | null, pilotage: 'guide' | 'exploration'): Reponse => ({
+      reponse, consigne_proposee: consigne, lancement, pilotage, fiches: [], modele: 'règle écrite', fournisseur: '', latence_s: 0,
+      action: actionExpert({ question: d.question, cible: cibleAction, connues }) as ActionExpert | null,
+    })
+    if (!siteInconnu && !dejaQuestionne && questionTronquee(d.question, nom)) {
+      return regle(`Je n’ai pas saisi la fin de votre phrase. Que voulez-vous vérifier exactement sur ${nom} : une page précise, ou tout le site ?`, null, null, 'guide')
+    }
+    if (!siteInconnu && intentionExploration(d.question)) {
+      const e = propositionExploration(nom)
+      return regle(prete === 'direct' ? `${e.reponse} Je la lance dans 4 secondes ; vous pouvez annuler.` : e.reponse, e.consigne, prete, 'exploration')
+    }
+  }
   const appeler = (modele: string, liste = messages) => fetch(ROUTEUR, {
     method: 'POST', signal: AbortSignal.timeout(15000),
     headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' },
@@ -166,14 +196,16 @@ export async function repondre(d: Demande, jeton = process.env.HF_TOKEN): Promis
   }
   if (!lu.reponse) throw new Error('L’expert n’a pas rendu de réponse lisible.')
   // Le bouton proposé : une règle écrite (actions.mjs), que l'avis du modèle ne fait que compléter. Pas de bouton en Pentest.
-  const cibleAjoutee = ajoutees.find((a) => a.id === d.cible)
-  const action = d.volet === 'qa' ? actionExpert({ question: d.question, connues, proposee: lu.brut.action,
-    cible: cibleAjoutee ? { id: cibleAjoutee.id, ajoutee: true, connexion: Boolean(cibleAjoutee.profil_qa?.connexion), comptes: cibleAjoutee.comptes.length } : null }) as ActionExpert | null : null
+  const action = d.volet === 'qa' ? actionExpert({ question: d.question, connues, proposee: lu.brut.action, cible: cibleAction }) as ActionExpert | null : null
   const consigne = action?.type === 'ajouter_application' ? null : lu.proposee
+  // D-57 bis : une consigne ne part seule que si elle reprend la demande (après la question de l'expert, la demande est la
+  // réponse de l'utilisateur et ce qu'il précisait avant) et ne cite rien d'inventé. Sinon, elle attend un clic.
+  const demande = dejaQuestionne ? [...d.historique.filter((t) => t.role === 'utilisateur').slice(-1).map((t) => t.texte), ...d.historique.filter((t) => t.role === 'expert').slice(-1).map((t) => t.texte), d.question].join(' ') : d.question
+  const pertinente = Boolean(consigne) && consigneProche(demande, consigne!, nomDe(d.cible, ajoutees))
   return {
-    reponse: lu.reponse, consigne_proposee: consigne, action,
-    // D-57 : une consigne proposée part directement (compte à rebours annulable) si la cible a tout ce qu'il faut.
-    lancement: d.volet === 'qa' && consigne ? lancementDe(d.volet, d.cible, ajoutees) : null,
+    reponse: lu.reponse, consigne_proposee: consigne, action, pilotage: 'guide',
+    // D-57 : une consigne proposée part directement (compte à rebours annulable) si la cible a tout ce qu'il faut et si elle est pertinente.
+    lancement: d.volet === 'qa' && consigne ? (pertinente && lancementDe(d.volet, d.cible, ajoutees) === 'direct' ? 'direct' : 'studio') : null,
     fiches: (Array.isArray(lu.brut.fiches) ? lu.brut.fiches : fiches.ids).map(String).filter((id: string) => IDS.has(id)),
     modele, fournisseur: r.headers.get('x-inference-provider') ?? modele.split(':')[1] ?? '',
     latence_s: Math.round((performance.now() - debut) / 10) / 100,

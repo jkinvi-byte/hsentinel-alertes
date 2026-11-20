@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { parler, taire } from '@/lib/expert/voix.mjs'
 import { accueilExpert, typographie } from '@/lib/expert/conversation.mjs'
-import { amorcerAudio, ExpertConversation, prechargerAccueil, type ActionProposee, type Lancement, type ReponseExpert } from './expert-conversation'
+import { amorcerAudio, ExpertConversation, prechargerAccueil, type ActionProposee, type Lancement, type Pilotage, type ReponseExpert } from './expert-conversation'
 
 // D-51 puis D-55 : l'expert QA ou Pentest, porte d'entrée de la nouvelle mission. On commence par la voix : le grand
 // bouton ouvre la conversation (le seul micro du studio, D-55 : « parler avec l'IA en plus de la reconnaissance vocale,
@@ -14,7 +14,7 @@ import { amorcerAudio, ExpertConversation, prechargerAccueil, type ActionPropose
 // ne remplace la vôtre que sur « Reprendre dans la consigne ».
 
 type Volet = 'qa' | 'pentest'
-type Message = { role: 'utilisateur' | 'expert'; texte: string; consigne?: string | null; action?: ActionProposee | null; lancement?: Lancement; fiches?: string[] }
+type Message = { role: 'utilisateur' | 'expert'; texte: string; consigne?: string | null; action?: ActionProposee | null; lancement?: Lancement; pilotage?: Pilotage; fiches?: string[] }
 type Props = {
   volet: Volet
   cible: string
@@ -22,7 +22,7 @@ type Props = {
   consigne: string
   disabled?: boolean
   /** La consigne choisie ; `lancer` : partir tout de suite, car tout est prêt (D-57). */
-  onApply: (texte: string, lancer?: boolean) => void
+  onApply: (texte: string, lancer?: boolean, pilotage?: Pilotage) => void
   onManuel?: () => void
   /** Arrivée par « Parler à l'expert » : la conversation s'ouvre seule si le geste de l'utilisateur est encore actif. */
   ouvrirAuDepart?: boolean
@@ -93,8 +93,8 @@ export function MissionExpert({ volet, cible, cibleNom = null, consigne, disable
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.erreur || 'L’expert ne répond pas pour l’instant.')
-      setMessages((m) => [...m, { role: 'expert', texte: data.reponse, consigne: data.consigne_proposee, action: data.action ?? null, lancement: data.lancement ?? null, fiches: data.fiches }])
-      return { reponse: data.reponse, consigne_proposee: data.consigne_proposee ?? null, action: data.action ?? null, lancement: data.lancement ?? null }
+      setMessages((m) => [...m, { role: 'expert', texte: data.reponse, consigne: data.consigne_proposee, action: data.action ?? null, lancement: data.lancement ?? null, pilotage: data.pilotage ?? 'guide', fiches: data.fiches }])
+      return { reponse: data.reponse, consigne_proposee: data.consigne_proposee ?? null, action: data.action ?? null, lancement: data.lancement ?? null, pilotage: data.pilotage ?? 'guide' }
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'L’expert ne répond pas pour l’instant.')
       return null
@@ -189,16 +189,16 @@ export function MissionExpert({ volet, cible, cibleNom = null, consigne, disable
               <p className="lv-expert-texte">{typographie(m.texte)}</p>
               {m.consigne ? (
                 <div className="lv-expert-proposition">
-                  <p className="lv-expert-qui">{volet === 'qa' ? 'Consigne proposée' : 'Précisions proposées'}</p>
+                  <p className="lv-expert-qui">{volet !== 'qa' ? 'Précisions proposées' : m.pilotage === 'exploration' ? 'Exploration proposée' : 'Consigne proposée'}</p>
                   <p>{typographie(m.consigne)}</p>
                   <div className="flex flex-wrap gap-2">
                     {m.lancement === 'direct' ? (
-                      <button type="button" className="lv-bouton lv-bouton-bleu" disabled={disabled} onClick={() => onApply(m.consigne!, true)}>
+                      <button type="button" className="lv-bouton lv-bouton-bleu" disabled={disabled} onClick={() => onApply(m.consigne!, true, m.pilotage)}>
                         <Play aria-hidden="true" />
-                        Lancer la mission
+                        {m.pilotage === 'exploration' ? 'Lancer l’exploration' : 'Lancer la mission'}
                       </button>
                     ) : null}
-                    <button type="button" className={`lv-bouton ${m.lancement === 'direct' ? 'lv-bouton-trait' : 'lv-bouton-bleu'}`} disabled={disabled} onClick={() => onApply(m.consigne!, false)}>
+                    <button type="button" className={`lv-bouton ${m.lancement === 'direct' ? 'lv-bouton-trait' : 'lv-bouton-bleu'}`} disabled={disabled} onClick={() => onApply(m.consigne!, false, m.pilotage)}>
                       <CornerDownLeft aria-hidden="true" />
                       Reprendre dans la consigne
                     </button>

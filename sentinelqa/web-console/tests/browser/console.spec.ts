@@ -38,7 +38,7 @@ async function fixtures(page: Page) {
     keys: 0, keyAvailable: true, alertsFailed: false, expert: [] as any[], voix: [] as any[], voixEnPanne: false,
     reponseExpert: 'Réponse synthétique de l’expert.', transcription: 'Vérifie le Bachelor et son diplôme.',
     ajouts: [] as any[], verifications: 0, comptes: [] as any[], actionExpert: null as null | Record<string, unknown>,
-    lancementExpert: null as null | 'direct' | 'studio' }
+    lancementExpert: null as null | 'direct' | 'studio', pilotageExpert: 'guide' as 'guide' | 'exploration' }
   await page.route('**/api/console/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname
     const response = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
@@ -62,7 +62,7 @@ async function fixtures(page: Page) {
     if (path === '/api/console/expert') {
       calls.expert.push(request.postDataJSON())
       return response({ reponse: calls.reponseExpert, consigne_proposee: calls.actionExpert ? null : 'Ouvrir le menu « Programmes », puis vérifier le texte « Bac+3 ».',
-        action: calls.actionExpert, lancement: calls.actionExpert ? null : calls.lancementExpert, fiches: ['consigne'], modele: 'fixture', latence_s: 0.1 })
+        action: calls.actionExpert, lancement: calls.actionExpert ? null : calls.lancementExpert, pilotage: calls.pilotageExpert, fiches: ['consigne'], modele: 'fixture', latence_s: 0.1 })
     }
     if (path === '/api/console/transcription') {
       calls.transcriptions++; await new Promise(resolve => setTimeout(resolve, 350))
@@ -801,4 +801,21 @@ test('Mode conversation : « Annuler » arrête le compte à rebours ; « Lancer
   await expect(dialogue).toHaveCount(0)
   await expect.poll(() => calls.starts.length).toBe(1)
   await expect(page).toHaveURL(new RegExp(`/app/missions/qa/${id}$`))
+})
+
+test('Mode conversation : une chasse aux bugs devient une exploration, qui part seule sans plan', async ({ page }) => {
+  await loginCookie(page); const calls = await fixtures(page)
+  calls.reponseExpert = 'Pour trouver ce qui ne marche pas, je propose une exploration. Je la lance dans 4 secondes ; vous pouvez annuler.'
+  calls.lancementExpert = 'direct'
+  calls.pilotageExpert = 'exploration'
+  await page.goto('/app/nouveau')
+  await page.getByRole('button', { name: 'Parler à l’expert' }).click()
+  const dialogue = page.getByRole('dialog', { name: /Conversation/ })
+  await dialogue.getByRole('button', { name: 'J’ai fini' }).click({ timeout: 8000 }).catch(() => {})
+  await expect(dialogue.getByText('Exploration proposée')).toBeVisible({ timeout: 15_000 })
+  await expect(dialogue.getByText(/Lancement dans [1-4]/)).toBeVisible()
+  await expect(dialogue).toHaveCount(0, { timeout: 8000 })
+  await expect.poll(() => calls.starts.length).toBe(1)
+  expect(calls.starts[0]).toMatchObject({ mode: 'qa', pilotage: 'exploration', instruction: '', plan: null, source: 'voix' })
+  expect(calls.plans).toHaveLength(0) // une exploration ne passe pas par le plan
 })

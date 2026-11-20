@@ -183,3 +183,29 @@ test('le lancement direct seulement quand tout est prêt ; sinon le studio', asy
   assert.equal(lancementPossible({ volet: 'qa', catalogue: { connexion: true } }), 'studio') // un compte saisi pour la mission
   assert.equal(lancementPossible({ volet: 'pentest', catalogue: { connexion: false } }), 'studio') // jamais en Pentest
 })
+
+// ── D-57 bis : la pertinence avant tout lancement seul (les phrases réelles du 20/11) ─────────────────────────
+test('chercher des bugs, des boutons ou liens cassés, ou tout le site : une exploration', async () => {
+  const { intentionExploration } = await import('../lib/expert/actions.mjs')
+  for (const q of ['Je veux vérifier que Ardoise n’a pas de bouton qui bug.', 'Vérifie qu’aucun lien ne mène à une erreur.', 'Explore le site',
+    'Teste tous les boutons', 'Est-ce que des pages sont cassées ?', 'Fais le tour de l’application', 'Trouve les problèmes'])
+    assert.equal(intentionExploration(q), true, q)
+  for (const q of ['Vérifie que le bouton Factures mène à la liste des factures.', 'Vérifie que la page Relances affiche 4 relances programmées.'])
+    assert.equal(intentionExploration(q), false, q)
+})
+
+test('une dictée coupée ne se devine pas', async () => {
+  const { questionTronquee } = await import('../lib/expert/actions.mjs')
+  for (const q of ['Je veux vérifier que Ardoise n’a pas de bouton qui.', 'Vérifie que la page', 'Vérifie', ''])
+    assert.equal(questionTronquee(q, 'Ardoise'), true, q)
+  for (const q of ['Vérifie que la page Relances affiche 4 relances programmées.', 'Je veux vérifier que Ardoise n’a pas de bouton qui bug.'])
+    assert.equal(questionTronquee(q, 'Ardoise'), false, q)
+})
+
+test('une consigne ne part seule que si elle reprend la question, sans citation inventée', async () => {
+  const { consigneProche } = await import('../lib/expert/actions.mjs')
+  assert.equal(consigneProche('Vérifie que la page Relances affiche 4 relances programmées.', 'Ouvre la page Relances, puis vérifie que la page affiche « 4 relances programmées ».', 'Ardoise'), true)
+  assert.equal(consigneProche('Vérifie que le bouton Factures mène à la liste des factures.', 'Clique sur le bouton Factures, puis vérifie que la page affiche « liste des factures ».', 'Ardoise'), true)
+  assert.equal(consigneProche('Je veux vérifier les factures en retard.', 'Ouvre l’accueil, puis vérifie que la page affiche « Bienvenue ».', 'Ardoise'), false)
+  assert.equal(consigneProche('Vérifie les relances.', 'Ouvre la page d’accueil, puis vérifie que la page affiche « Bonjour ».', 'Ardoise'), false)
+})
