@@ -14,6 +14,7 @@
 /sentinelqa/rapports/
 /contributions/qa-demo/
 /contributions/kimi-pentest/preuves/
+/contributions/marketing-hsentinel/
 
 # Jamais : secrets, dépendances, artefacts générés
 .env

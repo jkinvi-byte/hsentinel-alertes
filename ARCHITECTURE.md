@@ -466,7 +466,6 @@ contributions/
   hf-pentest/           banc distinct : d'un inventaire aux contrôles S-PEER-02
   defense-cto/          dossier de défense technique et fiche orale du CTO
   design-console/       le brief de la refonte Lovable de l'espace connecté (D-55)
-  marketing-hsentinel/  le film de marque : brief, script, prompts, essais, et la vidéo de 30 s avec ses pistes audio
 ```
 
 ## 14. Les travaux de l'équipe hors de `main`
