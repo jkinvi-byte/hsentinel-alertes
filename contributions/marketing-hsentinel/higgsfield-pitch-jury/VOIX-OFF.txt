@@ -1,0 +1,15 @@
+Une nouvelle version. Et les mêmes vérifications à refaire.
+
+Avec HSentinel, décrivez votre parcours. À la voix ou par écrit. Relisez le plan, puis lancez.
+
+L'agent utilise l'interface, ouvre les menus et suit le parcours. Le code vérifie les critères attendus. Est-ce que ça fonctionne ?
+
+Et qui peut accéder à quoi ? Sur notre banc fictif, nous vérifions si un compte accède aux données d'un autre.
+
+Attendu. Observé. Preuve. Chaque résultat est explicite. Quand les éléments manquent, le contrôle reste non concluant.
+
+Des essais sur de vrais sites. Une détection mesurée sur des défauts connus. Des résultats documentés.
+
+Pour les équipes SaaS qui veulent déléguer leurs vérifications.
+
+HSentinel. Votre équipe construit. Nous vérifions.

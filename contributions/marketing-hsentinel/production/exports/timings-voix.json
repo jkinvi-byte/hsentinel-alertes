@@ -1,0 +1,38 @@
+[
+  {
+    "scene": 1,
+    "debut_s": 0.3,
+    "fin_s": 3.841,
+    "gain_db": -1.62
+  },
+  {
+    "scene": 2,
+    "debut_s": 5.3,
+    "fin_s": 9.152,
+    "gain_db": -1.62
+  },
+  {
+    "scene": 3,
+    "debut_s": 10.3,
+    "fin_s": 14.033,
+    "gain_db": -1.73
+  },
+  {
+    "scene": 4,
+    "debut_s": 15.3,
+    "fin_s": 18.927,
+    "gain_db": -1.62
+  },
+  {
+    "scene": 5,
+    "debut_s": 20.3,
+    "fin_s": 23.308,
+    "gain_db": -2.71
+  },
+  {
+    "scene": 6,
+    "debut_s": 25.3,
+    "fin_s": 29.48,
+    "gain_db": -1.77
+  }
+]

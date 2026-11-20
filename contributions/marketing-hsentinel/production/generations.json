@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "date": "2026-11-19",
+  "brand": "HSentinel",
+  "status": "Brouillon publicitaire; offre proposée; non publié",
+  "format": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 24,
+    "duration_s": 30
+  },
+  "generative_assets": [
+    {
+      "file": "media/p1.webp",
+      "space": "mcp-tools/z-image-turbo",
+      "source_url": "https://mcp-tools-z-image-turbo.hf.space/--replicas/8gnx2/gradio_api/file=/tmp/gradio/400c308d2a00c9e00977c1c0de2d8adb7a3601dc54b63f39fe20ae5bfc971feb/image.webp",
+      "prompt": "A three-dimensional still life of exactly three dark navy rectangular glass slabs standing upright on a matte charcoal platform. The slabs are arranged in receding depth like overlapping empty window frames. Thin blue illuminated edges and one fine blue light line trace the bases. The entire upper third of the image is a smooth uniformly dark gray wall. The flat opaque interiors of the three slabs are plain dark navy. Soft cool side light, precise machined metal bevels, realistic restrained reflections, elegant geometric perspective from a slightly low three-quarter angle. Widescreen 16:9 photograph of this abstract geometric installation. Only glass slabs, light lines, wall and floor are visible.",
+      "use": "fond animé au montage"
+    },
+    {
+      "file": "media/p3.webp",
+      "space": "mcp-tools/z-image-turbo",
+      "source_url": "https://mcp-tools-z-image-turbo.hf.space/--replicas/8gnx2/gradio_api/file=/tmp/gradio/c7b7a105fdbe7f338aa9766870296f87bd8161bb40845298cdbd5fc919f27936/image.webp",
+      "use": "fond animé au montage"
+    },
+    {
+      "file": "media/p4-reference.webp",
+      "space": "mcp-tools/z-image-turbo",
+      "source_url": "https://mcp-tools-z-image-turbo.hf.space/--replicas/8gnx2/gradio_api/file=/tmp/gradio/738133669bc6d5504073641b1298b4f2f161d00935a8482e937ea4f701dbbb69/image.webp",
+      "prompt": "Premium cinematic product visualization for a B2B SaaS software verification brand, widescreen 16:9. In a dark graphite studio, two identical upright navy rectangular glass panels sit side by side on a matte graphite surface, separated by a thin transparent vertical divider. Each panel contains one simple small blank document-shaped tile, geometrically precise, no written content. A thin electric-blue light path leads from the right panel toward the divider. Restrained coral accent only at the central boundary. Cool blue side lighting, controlled reflections, brushed metal edges, subtle atmospheric depth, carefully balanced symmetrical composition, large clean empty upper third for typography to be added later. High-end three-dimensional motion-design still frame, realistic materials, crisp edges, elegant depth of field while keeping both panels clear. Palette near #0b0e14, #111722, #3b82f6, #ff5a52. Plain unmarked surfaces, no lettering, no people."
+    },
+    {
+      "file": "media/p4.mp4",
+      "space": "Lightricks/LTX-2.5",
+      "source_url": "https://lightricks-ltx-2-5.hf.space/--replicas/9qvt2/gradio_api/file=/tmp/gradio/c6af4ab554c5230a0e0fb0f2b8e342f00e81018fa59de1e348dd5833305cec21/tmp0pyj6pfy.mp4",
+      "parameters": {
+        "prompt": "A five-second cinematic product animation presents two identical upright navy panels, side by side, separated by a narrow transparent divider in a deep graphite studio. Each panel contains a single simple unmarked document-shaped tile, and the two tiles remain clearly distinct. A thin blue light path begins at the right panel and approaches the central divider; the segment at the divider becomes a restrained coral accent, drawing attention to the boundary being examined. The camera makes a slow shallow orbit while keeping both panels and the divider visible throughout. Precise glass edges, soft directional lighting, subtle reflections, and restrained motion blur create a premium technical aesthetic. The upper third and both panel interiors retain generous clean space for account labels and product evidence to be composited later. A single soft electronic pulse marks the boundary inspection, and a quiet ambient hum continues beneath it.",
+        "height": 576,
+        "width": 1024,
+        "duration_s": 5,
+        "seed": 42,
+        "decoder": "conv",
+        "auto_len": false,
+        "randomize_seed": false,
+        "do_enhance": false,
+        "image_path": "https://mcp-tools-z-image-turbo.hf.space/--replicas/8gnx2/gradio_api/file=/tmp/gradio/738133669bc6d5504073641b1298b4f2f161d00935a8482e937ea4f701dbbb69/image.webp"
+      },
+      "use": "premières 2,6 secondes, ralenties au montage; audio d’origine retiré"
+    },
+    {
+      "file": "media/p5.webp",
+      "space": "mcp-tools/z-image-turbo",
+      "source_url": "https://mcp-tools-z-image-turbo.hf.space/--replicas/8gnx2/gradio_api/file=/tmp/gradio/3ac44878925ffc58eca213a48d027624bc1a678e3732bee3e2232b878644aacb/image.webp",
+      "use": "fond animé au montage"
+    }
+  ],
+  "voice": [
+    {
+      "file": "media/voix-1.wav",
+      "text": "Nouvelle release. Les parcours et les accès restent à revérifier.",
+      "source_url": "https://mowdep-kokoro-french.hf.space/--replicas/f2qn7/gradio_api/file=/tmp/gradio/4d7d8ce1deb1891c95e49885b06033f613d1bdb6b19ae0767c617374deed7599/audio.wav",
+      "space": "Mowdep/kokoro-french",
+      "model": "Kokoro ONNX",
+      "voice": "ff_siwis",
+      "speed": 1.05
+    },
+    {
+      "file": "media/voix-2.wav",
+      "text": "Hache Sentinel réunit kiou-é et pentest dans votre console.",
+      "source_url": "https://mowdep-kokoro-french.hf.space/--replicas/f2qn7/gradio_api/file=/tmp/gradio/c95b99678d72adb82e551347a25481ed8b97da81773bbb40591023467a61d06f/audio.wav",
+      "space": "Mowdep/kokoro-french",
+      "model": "Kokoro ONNX",
+      "voice": "ff_siwis",
+      "speed": 1.05
+    },
+    {
+      "file": "media/voix-3.wav",
+      "text": "Kiou-é : décrivez le parcours. L’agent l’exécute à l’écran.",
+      "source_url": "https://mowdep-kokoro-french.hf.space/--replicas/f2qn7/gradio_api/file=/tmp/gradio/a73c7e75e78d3b85418d7d5ac98159d950093d6d6d289101eee3fbc319d2ade7/audio.wav",
+      "space": "Mowdep/kokoro-french",
+      "model": "Kokoro ONNX",
+      "voice": "ff_siwis",
+      "speed": 1.05
+    },
+    {
+      "file": "media/voix-4.wav",
+      "text": "Pentest : testez les accès entre comptes, sur un périmètre défini.",
+      "source_url": "https://mowdep-kokoro-french.hf.space/--replicas/f2qn7/gradio_api/file=/tmp/gradio/acfc5747cfeba9a4d85732eba9be82c16640e18e1025f2be852566311cbd6d3a/audio.wav",
+      "space": "Mowdep/kokoro-french",
+      "model": "Kokoro ONNX",
+      "voice": "ff_siwis",
+      "speed": 1.05
+    },
+    {
+      "file": "media/voix-5.wav",
+      "text": "Vous récupérez les étapes, les captures et les résultats.",
+      "source_url": "https://mowdep-kokoro-french.hf.space/--replicas/f2qn7/gradio_api/file=/tmp/gradio/e5d8ee6439952f5fabbab11517ef813df01e9c46321fed306fa63406417fb6fa/audio.wav",
+      "space": "Mowdep/kokoro-french",
+      "model": "Kokoro ONNX",
+      "voice": "ff_siwis",
+      "speed": 1.05
+    },
+    {
+      "file": "media/voix-6.wav",
+      "text": "Hache Sentinel. Premier parcours kiou-é offert. Voyez les preuves.",
+      "source_url": "https://mowdep-kokoro-french.hf.space/--replicas/f2qn7/gradio_api/file=/tmp/gradio/50031b017a4e38d5d8bc8d5972753342ec4c17c6c0bba68662ff1441c05c9e87/audio.wav",
+      "space": "Mowdep/kokoro-french",
+      "model": "Kokoro ONNX",
+      "voice": "ff_siwis",
+      "speed": 1.05
+    }
+  ],
+  "notes": [
+    "Quota ZeroGPU gratuit épuisé après un clip LTX et les images. Aucune dépense payante engagée.",
+    "Plans 2 et 6 : composition graphique locale.",
+    "Les interfaces et scénarios du film sont des illustrations, pas des enregistrements de missions.",
+    "Aucun résultat client, aucune donnée d’étudiant et aucun secret dans les images.",
+    "Musique instrumentale générée localement par synthèse originale.",
+    "Aucune publication de la publicité n’a été effectuée."
+  ]
+}

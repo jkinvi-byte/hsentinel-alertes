@@ -1,6 +1,6 @@
 # Architecture de HSentinel
 
-> État au 19/11/2026, 16 h 45, relu contre le code et les rapports d'exécution. Depuis le 18/11 à 19 h 39, l'équipe travaille dans l'espace H de Jahdiel. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md). La section 6 décrit le scanner générique livré et le contrôle d'accès intégré.
+> État au 20/11/2026, 10 h 50 : décisions D-55 à D-59 intégrées (section 11), carte du code à jour (section 13) ; le reste relu contre le code et les rapports d'exécution le 19/11 à 16 h 45. Depuis le 18/11 à 19 h 39, l'équipe travaille dans l'espace H de Jahdiel. Ce document décrit ce qui tourne aujourd'hui, brique par brique : une idée par section, avec son schéma, ses fichiers et ses mesures. Ce qui reste à faire est dans [SUIVI.md](SUIVI.md). La section 6 décrit le scanner générique livré et le contrôle d'accès intégré.
 
 0. [Ce qui a changé depuis le document du 17/11](#0-ce-qui-a-changé-depuis-le-document-du-1711)
 1. [Vue d'ensemble](#1-vue-densemble)
@@ -431,7 +431,10 @@ sentinelqa/
     qa_worker.py        QA : file Supabase, arrêt, fil en direct
     base.py             accès à Supabase (REST et psql)
     cle_runner.py       la clé RSA du runner, qui déchiffre les mots de passe du banc
+    applications.py     applications ajoutées par un client (D-56) : relecture, profil imposé, garde réseau, comptes de test
+    veille.py           la veille des mises à jour : empreinte HTTP toutes les 15 min, une exploration QA quand elle change (D-43)
     sentinelqa.py       pentest : orchestration du banc et file des audits
+    pentest_libre.py    pentest passif S-GEN-DISCOVERY-01 sur une application ajoutée et vérifiée
     missions.py         pentest : scénarios, routage du scanner et S-PEER-02
     pentest/            scanner : profils, réseau, authentification.py, acces.py, navigateur, contrôles, HF, ZAP et rapport
     agents_h.py         agents du banc (explorateur, vérificateur)
@@ -445,18 +448,25 @@ sentinelqa/
     app/audits/         lancement (QA et pentest), suivi pentest
     app/examen/         index des relevés pentest
     app/api/            routes serveur
-    lib/                accès Supabase, contrat QA, dictée, formats
-  web-console/          la console de l'équipe (interface d'un camarade, raccordée par Codex) ; en ligne sur Vercel
+    lib/                accès Supabase, contrat QA, dictée, formats ; applications.js et applications-contrat.mjs (ajout, jeton, comptes, D-56) ; pentest-libre.mjs
+  web-console/          la console de l'équipe, en ligne sur Vercel :
+    lib/expert/         l'expert du studio : Manuel, voix, conversation, et actions.mjs (orientation, pertinence, lancement : règles écrites)
+    lib/visites.ts      les visites guidées, une par page (D-59) ; le « ? » est dans components/console/visite-guidee.tsx
+    components/console/applications/  « Ajouter une application » et « Vos applications » (D-56)
   contrats/qa.json      cibles QA, budgets, consignes de préparation
   contrats/catalogue.json  scénarios sur sites réels (pentest)
   contrats/pentest/     profils autorisés : banc local, Juice Shop local, Peer Review et Eugenia
-  supabase/             schémas SQL ; alertes.sql : applications, constats et les fonctions de n8n
+  supabase/             schémas SQL ; alertes.sql : applications, constats et les fonctions de n8n ; applications-client.sql : applications ajoutées et comptes de test (D-56)
   n8n/                  les workflows W1, W3 et W4 exportés, et leur mise en service
   cobaye/               Paie Express, le banc à failles injectées
   cobaye_blackbox/      banc HTTP fictif : 5 failles, 4 contrôles sains et opérations interdites
+  ardoise/              Ardoise, SaaS fictif de démonstration (https://ardoise-demo-ruddy.vercel.app) : trois défauts fonctionnels plantés, documentés dans DEFAUTS.md (D-56)
 contributions/
   kimi-pentest/         S-PEER-02 : A, anonyme et B, en HTTP et dans le navigateur H ; raccordé au runner
   hf-pentest/           banc distinct : d'un inventaire aux contrôles S-PEER-02
+  defense-cto/          dossier de défense technique et fiche orale du CTO
+  design-console/       le brief de la refonte Lovable de l'espace connecté (D-55)
+  marketing-hsentinel/  le film de marque : brief, script, prompts, essais, et la vidéo de 30 s avec ses pistes audio
 ```
 
 ## 14. Les travaux de l'équipe hors de `main`
