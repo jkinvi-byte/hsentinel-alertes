@@ -209,3 +209,10 @@ test('une consigne ne part seule que si elle reprend la question, sans citation 
   assert.equal(consigneProche('Je veux vérifier les factures en retard.', 'Ouvre l’accueil, puis vérifie que la page affiche « Bienvenue ».', 'Ardoise'), false)
   assert.equal(consigneProche('Vérifie les relances.', 'Ouvre la page d’accueil, puis vérifie que la page affiche « Bonjour ».', 'Ardoise'), false)
 })
+
+test('la proposition d’exploration élide et contracte correctement', async () => {
+  const { propositionExploration } = await import('../lib/expert/actions.mjs')
+  assert.match(propositionExploration('Ardoise').reponse, /exploration d’Ardoise :/)
+  assert.match(propositionExploration('Peer Review').reponse, /exploration de Peer Review :/)
+  assert.match(propositionExploration('').reponse, /exploration du site :/)
+})

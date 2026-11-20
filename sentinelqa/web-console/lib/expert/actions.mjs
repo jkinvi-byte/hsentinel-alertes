@@ -86,8 +86,10 @@ export function consigneProche(question, consigne, app = '') {
 /** La proposition d'exploration, dite par la règle (pas par le modèle) : ce qu'elle fait, et ce qu'elle ne fait pas. */
 export function propositionExploration(app) {
   const nom = app || 'le site'
+  // L'élision et la contraction : « d’Ardoise », « du site », « de Peer Review ».
+  const deNom = /^le /i.test(nom) ? `du ${nom.slice(3)}` : /^[aeiouyhàâéèêëîïôûü]/i.test(nom) ? `d’${nom}` : `de ${nom}`
   return {
-    reponse: `Pour trouver ce qui ne marche pas, je propose une exploration de ${nom} : l’agent ouvre chaque entrée du menu, 6 pages au plus, et le code relève les liens cassés, les erreurs et les textes anormaux. Il clique sur ce qui navigue, jamais sur ce qui enregistre ou envoie.`,
+    reponse: `Pour trouver ce qui ne marche pas, je propose une exploration ${deNom} : l’agent ouvre chaque entrée du menu, 6 pages au plus, et le code relève les liens cassés, les erreurs et les textes anormaux. Il clique sur ce qui navigue, jamais sur ce qui enregistre ou envoie.`,
     consigne: `Explorer ${nom} : ouvrir chaque entrée du menu, 6 pages au plus, et relever les liens cassés, les erreurs et les textes anormaux.`,
   }
 }

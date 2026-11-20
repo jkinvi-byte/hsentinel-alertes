@@ -819,3 +819,41 @@ test('Mode conversation : une chasse aux bugs devient une exploration, qui part 
   expect(calls.starts[0]).toMatchObject({ mode: 'qa', pilotage: 'exploration', instruction: '', plan: null, source: 'voix' })
   expect(calls.plans).toHaveLength(0) // une exploration ne passe pas par le plan
 })
+
+// ── D-59 : la visite guidée de chaque page, lancée par le « ? » de la barre du haut ─────────────────────────────
+
+test('Visite guidée du studio : un « ? », un curseur, une bulle par élément ; clavier, fin et mémoire', async ({ page }) => {
+  await loginCookie(page); await fixtures(page)
+  await page.goto('/app/nouveau')
+  const bouton = page.getByRole('button', { name: 'Visite guidée de la page : Nouvelle mission' })
+  await bouton.click()
+  const bulle = page.getByRole('dialog', { name: 'L’expert QA' })
+  await expect(bulle).toBeVisible()
+  await expect(bulle).toContainText('Nouvelle mission · 1 sur 4') // site public : pas d'étape « compte de test »
+  await expect(page.locator('.lv-visite-halo')).toBeVisible()
+  await expect(page.locator('.lv-visite-curseur')).toBeAttached()
+  await bulle.getByRole('button', { name: 'Suivant' }).click()
+  await expect(page.getByRole('dialog', { name: 'L’application testée' })).toContainText('2 sur 4')
+  await page.keyboard.press('ArrowRight')
+  await expect(page.getByRole('dialog', { name: 'Les paramètres manuels' })).toBeVisible()
+  await page.keyboard.press('ArrowLeft')
+  await expect(page.getByRole('dialog', { name: 'L’application testée' })).toBeVisible()
+  await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight')
+  const fin = page.getByRole('dialog', { name: 'Lancer la mission' })
+  await expect(fin).toContainText('4 sur 4')
+  await fin.getByRole('button', { name: 'Terminer' }).click()
+  await expect(page.locator('.lv-visite')).toHaveCount(0)
+  await expect(bouton).toBeFocused()
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('hs_visites') || '[]'))).toContain('studio')
+})
+
+test('Visite guidée : la vue d’ensemble en six étapes, Échap ferme, et une page sans visite n’a pas de « ? »', async ({ page }) => {
+  await loginCookie(page); await fixtures(page)
+  await page.goto('/app')
+  await page.getByRole('button', { name: 'Visite guidée de la page : Vue d’ensemble' }).click()
+  await expect(page.getByRole('dialog', { name: 'Parler à l’expert' })).toContainText('Vue d’ensemble · 1 sur 6')
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.lv-visite')).toHaveCount(0)
+  await page.goto('/app/compte')
+  await expect(page.getByRole('button', { name: /Visite guidée de la page/ })).toHaveCount(0)
+})

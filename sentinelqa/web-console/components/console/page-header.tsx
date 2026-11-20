@@ -1,5 +1,6 @@
 import { ChevronRight } from 'lucide-react'
 import Link from 'next/link'
+import { BoutonVisite } from './visite-guidee'
 
 type Crumb = { label: string; href?: string }
 
@@ -33,6 +34,8 @@ export function TopBar({ crumbs }: { crumbs: Crumb[] }) {
         </ol>
       </nav>
       <div className="lv-topbar-actions">
+        {/* D-59 : la visite guidée de la page affichée. */}
+        <BoutonVisite />
         <span className="lv-etat">Accès opérateur</span>
         <Link href="/app/compte" aria-label="Mon compte" className="lv-avatar-rond">É</Link>
       </div>
